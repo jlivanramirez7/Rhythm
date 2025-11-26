@@ -1,10 +1,10 @@
 steps:
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/rhythm', '.']
+    args: ['build', '-t', 'gcr.io/secret-bloom-474313-m8/rhythm', '.']
   # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/rhythm']
+    args: ['push', 'gcr.io/secret-bloom-474313-m8/rhythm']
   # Grant the Cloud Build service account access to the secrets
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
@@ -28,7 +28,7 @@ steps:
       - 'deploy'
       - 'rhythm'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/rhythm'
+      - 'gcr.io/secret-bloom-474313-m8/rhythm'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -38,4 +38,4 @@ steps:
       - 'secret-bloom-474313-m8:us-central1:rhythm-db'
       - '--update-secrets=GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,SESSION_SECRET=SESSION_SECRET:latest,AUTHORIZED_USERS=AUTHORIZED_USERS:latest,DB_USER=DB_USER:latest,DB_PASSWORD=DB_PASSWORD:latest,DB_DATABASE=DB_DATABASE:latest,DB_PORT=DB_PORT:latest,DB_HOST=DB_HOST:latest'
 images:
-  - 'gcr.io/$PROJECT_ID/rhythm'
+  - 'gcr.io/secret-bloom-474313-m8/rhythm'
