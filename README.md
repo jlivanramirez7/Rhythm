@@ -234,3 +234,5 @@ Now, whenever you push a change to the `main` branch, Cloud Build will automatic
 Access to the application is restricted using Google OAuth 2.0. Only authorized users can log in and access the application's features.
 
 When a user first visits the application, they are presented with a welcome page with a "Login with Google" button. After a successful login, they are redirected to the main application page.
+
+<!-- This is a comment to trigger a new build -->
