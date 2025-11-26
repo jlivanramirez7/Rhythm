@@ -1,25 +1,30 @@
 const { Pool } = require('pg');
 const Chance = require('chance');
-require('dotenv').config();
+
+if (process.env.NODE_ENV !== 'production') {
+    require('dotenv').config();
+}
 
 const chance = new Chance();
 
-const dbConfig = {
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,
-};
+const getDbConfig = () => {
+    const dbConfig = {
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_DATABASE,
+    };
 
-if (process.env.INSTANCE_UNIX_SOCKET) {
-  dbConfig.host = process.env.INSTANCE_UNIX_SOCKET;
-} else {
-  dbConfig.host = process.env.DB_HOST;
-  dbConfig.port = process.env.DB_PORT;
+    if (process.env.INSTANCE_UNIX_SOCKET) {
+      dbConfig.host = process.env.INSTANCE_UNIX_SOCKET;
+    } else {
+      dbConfig.host = process.env.DB_HOST;
+      dbConfig.port = process.env.DB_PORT;
+    }
+    return dbConfig;
 }
 
-const pool = new Pool(dbConfig);
-
 const seed = async () => {
+  const pool = new Pool(getDbConfig());
   const client = await pool.connect();
   try {
     console.log('Clearing existing data...');
@@ -69,10 +74,17 @@ const seed = async () => {
     console.log('Database seeded successfully.');
   } catch (err) {
     console.error('Error seeding database:', err);
+    if (process.env.NODE_ENV === 'test') {
+        throw err;
+    }
   } finally {
     client.release();
     pool.end();
   }
 };
 
-seed();
+if (require.main === module) {
+    seed();
+}
+
+module.exports = { seed, getDbConfig };
