@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const dayOfMonth = dayDate.getDate();
                     const month = dayDate.getMonth() + 1;
-                    const formattedDate = `${String(dayOfMonth).padStart(2, '0')}/${String(month).padStart(2, '0')}`;
+                    const formattedDate = `${String(month).padStart(2, '0')}/${String(dayOfMonth).padStart(2, '0')}`;
                     const dateDiv = document.createElement('div');
                     dateDiv.className = 'day-date';
                     dateDiv.textContent = formattedDate;
