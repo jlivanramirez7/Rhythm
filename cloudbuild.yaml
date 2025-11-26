@@ -18,7 +18,6 @@ steps:
       - 'seed:cloud'
   # Deploy container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
->>>>>>> 29990ec (M  cloudbuild.yaml)
     entrypoint: gcloud
     args:
       - 'run'
