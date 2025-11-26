@@ -4,13 +4,20 @@ require('dotenv').config();
 
 const chance = new Chance();
 
-const pool = new Pool({
+const dbConfig = {
   user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_DATABASE,
   password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-});
+  database: process.env.DB_DATABASE,
+};
+
+if (process.env.INSTANCE_UNIX_SOCKET) {
+  dbConfig.host = process.env.INSTANCE_UNIX_SOCKET;
+} else {
+  dbConfig.host = process.env.DB_HOST;
+  dbConfig.port = process.env.DB_PORT;
+}
+
+const pool = new Pool(dbConfig);
 
 const seed = async () => {
   const client = await pool.connect();
