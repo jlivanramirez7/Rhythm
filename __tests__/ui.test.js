@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Load the HTML file
-const indexHtml = fs.readFileSync(path.resolve(__dirname, '../public/index.html'), 'utf8');
+const appHtml = fs.readFileSync(path.resolve(__dirname, '../public/app.html'), 'utf8');
 
 // Mock the fetch function
 global.fetch = jest.fn(() =>
@@ -23,7 +23,7 @@ describe('UI Tests', () => {
   });
 
   it('should render the main page', () => {
-    document.body.innerHTML = indexHtml;
+    document.body.innerHTML = appHtml;
     const title = document.querySelector('h1');
     expect(title.textContent).toBe('Rhythm');
   });
@@ -57,18 +57,23 @@ describe('UI Tests', () => {
         }
     });
 
-    // Manually trigger the function that runs on DOMContentLoaded
-    const app = require('../public/app.js');
-    document.body.innerHTML = indexHtml;
-    app.init();
-    await app.fetchAndRenderData();
+    // Load the app code
+    require('../public/app.js');
+    
+    // Set the HTML content
+    document.body.innerHTML = appHtml;
 
-    // Wait for the DOM to update
+    // Dispatch the DOMContentLoaded event
+    document.dispatchEvent(new Event('DOMContentLoaded', {
+        bubbles: true,
+        cancelable: true
+    }));
+
+    // Wait for the async operations in fetchAndRenderData to complete
     await new Promise(resolve => setTimeout(resolve, 0));
 
     const cycleElements = document.querySelectorAll('.cycle');
     expect(cycleElements.length).toBe(1);
     expect(cycleElements[0].querySelector('.cycle-header').textContent).toContain('Cycle 1');
   });
-
 });

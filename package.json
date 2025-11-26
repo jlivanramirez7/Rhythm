@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/jlivanramirez7/Rhythm#readme",
   "dependencies": {
+    "@google-cloud/secret-manager": "^6.1.1",
     "chance": "^1.1.13",
     "dotenv": "^17.2.3",
     "ejs": "^3.1.10",

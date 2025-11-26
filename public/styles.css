@@ -14,6 +14,17 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    position: relative;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+}
+
+.header-logo {
+    height: 40px;
+    margin-right: 10px;
 }
 
 main {
@@ -238,8 +249,35 @@ button:hover {
     text-align: center;
 }
 
-.menu-container {
-    position: relative;
+.menu-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 0;
+}
+
+.menu-toggle span {
+    background: #fff;
+    border-radius: 2px;
+    display: block;
+    height: 3px;
+    width: 25px;
+    transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+.menu-toggle.active span:nth-child(1) {
+    transform: rotate(45deg) translate(5px, 5px);
+}
+
+.menu-toggle.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.menu-toggle.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(5px, -5px);
 }
 
 .menu-content {
@@ -263,7 +301,7 @@ button:hover {
     background-color: #f1f1f1;
 }
 
-.menu-container:hover .menu-content {
+.menu-content.active {
     display: block;
 }
 
