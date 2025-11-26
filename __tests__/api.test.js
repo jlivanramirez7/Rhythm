@@ -123,4 +123,27 @@ describe('Rhythm API', () => {
         const deletedCycle = cyclesRes.body.find(c => c.id === cycleId);
         expect(deletedCycle).toBeUndefined();
     });
+
+    it('should update a day card with a new reading', async () => {
+        await request(app)
+            .post('/api/cycles')
+            .send({ start_date: '2025-01-01' });
+
+        const readingRes = await request(app)
+            .post('/api/cycles/days')
+            .send({ date: '2025-01-02', hormone_reading: 'Low' });
+        
+        const dayId = readingRes.body.id;
+
+        const updateRes = await request(app)
+            .put(`/api/cycles/days/${dayId}`)
+            .send({ hormone_reading: 'High' });
+
+        expect(updateRes.statusCode).toEqual(200);
+
+        const cyclesRes = await request(app).get('/api/cycles');
+        const cycle = cyclesRes.body.find(c => c.start_date === '2025-01-01');
+        const updatedReading = cycle.days.find(d => d.id === dayId);
+        expect(updatedReading.hormone_reading).toBe('High');
+    });
 });
