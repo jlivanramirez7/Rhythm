@@ -5,17 +5,6 @@ steps:
   # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/rhythm']
-  # Seed the database
-  - name: 'gcr.io/google-appengine/exec-wrapper'
-    args:
-      - '-i'
-      - 'gcr.io/$PROJECT_ID/rhythm'
-      - '-s'
-      - '$PROJECT_ID:us-central1:rhythm-db'
-      - '--'
-      - 'npm'
-      - 'run'
-      - 'seed:cloud'
   # Deploy container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
