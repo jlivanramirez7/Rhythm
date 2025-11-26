@@ -217,4 +217,41 @@ router.delete('/cycles/:id', async (req, res) => {
     }
 });
 
+// Update a specific day's reading
+router.put('/cycles/days/:id', async (req, res) => {
+    const { id } = req.params;
+    const { hormone_reading, intercourse } = req.body;
+
+    const fieldsToUpdate = [];
+    const values = [];
+
+    if (hormone_reading !== undefined) {
+        fieldsToUpdate.push('hormone_reading = ?');
+        values.push(hormone_reading);
+    }
+    if (intercourse !== undefined) {
+        fieldsToUpdate.push('intercourse = ?');
+        values.push(intercourse ? 1 : 0);
+    }
+
+    if (fieldsToUpdate.length === 0) {
+        return res.status(400).send('No updateable fields provided.');
+    }
+
+    values.push(id); // Add the ID for the WHERE clause
+
+    try {
+        const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`);
+        const result = await db.run(updateSql, values);
+        
+        if (result.changes === 0) {
+            return res.status(404).send('Reading not found.');
+        }
+        res.status(200).json({ id, message: 'Reading updated.' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ error: 'Failed to update reading' });
+    }
+});
+
 module.exports = router;
