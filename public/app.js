@@ -89,11 +89,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 cycleHeader.textContent = `Cycle ${cycleNumber} started on ${startDate.toLocaleDateString()} (Length: ${Math.floor(cycleLength)} days)`;
                 cycleDiv.appendChild(cycleHeader);
 
+                const menuContainer = document.createElement('div');
+                menuContainer.className = 'cycle-menu-container';
+                
                 const menuButton = document.createElement('div');
                 menuButton.className = 'cycle-menu-button';
                 menuButton.innerHTML = `<span></span><span></span><span></span>`;
-                menuButton.onclick = () => toggleEditMode(cycleDiv, cycle.id);
-                cycleDiv.appendChild(menuButton);
+                menuContainer.appendChild(menuButton);
+
+                const menuContent = document.createElement('div');
+                menuContent.className = 'cycle-menu-content';
+                menuContent.innerHTML = `
+                    <a href="#" class="edit-cycle">Edit</a>
+                    <a href="#" class="delete-cycle">Delete</a>
+                `;
+                menuContainer.appendChild(menuContent);
+                cycleDiv.appendChild(menuContainer);
+
+                menuButton.onclick = (e) => {
+                    e.stopPropagation();
+                    menuContent.classList.toggle('active');
+                };
+
+                menuContent.querySelector('.edit-cycle').onclick = (e) => {
+                    e.preventDefault();
+                    toggleEditMode(cycleDiv, cycle.id);
+                    menuContent.classList.remove('active');
+                };
+
+                menuContent.querySelector('.delete-cycle').onclick = (e) => {
+                    e.preventDefault();
+                    deleteCycle(cycle.id);
+                };
 
                 const dayGrid = document.createElement('div');
                 dayGrid.className = 'day-grid';
