@@ -6,7 +6,7 @@ const { loadSecrets } = require('./secrets');
 const apiRouter = require('./api');
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 async function startServer() {
     if (process.env.NODE_ENV === 'production') {
@@ -76,7 +76,7 @@ async function startServer() {
 
     // Start server
     app.listen(port, () => {
-        console.log(`Rhythm app listening at http://localhost:${port}`);
+        console.log(`Rhythm app listening on port ${port}`);
     });
 }
 
