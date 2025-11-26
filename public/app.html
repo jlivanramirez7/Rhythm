@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rhythm - Ovulation Tracker</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <header>
+        <img src="logo.png" alt="Rhythm Logo" width="100">
+        <h1>Rhythm</h1>
+        <div class="menu-container">
+            <div class="menu-button">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="menu-content">
+                <a href="/logout" class="button">Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section id="analytics-section">
+            <h2>Analytics</h2>
+            <p><strong>Average Cycle Length:</strong> <span id="avg-cycle-length">--</span> days</p>
+            <p><strong>Average Days to Peak:</strong> <span id="avg-days-to-peak">--</span> days</p>
+            <p><strong>Average Fertile Window:</strong> <span id="avg-fertile-window">--</span> days</p>
+            <p><strong>Estimated Next Period:</strong> <span id="estimated-next-period">--</span></p>
+            <p><strong>Estimated Fertile Window:</strong> <span id="fertile-window-start">--</span> to <span id="fertile-window-end">--</span></p>
+        </section>
+
+        <section id="input-section" class="form-container">
+            <h2>Log Today's Reading</h2>
+            <form id="reading-form">
+                <div>
+                    <input type="checkbox" id="range-checkbox" name="range-checkbox">
+                    <label for="range-checkbox">Set Date Range</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="intercourse-checkbox" name="intercourse">
+                    <label for="intercourse-checkbox">Intercourse</label>
+                </div>
+                <div class="date-input-container">
+                    <div class="form-input-group">
+                        <label for="date">Date:</label>
+                        <input type="date" id="date" name="date" required>
+                    </div>
+                    <div id="range-inputs" style="display: none;" class="form-input-group">
+                        <label for="end-date">End Date:</label>
+                        <input type="date" id="end-date" name="end-date">
+                    </div>
+                </div>
+                <div class="form-input-group">
+                    <label for="reading">Reading:</label>
+                    <select id="reading" name="reading">
+                        <option value="">-- Select --</option>
+                        <option value="Low">Low</option>
+                        <option value="High">High</option>
+                        <option value="Peak">Peak</option>
+                    </select>
+                </div>
+                <button type="submit">Log Reading</button>
+            </form>
+            <div id="period-section">
+                <label for="period-start-date">Period Start Date:</label>
+                <input type="date" id="period-start-date" name="period-start-date">
+                <button id="period-button">Start New Cycle</button>
+            </div>
+            <button id="clear-data-button" style="background-color: #dc3545;">Clear All Data</button>
+        </section>
+
+        <section id="cycles-section">
+            <h2>Your Cycles</h2>
+            <div id="cycles-container"></div>
+        </section>
+    </main>
+
+    <script src="/app.js"></script>
+</body>
+</html>

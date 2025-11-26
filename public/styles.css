@@ -1,0 +1,268 @@
+body {
+    font-family: sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background: #ecf0f1;
+    color: #34495e;
+}
+
+header {
+    background: #2c3e50;
+    color: #fff;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+main {
+    padding: 1rem;
+    max-width: 800px;
+    margin: 20px auto;
+}
+
+section {
+    background: #fff;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    border: 1px solid #dcdcdc;
+}
+
+h2 {
+    color: #333;
+}
+
+#reading-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.form-input-group {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+}
+
+.date-input-container {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end; /* Aligns items to the bottom */
+}
+
+.form-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+form#reading-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+input[type="date"], select {
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+button {
+    padding: 10px 15px;
+    border: none;
+    background: #3498db;
+    color: #fff;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #2980b9;
+}
+
+#period-button {
+    background: #e74c3c;
+}
+
+#period-button:hover {
+    background: #c0392b;
+}
+
+#cycles-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.cycle {
+    position: relative;
+    border: 1px solid #ddd;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.cycle-header {
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.day-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 10px;
+}
+
+.day {
+    position: relative;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.day .day-number {
+    font-weight: bold;
+}
+
+.day-date {
+    font-size: 0.8em;
+    color: #666;
+}
+
+.day .reading.Low { color: #3498db; }
+.day .reading.High { color: #e74c3c; }
+.day .reading.Peak { color: #c0392b; }
+
+.day.fertile-window {
+    background-color: #f2dede; /* Light red */
+}
+
+.delete-day-button {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #d9534f;
+    color: white;
+    border: 1px solid white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    line-height: 18px;
+    text-align: center;
+    cursor: pointer;
+    font-weight: bold;
+    padding: 0;
+    display: none; /* Hidden by default */
+}
+
+.edit-mode .delete-day-button {
+    display: block; /* Shown in edit mode */
+}
+
+.day .reading select {
+    width: 100%;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.menu-button {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.menu-button span {
+    display: block;
+    width: 25px;
+    height: 3px;
+    background-color: #fff;
+    border-radius: 3px;
+    transition: all 0.3s ease-in-out;
+}
+
+.edit-mode .menu-button span:nth-child(1) {
+    transform: rotate(45deg) translate(5px, 5px);
+}
+
+.edit-mode .menu-button span:nth-child(2) {
+    opacity: 0;
+}
+
+.edit-mode .menu-button span:nth-child(3) {
+    transform: rotate(-45deg) translate(5px, -5px);
+}
+
+.heart {
+    font-size: 1.2em;
+}
+
+.day .reading input[type="checkbox"] {
+    margin-left: 5px;
+}
+
+@media (max-width: 768px) {
+    main {
+        padding: 0.5rem;
+    }
+
+    form, #period-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .date-input-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+.centered {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    text-align: center;
+}
+
+.menu-container {
+    position: relative;
+}
+
+.menu-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+}
+
+.menu-content a {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+}
+
+.menu-content a:hover {
+    background-color: #f1f1f1;
+}
+
+.menu-container:hover .menu-content {
+    display: block;
+}

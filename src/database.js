@@ -1,0 +1,37 @@
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+
+const dbPath = path.resolve(__dirname, '../database/rhythm.db');
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error(err.message);
+  }
+  console.log('Connected to the rhythm database.');
+});
+
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS cycles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    start_date TEXT NOT NULL,
+    end_date TEXT
+  )`, (err) => {
+    if (err) {
+        console.error("Error creating cycles table:", err.message);
+    }
+  });
+
+  db.run(`CREATE TABLE IF NOT EXISTS cycle_days (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cycle_id INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    hormone_reading TEXT CHECK(hormone_reading IN ('Low', 'High', 'Peak')),
+    intercourse INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (cycle_id) REFERENCES cycles (id)
+  )`, (err) => {
+    if (err) {
+        console.error("Error creating cycle_days table:", err.message);
+    }
+  });
+});
+
+module.exports = db;
