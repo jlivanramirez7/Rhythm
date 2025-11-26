@@ -24,11 +24,10 @@ Rhythm is a web application designed to help users track their ovulation cycle b
 
 *   **Frontend:** HTML, CSS, and vanilla JavaScript.
 *   **Backend:** Node.js with the Express.js framework.
-*   **Database:** SQLite for local development, Cloud SQL for PostgreSQL in production.
+*   **Database:** SQLite
 *   **Development:**
     *   **Testing:** Jest, Supertest for API endpoint testing, and Jest with jsdom for UI testing.
     *   **Data Seeding:** `chance.js` for generating realistic dummy data.
-*   **Secret Management:** Google Secret Manager
 
 ## 4. Testing
 
@@ -62,15 +61,13 @@ npm test
 
 ## 5. Seeding the Database
 
-The project includes a script to populate the local SQLite database with 10 cycles of realistic dummy data, which is useful for development and testing.
+The project includes a script to populate the database with 10 cycles of realistic dummy data, which is useful for development and testing.
 
 To run the seed script:
 ```bash
 node database/seed.js
 ```
 **Note:** This will clear all existing data in the database before adding the new dummy data.
-
-A separate script is provided to seed the Cloud SQL database. See the "Deployment to Google Cloud" section for more details.
 
 ## 6. Database Schema
 
@@ -114,11 +111,9 @@ The backend exposes the following API endpoints, which are consumed by the front
 /
 ├── database/
 │   ├── rhythm.db
-│   ├── seed.js
-│   └── seed-cloud.js
+│   └── seed.js
 ├── public/
-│   ├── welcome.html
-│   ├── app.html
+│   ├── index.html
 │   ├── styles.css
 │   └── app.js
 ├── src/
@@ -127,112 +122,6 @@ The backend exposes the following API endpoints, which are consumed by the front
 │   └── api.js
 ├── __tests__/
 │   ├── api.test.js
-│   ├── intercourse.test.js
-│   └── ui.test.js
+│   └── intercourse.test.js
 ├── package.json
 └── README.md
-```
-
-## 9. Deployment to Google Cloud
-
-This section outlines the steps to deploy the application to Google Cloud Run and migrate the database to Cloud SQL.
-
-### a. Create Secrets in Secret Manager
-
-Create the following secrets in Google Secret Manager:
-
-*   `GOOGLE_CLIENT_ID`
-*   `GOOGLE_CLIENT_SECRET`
-*   `SESSION_SECRET`
-*   `AUTHORIZED_USERS`
-*   `DB_USER`
-*   `DB_PASSWORD`
-*   `DB_DATABASE`
-*   `DB_PORT`
-*   `DB_HOST`
-
-### b. Create a Cloud SQL Instance
-
-A new Cloud SQL for PostgreSQL instance will be created in your Google Cloud project.
-
-**1. Create the Cloud SQL Instance:**
-
-```bash
-gcloud sql instances create rhythm-db --database-version=POSTGRES_13 --region=us-central1 --cpu=1 --memory=4GB
-```
-
-**2. Create a Database:**
-
-```bash
-gcloud sql databases create rhythm --instance=rhythm-db
-```
-
-**3. Create a User:**
-
-```bash
-gcloud sql users create rhythm-user --instance=rhythm-db --password="password"
-```
-
-**4. Get the Connection Name:**
-
-```bash
-gcloud sql instances describe rhythm-db --format="value(connectionName)"
-```
-
-**5. Enable the Cloud SQL Admin API:**
-
-```bash
-gcloud services enable sqladmin.googleapis.com
-```
-
-### c. Seed the Cloud SQL Database
-
-To seed the Cloud SQL database, you will need to have the Cloud SQL Auth Proxy running.
-
-**1. Download and Install the Cloud SQL Auth Proxy:**
-
-Follow the instructions for your operating system here: https://cloud.google.com/sql/docs/postgres/sql-proxy
-
-**2. Start the Proxy:**
-
-Open a new terminal and run the following command, replacing `YOUR_CONNECTION_NAME` with the connection name you retrieved earlier:
-
-```bash
-./cloud-sql-proxy --address 0.0.0.0 YOUR_CONNECTION_NAME
-```
-
-**3. Run the seed script:**
-
-```bash
-node database/seed-cloud.js
-```
-
-### d. Set up Continuous Deployment
-
-To automatically deploy the application when you push changes to your GitHub repository, you will need to create a Cloud Build trigger.
-
-**1. Go to the Cloud Build Triggers page in the Google Cloud Console.**
-
-**2. Click "Create trigger".**
-
-**3. Select "GitHub" as the source.**
-
-**4. Authenticate with your GitHub account and select the `rhythm` repository.**
-
-**5. Configure the trigger settings:**
-    *   **Name:** `rhythm-deploy`
-    *   **Event:** Push to a branch
-    *   **Branch:** `main`
-    *   **Configuration:** `cloudbuild.yaml`
-
-**6. Click "Create".**
-
-Now, whenever you push a change to the `main` branch, Cloud Build will automatically build and deploy the new version of your application to Cloud Run.
-
-## 10. User Authentication
-
-Access to the application is restricted using Google OAuth 2.0. Only authorized users can log in and access the application's features.
-
-When a user first visits the application, they are presented with a welcome page with a "Login with Google" button. After a successful login, they are redirected to the main application page.
-
-<!-- This is a sixteenth comment to trigger a new build -->

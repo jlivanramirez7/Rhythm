@@ -1,12 +1,5 @@
 const app = {
   init: () => {
-    const menuButton = document.querySelector('.menu-button');
-    const menuContent = document.querySelector('.menu-content');
-
-    menuButton.addEventListener('click', () => {
-        menuContent.style.display = menuContent.style.display === 'block' ? 'none' : 'block';
-    });
-
     const readingForm = document.getElementById('reading-form');
     const periodButton = document.getElementById('period-button');
     const cyclesContainer = document.getElementById('cycles-container');

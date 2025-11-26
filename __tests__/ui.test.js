@@ -6,8 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Load the HTML file
-const welcomeHtml = fs.readFileSync(path.resolve(__dirname, '../public/welcome.html'), 'utf8');
-const appHtml = fs.readFileSync(path.resolve(__dirname, '../public/app.html'), 'utf8');
+const indexHtml = fs.readFileSync(path.resolve(__dirname, '../public/index.html'), 'utf8');
 
 // Mock the fetch function
 global.fetch = jest.fn(() =>
@@ -23,15 +22,13 @@ describe('UI Tests', () => {
     fetch.mockClear();
   });
 
-  it('should render the welcome page', () => {
-    document.body.innerHTML = welcomeHtml;
+  it('should render the main page', () => {
+    document.body.innerHTML = indexHtml;
     const title = document.querySelector('h1');
     expect(title.textContent).toBe('Rhythm');
-    const loginButton = document.querySelector('a.button');
-    expect(loginButton.textContent).toBe('Login with Google');
   });
 
-  it('should fetch and render cycles on app page load when authenticated', async () => {
+  it('should fetch and render cycles on app page load', async () => {
     const mockCycles = [
       {
         id: 1,
@@ -62,7 +59,7 @@ describe('UI Tests', () => {
 
     // Manually trigger the function that runs on DOMContentLoaded
     const app = require('../public/app.js');
-    document.body.innerHTML = appHtml;
+    document.body.innerHTML = indexHtml;
     app.init();
     await app.fetchAndRenderData();
 
@@ -74,18 +71,4 @@ describe('UI Tests', () => {
     expect(cycleElements[0].querySelector('.cycle-header').textContent).toContain('Cycle 1');
   });
 
-  it('should toggle the menu when the menu button is clicked', () => {
-    document.body.innerHTML = appHtml;
-    const app = require('../public/app.js');
-    app.init();
-
-    const menuButton = document.querySelector('.menu-button');
-    const menuContent = document.querySelector('.menu-content');
-
-    expect(menuContent.style.display).toBe('');
-    menuButton.click();
-    expect(menuContent.style.display).toBe('block');
-    menuButton.click();
-    expect(menuContent.style.display).toBe('none');
-  });
 });

@@ -9,19 +9,19 @@ passport.use(new GoogleStrategy({
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: "/auth/google/callback"
   },
-  function(accessToken, refreshToken, profile, cb) {
+  (accessToken, refreshToken, profile, cb) => {
     if (authorizedUsers.includes(profile.emails[0].value)) {
       return cb(null, profile);
     } else {
-      return cb(null, false, { message: 'User not authorized.' });
+      return cb(null, false, { message: 'Unauthorized User' });
     }
   }
 ));
 
-passport.serializeUser(function(user, cb) {
-  cb(null, user);
+passport.serializeUser((user, done) => {
+    done(null, user);
 });
 
-passport.deserializeUser(function(obj, cb) {
-  cb(null, obj);
+passport.deserializeUser((user, done) => {
+    done(null, user);
 });

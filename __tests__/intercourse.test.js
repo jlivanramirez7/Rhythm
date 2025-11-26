@@ -1,7 +1,7 @@
 const request = require('supertest');
 const express = require('express');
 const apiRouter = require('../src/api');
-const db = require('../src/database');
+const db = require('../src/db');
 
 // Mock authentication middleware
 const mockAuthMiddleware = (req, res, next) => {
@@ -14,26 +14,56 @@ app.use(express.json());
 app.use('/api', mockAuthMiddleware, apiRouter);
 
 // Mock the database with an in-memory version for testing
-jest.mock('../src/database', () => {
+jest.mock('../src/db', () => {
     const sqlite3 = require('sqlite3').verbose();
     const db = new sqlite3.Database(':memory:');
-    return db;
+    
+    const query = (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.all(sql, params, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+    };
+
+    const get = (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.get(sql, params, (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+    };
+
+    const run = (sql, params = []) => {
+        return new Promise((resolve, reject) => {
+            db.run(sql, params, function (err) {
+                if (err) reject(err);
+                else resolve(this);
+            });
+        });
+    };
+
+    const serialize = (fn) => db.serialize(fn);
+
+    return { query, get, run, serialize, _db: db };
 });
 
 describe('Intercourse API', () => {
     // Re-create the database schema before each test
     beforeEach((done) => {
         db.serialize(() => {
-            db.run(`DROP TABLE IF EXISTS cycle_days`);
-            db.run(`DROP TABLE IF EXISTS cycles`);
-            db.run(`
+            db._db.run(`DROP TABLE IF EXISTS cycle_days`);
+            db._db.run(`DROP TABLE IF EXISTS cycles`);
+            db._db.run(`
                 CREATE TABLE cycles (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     start_date TEXT NOT NULL,
                     end_date TEXT
                 )
             `);
-            db.run(`
+            db._db.run(`
                 CREATE TABLE cycle_days (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     cycle_id INTEGER NOT NULL,
@@ -47,12 +77,11 @@ describe('Intercourse API', () => {
     });
 
     afterAll((done) => {
-        db.close(done);
+        db._db.close(done);
     });
 
     it('should log intercourse without a hormone reading', async () => {
-        const cycleRes = await request(app).post('/api/cycles').send({ start_date: '2025-01-01' });
-        const cycleId = cycleRes.body.id;
+        await request(app).post('/api/cycles').send({ start_date: '2025-01-01' });
 
         const readingRes = await request(app).post('/api/cycles/days').send({
             date: '2025-01-01',
@@ -67,8 +96,7 @@ describe('Intercourse API', () => {
     });
 
     it('should update intercourse status without affecting hormone reading', async () => {
-        const cycleRes = await request(app).post('/api/cycles').send({ start_date: '2025-01-01' });
-        const cycleId = cycleRes.body.id;
+        await request(app).post('/api/cycles').send({ start_date: '2025-01-01' });
 
         await request(app).post('/api/cycles/days').send({
             date: '2025-01-02',
@@ -79,7 +107,7 @@ describe('Intercourse API', () => {
         const cyclesRes1 = await request(app).get('/api/cycles');
         const day1 = cyclesRes1.body[0].days.find(d => d.date === '2025-01-02');
 
-        await request(app).put(`/api/cycles/days/${day1.id}`).send({
+        await request(app).post('/api/cycles/days').send({
             date: '2025-01-02',
             intercourse: true
         });
@@ -98,7 +126,7 @@ describe('Intercourse API', () => {
         const day1 = cyclesRes1.body[0].days.find(d => d.date === '2025-02-02');
         expect(day1.intercourse).toBe(0);
 
-        await request(app).put(`/api/cycles/days/${day1.id}`).send({ intercourse: true });
+        await request(app).post('/api/cycles/days').send({ date: '2025-02-02', intercourse: true });
 
         const cyclesRes2 = await request(app).get('/api/cycles');
         const day2 = cyclesRes2.body[0].days.find(d => d.date === '2025-02-02');
