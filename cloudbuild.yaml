@@ -36,7 +36,15 @@ steps:
       - '--allow-unauthenticated'
       - '--add-cloudsql-instances'
       - 'secret-bloom-474313-m8:us-central1:rhythm-db'
-      - '--update-secrets=GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,SESSION_SECRET=SESSION_SECRET:latest,AUTHORIZED_USERS=AUTHORIZED_USERS:latest,DB_USER=DB_USER:latest,DB_PASSWORD=DB_PASSWORD:latest,DB_DATABASE=DB_DATABASE:latest,DB_PORT=DB_PORT:latest,DB_HOST=DB_HOST:latest'
+      - '--set-env-vars-from-secret=GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest'
+      - '--set-env-vars-from-secret=GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest'
+      - '--set-env-vars-from-secret=SESSION_SECRET=SESSION_SECRET:latest'
+      - '--set-env-vars-from-secret=AUTHORIZED_USERS=AUTHORIZED_USERS:latest'
+      - '--set-env-vars-from-secret=DB_USER=DB_USER:latest'
+      - '--set-env-vars-from-secret=DB_PASSWORD=DB_PASSWORD:latest'
+      - '--set-env-vars-from-secret=DB_DATABASE=DB_DATABASE:latest'
+      - '--set-env-vars-from-secret=DB_PORT=DB_PORT:latest'
+      - '--set-env-vars-from-secret=DB_HOST=DB_HOST:latest'
 images:
   - 'gcr.io/secret-bloom-474313-m8/rhythm'
 options:
