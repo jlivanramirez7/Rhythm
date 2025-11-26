@@ -15,8 +15,8 @@ COPY . .
 
 # Your app binds to port 3000, so you'll use the 'PORT' environment variable
 # to tell the app which port to listen on
-ENV PORT 3000
-EXPOSE 3000
+ENV PORT 8080
+EXPOSE 8080
 
 # Define the command to run your app
 CMD [ "npm", "start" ]
