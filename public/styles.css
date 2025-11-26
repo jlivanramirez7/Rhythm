@@ -185,7 +185,7 @@ button:hover {
     box-sizing: border-box;
 }
 
-.menu-button {
+.cycle-menu-button {
     position: absolute;
     top: 15px;
     right: 15px;
@@ -195,24 +195,24 @@ button:hover {
     gap: 4px;
 }
 
-.menu-button span {
+.cycle-menu-button span {
     display: block;
     width: 25px;
     height: 3px;
-    background-color: #fff;
+    background-color: #333;
     border-radius: 3px;
     transition: all 0.3s ease-in-out;
 }
 
-.edit-mode .menu-button span:nth-child(1) {
+.edit-mode .cycle-menu-button span:nth-child(1) {
     transform: rotate(45deg) translate(5px, 5px);
 }
 
-.edit-mode .menu-button span:nth-child(2) {
+.edit-mode .cycle-menu-button span:nth-child(2) {
     opacity: 0;
 }
 
-.edit-mode .menu-button span:nth-child(3) {
+.edit-mode .cycle-menu-button span:nth-child(3) {
     transform: rotate(-45deg) translate(5px, -5px);
 }
 

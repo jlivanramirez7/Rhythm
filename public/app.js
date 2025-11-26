@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cycleDiv.appendChild(cycleHeader);
 
                 const menuButton = document.createElement('div');
-                menuButton.className = 'menu-button';
+                menuButton.className = 'cycle-menu-button';
                 menuButton.innerHTML = `<span></span><span></span><span></span>`;
                 menuButton.onclick = () => toggleEditMode(cycleDiv, cycle.id);
                 cycleDiv.appendChild(menuButton);
@@ -237,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const toggleEditMode = (cycleDiv, cycleId) => {
             const isEditing = cycleDiv.classList.toggle('edit-mode');
-            const menuButton = cycleDiv.querySelector('.menu-button');
+            const menuButton = cycleDiv.querySelector('.cycle-menu-button');
 
             const dayDivs = cycleDiv.querySelectorAll('.day');
             dayDivs.forEach(dayDiv => {
