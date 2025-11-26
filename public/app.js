@@ -97,18 +97,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const dayGrid = document.createElement('div');
                 dayGrid.className = 'day-grid';
-                
-                const daysMap = new Map(cycle.days.map(d => [d.date, d]));
-                const totalDays = Math.floor((effectiveEndDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-                for (let i = 0; i < totalDays; i++) {
-                    const dayDate = new Date(startDate);
-                    dayDate.setDate(dayDate.getDate() + i);
-                    const dayDateString = dayDate.toISOString().split('T')[0];
-                    const dayData = daysMap.get(dayDateString);
-
+                cycle.days.forEach(dayData => {
+                    const dayDate = new Date(dayData.date + 'T00:00:00');
                     const dayDiv = document.createElement('div');
                     dayDiv.className = 'day';
+                    dayDiv.dataset.dayData = JSON.stringify(dayData);
 
                     const { fertileWindows } = calculateFertileWindows(cycles);
                     const cycleFertileWindow = fertileWindows[index];
@@ -116,13 +110,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         dayDiv.classList.add('fertile-window');
                     }
 
-                    if (dayData) {
-                        dayDiv.dataset.dayData = JSON.stringify(dayData);
-                    }
-
+                    const dayNumber = Math.floor((dayDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
                     const dayNumberDiv = document.createElement('div');
                     dayNumberDiv.className = 'day-number';
-                    dayNumberDiv.textContent = `Day ${i + 1}`;
+                    dayNumberDiv.textContent = `Day ${dayNumber}`;
                     dayDiv.appendChild(dayNumberDiv);
 
                     const dayOfMonth = dayDate.getDate();
@@ -133,20 +124,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     dateDiv.textContent = formattedDate;
                     dayDiv.appendChild(dateDiv);
 
-                    if (dayData) { // If a reading exists for this day (even if null)
-                        const readingDiv = document.createElement('div');
-                        readingDiv.className = `reading ${dayData.hormone_reading || 'none'}`;
-                        readingDiv.textContent = dayData.hormone_reading || 'No Reading';
-                        dayDiv.appendChild(readingDiv);
-                        if (dayData.intercourse) {
-                            const heartDiv = document.createElement('div');
-                            heartDiv.className = 'heart';
-                            heartDiv.textContent = '❤️';
-                            dayDiv.appendChild(heartDiv);
-                        }
+                    const readingDiv = document.createElement('div');
+                    readingDiv.className = `reading ${dayData.hormone_reading || 'none'}`;
+                    readingDiv.textContent = dayData.hormone_reading || 'No Reading';
+                    dayDiv.appendChild(readingDiv);
+
+                    if (dayData.intercourse) {
+                        const heartDiv = document.createElement('div');
+                        heartDiv.className = 'heart';
+                        heartDiv.textContent = '❤️';
+                        dayDiv.appendChild(heartDiv);
                     }
                     dayGrid.appendChild(dayDiv);
-                }
+                });
 
                 cycleDiv.appendChild(dayGrid);
                 cyclesContainer.appendChild(cycleDiv);
