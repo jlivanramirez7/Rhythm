@@ -3,12 +3,12 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 require('dotenv').config();
 
-const isProduction = process.env.NODE_ENV === 'production';
 const INSTANCE_CONNECTION_NAME = `rhythm-479516:us-central1:rhythm-db`;
 
 let db;
 
 async function createTables(dbInstance) {
+    const isProduction = process.env.NODE_ENV === 'production';
     const createUsersTable = `
         CREATE TABLE IF NOT EXISTS users (
             id ${isProduction ? 'SERIAL' : 'INTEGER'} PRIMARY KEY ${isProduction ? '' : 'AUTOINCREMENT'},
@@ -55,6 +55,8 @@ async function createTables(dbInstance) {
 async function initializeDatabase(secrets) {
     if (db) return db;
 
+    const isProduction = process.env.NODE_ENV === 'production';
+
     if (isProduction) {
         const pool = new Pool({
             user: secrets.DB_USER,
@@ -63,7 +65,7 @@ async function initializeDatabase(secrets) {
             host: `/cloudsql/${INSTANCE_CONNECTION_NAME}`,
         });
 
-        const connectWithRetry = async (retries = 5, delay = 5000) => {
+        const connectWithRetry = async (retries = 5, delay = 1000) => {
             for (let i = 0; i < retries; i++) {
                 try {
                     console.log(`Database connection attempt ${i + 1}...`);
@@ -74,7 +76,6 @@ async function initializeDatabase(secrets) {
                 } catch (err) {
                     console.error(`Connection attempt ${i + 1} failed:`, err.message);
                     if (i === retries - 1) throw err;
-                    console.log(`Retrying in ${delay / 1000}s...`);
                     await new Promise(res => setTimeout(res, delay));
                 }
             }
@@ -98,10 +99,7 @@ async function initializeDatabase(secrets) {
         const dbPath = path.resolve(__dirname, '../database/rhythm.db');
         return new Promise((resolve, reject) => {
             const sqliteDb = new sqlite3.Database(dbPath, async (err) => {
-                if (err) {
-                    console.error('FATAL: Could not connect to SQLite database.', err);
-                    return reject(err);
-                }
+                if (err) return reject(err);
                 console.log('Successfully connected to the SQLite database.');
                 await createTables(sqliteDb);
                 db = {
