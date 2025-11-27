@@ -122,13 +122,19 @@ async function initializeDatabase() {
             };
             return db;
         } catch (error) {
-            console.error('FATAL: Failed to connect to the PostgreSQL database.', error);
-            process.exit(1);
+            console.warn('---');
+            console.warn('WARNING: CLOUD SQL CONNECTION FAILED. Falling back to temporary SQLite database.');
+            console.warn('All data will be lost on instance restart.');
+            console.warn('Underlying Error:', error.message);
+            console.warn('---');
+            // If Cloud SQL fails, fall through to the SQLite implementation below.
         }
-    } else {
-        console.log('Connecting to SQLite database...');
-        const dbPath = path.resolve(__dirname, '../database/rhythm.db');
-        return new Promise((resolve, reject) => {
+    }
+    
+    // This block will now be used for non-production AND as the fallback for production.
+    console.log('Initializing SQLite database...');
+    const dbPath = ':memory:'; // Use in-memory to ensure it's temporary
+    return new Promise((resolve, reject) => {
             const sqliteDb = new sqlite3.Database(dbPath, async (err) => {
                 if (err) {
                     console.error('FATAL: Could not connect to SQLite database.', err);
@@ -157,6 +163,5 @@ async function initializeDatabase() {
             process.exit(1);
         });
     }
-}
 
 module.exports = { initializeDatabase };
