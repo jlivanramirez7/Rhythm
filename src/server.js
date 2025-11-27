@@ -53,8 +53,8 @@ async function main() {
         res.status(200).send('OK');
     });
 
-    // API routes
-    app.use('/api', ensureAuthenticated, apiRouter);
+// API routes
+app.use('/api', ensureAuthenticated, apiRouter(db));
 
     // Serve app
     app.get('/app', ensureAuthenticated, (req, res) => {
