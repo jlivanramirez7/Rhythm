@@ -5,9 +5,10 @@ require('dotenv').config();
 module.exports = (db) => {
     const authorizedUsers = process.env.AUTHORIZED_USERS ? process.env.AUTHORIZED_USERS.split(',') : [];
 
-    passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    if (process.env.GOOGLE_CLIENT_ID) {
+        passport.use(new GoogleStrategy({
+            clientID: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: "/auth/google/callback",
     proxy: true
   },
@@ -38,6 +39,7 @@ module.exports = (db) => {
     }
     }
     ));
+    }
 
     passport.serializeUser((user, done) => {
         done(null, user.id);
