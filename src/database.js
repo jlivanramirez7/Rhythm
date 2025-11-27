@@ -79,12 +79,16 @@ async function initializeDatabase(secrets) {
     if (db) return db;
 
     if (isProduction) {
-        // Use a connection string to explicitly define the socket path.
-        // This prevents the 'pg' library from appending a default port and filename.
-        const connectionString = `postgresql://${secrets.DB_USER}:${secrets.DB_PASSWORD}@/${secrets.DB_NAME}?host=/cloudsql/rhythm-479516:us-central1:rhythm-db`;
-        const pool = new Pool({
-            connectionString: connectionString,
-        });
+        const dbConfig = {
+            user: secrets.DB_USER,
+            password: secrets.DB_PASSWORD,
+            database: secrets.DB_NAME,
+            // When connecting via socket, the 'host' is the path to the socket directory.
+            host: '/cloudsql/rhythm-479516:us-central1:rhythm-db'
+            // By omitting the 'port' property, we prevent node-postgres from defaulting
+            // to port 5432 and appending the '.s.PGSQL.5432' suffix to the socket path.
+        };
+        const pool = new Pool(dbConfig);
 
         const connectWithRetry = async (retries = 5, delay = 5000) => {
             for (let i = 0; i < retries; i++) {
