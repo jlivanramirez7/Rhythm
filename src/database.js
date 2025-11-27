@@ -79,15 +79,12 @@ async function initializeDatabase(secrets) {
     if (db) return db;
 
     if (isProduction) {
-        const dbConfig = {
-            user: secrets.DB_USER,
-            password: secrets.DB_PASSWORD,
-            database: secrets.DB_NAME,
-            // The host is the path to the unix socket provided by the Cloud SQL Proxy.
-            // e.g. /cloudsql/your-instance-connection-name
-            host: '/cloudsql/rhythm-479516:us-central1:rhythm-db'
-        };
-        const pool = new Pool(dbConfig);
+        // Use a connection string to explicitly define the socket path.
+        // This prevents the 'pg' library from appending a default port and filename.
+        const connectionString = `postgresql://${secrets.DB_USER}:${secrets.DB_PASSWORD}@/${secrets.DB_NAME}?host=/cloudsql/rhythm-479516:us-central1:rhythm-db`;
+        const pool = new Pool({
+            connectionString: connectionString,
+        });
 
         const connectWithRetry = async (retries = 5, delay = 5000) => {
             for (let i = 0; i < retries; i++) {
