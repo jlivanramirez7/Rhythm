@@ -27,10 +27,13 @@ const seed = async () => {
   const pool = new Pool(getDbConfig());
   const client = await pool.connect();
   try {
-    console.log('Clearing existing data...');
-    await client.query('TRUNCATE TABLE cycle_days, cycles RESTART IDENTITY');
+    const res = await client.query('SELECT COUNT(*) FROM cycles');
+    if (res.rows[0].count > 0) {
+        console.log('Database already seeded. Skipping.');
+        return;
+    }
 
-    console.log('Seeding 10 cycles of data...');
+    console.log('Database is empty. Seeding 10 cycles of data...');
     let currentDate = new Date();
     for (let i = 0; i < 10; i++) {
       const cycleLength = chance.integer({ min: 25, max: 35 });
