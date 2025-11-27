@@ -80,7 +80,6 @@ async function initializeDatabase() {
     if (db) return db;
 
     if (isProduction) {
-        console.log('Connecting to Cloud SQL for PostgreSQL...');
         const pool = new Pool({
             user: process.env.DB_USER,
             password: process.env.DB_PASSWORD,
@@ -88,11 +87,25 @@ async function initializeDatabase() {
             host: `/cloudsql/${INSTANCE_CONNECTION_NAME}`,
         });
 
+        const connectWithRetry = async (retries = 5, delay = 5000) => {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    console.log(`Database connection attempt ${i + 1}...`);
+                    const client = await pool.connect();
+                    console.log('Successfully connected to the PostgreSQL database.');
+                    client.release();
+                    return pool; // Return the pool on success
+                } catch (err) {
+                    console.log(`Connection attempt ${i + 1} failed. Retrying in ${delay / 1000}s...`);
+                    if (i === retries - 1) throw err; // Throw error on last attempt
+                    await new Promise(res => setTimeout(res, delay));
+                }
+            }
+        };
+        
         try {
-            const client = await pool.connect();
-            console.log('Successfully connected to the PostgreSQL database.');
-            client.release();
-            await createTables(pool);
+            const connectedPool = await connectWithRetry();
+            await createTables(connectedPool);
 
             db = {
                 query: (sql, params = []) => pool.query(sql, params).then(res => res.rows),
