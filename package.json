@@ -6,9 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "test": "jest --runInBand",
-    "test:pg": "NODE_ENV=test jest --config jest.config.pg.js",
-    "seed:cloud": "node database/seed-cloud.js",
-    "migrate": "node database/migrate.js"
+    "test:pg": "NODE_ENV=test jest --config jest.config.pg.js"
   },
   "repository": {
     "type": "git",
