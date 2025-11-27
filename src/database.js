@@ -53,25 +53,28 @@ const createTables = async (db) => {
     console.log('Tables created or already exist.');
 };
 
-if (process.env.NODE_ENV === 'production') {
-    db = new Pool({
-        user: process.env.DB_USER,
-        host: process.env.DB_HOST,
-        database: process.env.DB_DATABASE,
-        password: process.env.DB_PASSWORD,
-        port: process.env.DB_PORT,
-    });
-    createTables(db);
-    console.log('Connected to the PostgreSQL database.');
-} else {
-    const dbPath = path.resolve(__dirname, '../database/rhythm.db');
-    db = new sqlite3.Database(dbPath, (err) => {
-        if (err) {
-            console.error(err.message);
-        }
-        console.log('Connected to the SQLite database.');
-    });
-    createTables(db);
+const init = async () => {
+    if (process.env.NODE_ENV === 'production') {
+        db = new Pool({
+            user: process.env.DB_USER,
+            host: process.env.DB_HOST,
+            database: process.env.DB_DATABASE,
+            password: process.env.DB_PASSWORD,
+            port: process.env.DB_PORT,
+        });
+        await createTables(db);
+        console.log('Connected to the PostgreSQL database.');
+    } else {
+        const dbPath = path.resolve(__dirname, '../database/rhythm.db');
+        db = new sqlite3.Database(dbPath, (err) => {
+            if (err) {
+                console.error(err.message);
+            }
+            console.log('Connected to the SQLite database.');
+        });
+        await createTables(db);
+    }
+    return db;
 }
 
-module.exports = db;
+module.exports = { init };

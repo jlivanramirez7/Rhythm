@@ -4,14 +4,18 @@ const session = require('express-session');
 const passport = require('passport');
 const { loadSecrets } = require('./secrets');
 const apiRouter = require('./api');
+const { init } = require('./database');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-if (process.env.NODE_ENV === 'production') {
-    loadSecrets();
-}
-require('./auth'); // Configure Passport strategies
+async function start() {
+    if (process.env.NODE_ENV === 'production') {
+        await loadSecrets();
+    }
+
+    const db = await init();
+    require('./auth'); // Configure Passport strategies
 
 // Middleware
 app.use(express.json());
@@ -78,10 +82,13 @@ app.get('/', (req, res) => {
     }
 });
 
-if (require.main === module) {
-    app.listen(port, () => {
-        console.log(`Rhythm app listening on port ${port}`);
-    });
+    if (require.main === module) {
+        app.listen(port, () => {
+            console.log(`Rhythm app listening on port ${port}`);
+        });
+    }
 }
+
+start();
 
 module.exports = { app };
