@@ -1,3 +1,4 @@
+console.log("--- NodeJS process started ---");
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
