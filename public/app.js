@@ -24,7 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const avgCycleLengthSpan = document.getElementById('avg-cycle-length');
         const avgDaysToPeakSpan = document.getElementById('avg-days-to-peak');
         const dateInput = document.getElementById('date');
-        const clearDataButton = document.getElementById('clear-data-button');
         const periodStartDateInput = document.getElementById('period-start-date');
         const rangeCheckbox = document.getElementById('range-checkbox');
         const rangeInputs = document.getElementById('range-inputs');
@@ -90,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cycleHeader = document.createElement('div');
                 cycleHeader.className = 'cycle-header';
                 const cycleNumber = cycles.length - index;
-                cycleHeader.textContent = `Cycle ${cycleNumber} started on ${startDate.toLocaleDateString()} (Length: ${Math.floor(cycleLength)} days)`;
+                cycleHeader.textContent = `Cycle ${cycleNumber}`;
                 cycleHeaderContainer.appendChild(cycleHeader);
 
                 const menuContainer = document.createElement('div');
@@ -458,24 +457,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        clearDataButton.addEventListener('click', async () => {
-            if (!confirm('Are you sure you want to clear ALL data? This action cannot be undone.')) {
-                return;
-            }
-            try {
-                const response = await fetch('/api/data', {
-                    method: 'DELETE',
-                });
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(errorText);
-                    }
-                    fetchAndRenderData();
-                } catch (error) {
-                console.error('Error clearing all data:', error);
-                alert(`Error clearing all data: ${error.message}`);
-            }
-        });
 
         const deleteCycle = async (id) => {
             if (!confirm('Are you sure you want to delete this entire cycle and all its readings? This action cannot be undone.')) {
