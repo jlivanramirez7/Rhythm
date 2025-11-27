@@ -38,13 +38,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const fetchAndRenderData = async () => {
             try {
-                // Fetch cycles
-                const cyclesRes = await fetch('/api/cycles');
+                // Fetch cycles, ensuring we don't use a cached version.
+                const cyclesRes = await fetch('/api/cycles', { cache: 'no-store' });
                 const cycles = await cyclesRes.json();
                 renderCycles(cycles);
 
-                // Fetch analytics
-                const analyticsRes = await fetch('/api/analytics');
+                // Fetch analytics, also bypassing the cache.
+                const analyticsRes = await fetch('/api/analytics', { cache: 'no-store' });
                 const analytics = await analyticsRes.json();
                 renderAnalytics(analytics, cycles);
             } catch (error) {
