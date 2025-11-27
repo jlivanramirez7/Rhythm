@@ -70,6 +70,7 @@ app.get('/', (req, res) => {
 
 // Start server
 if (require.main === module) {
+    // App listen
     app.listen(port, () => {
         console.log(`Rhythm app listening on port ${port}`);
     });
