@@ -146,4 +146,23 @@ describe('Rhythm API', () => {
         const updatedReading = cycle.days.find(d => d.id === dayId);
         expect(updatedReading.hormone_reading).toBe('High');
     });
+
+    it('should add multiple readings to the same cycle', async () => {
+        await request(app)
+            .post('/api/cycles')
+            .send({ start_date: '2025-01-01' });
+
+        await request(app)
+            .post('/api/cycles/days')
+            .send({ date: '2025-01-02', hormone_reading: 'Low' });
+        
+        await request(app)
+            .post('/api/cycles/days')
+            .send({ date: '2025-01-03', hormone_reading: 'High' });
+
+        const cyclesRes = await request(app).get('/api/cycles');
+        const cycle = cyclesRes.body.find(c => c.start_date === '2025-01-01');
+        
+        expect(cycle.days.length).toBe(3);
+    });
 });

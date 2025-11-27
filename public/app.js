@@ -73,10 +73,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
 
-                    const latestReadingDate = cycle.days.reduce((max, day) => {
+                    const latestReadingDate = cycle.days.length > 0 ? cycle.days.reduce((max, day) => {
                         const dayDate = new Date(day.date + 'T00:00:00');
                         return dayDate > max ? dayDate : max;
-                    }, startDate);
+                    }, new Date(0)) : startDate;
                     
                     effectiveEndDate = today > latestReadingDate ? today : latestReadingDate;
                 }
