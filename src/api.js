@@ -34,7 +34,7 @@ const apiRouter = (db) => {
                 const result = await db.run(insertCycleSql, [userId, formattedStartDate]);
                 const newCycleId = result.lastID;
 
-                const insertDay1Sql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, NULL, 0)`);
+                const insertDay1Sql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, NULL, false)`);
                 await db.run(insertDay1Sql, [newCycleId, formattedStartDate]);
 
                 res.status(201).json({ id: newCycleId, start_date: formattedStartDate });
@@ -117,7 +117,6 @@ const apiRouter = (db) => {
 
     // Add or update a daily reading
     router.post('/cycles/days', async (req, res) => {
-        console.log('RHYTHM_APP_LOG: Processing daily reading.');
         let { date, hormone_reading, intercourse } = req.body;
 
         if (hormone_reading === '') {
