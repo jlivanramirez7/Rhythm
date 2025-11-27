@@ -289,17 +289,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         intercourseLabel.prepend(intercourseCheckbox);
                         readingDiv.appendChild(intercourseLabel);
 
-                        const dayData = JSON.parse(dayDiv.dataset.dayData);
-                        if (dayData.id) {
-                            const deleteButton = document.createElement('button');
-                            deleteButton.textContent = 'x';
-                            deleteButton.classList.add('delete-day-button');
-                            deleteButton.onclick = (e) => {
-                                e.stopPropagation();
-                                deleteReading(dayData.id);
-                            };
-                            dayDiv.appendChild(deleteButton);
-                        }
+                        const deleteButton = document.createElement('button');
+                        deleteButton.textContent = 'x';
+                        deleteButton.classList.add('delete-day-button');
+                        deleteButton.onclick = (e) => {
+                            e.stopPropagation();
+                            const dayData = JSON.parse(dayDiv.dataset.dayData);
+                            deleteReading(dayData.id);
+                        };
+                        dayDiv.appendChild(deleteButton);
                     } else {
                         const select = readingDiv.querySelector('select');
                         const newReading = select.value;
@@ -431,6 +429,10 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const deleteReading = async (id) => {
+            // If the day card is a placeholder, it won't have an ID. Do nothing.
+            if (!id) {
+                return;
+            }
             if (!confirm('Are you sure you want to delete this reading?')) {
                 return;
             }
