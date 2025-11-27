@@ -78,14 +78,23 @@ async function createTables(dbInstance) {
 async function initializeDatabase(secrets) {
     if (db) return db;
 
+    // Use the passed-in secrets object for production, otherwise use process.env
+    const dbConfig = isProduction ? {
+        user: secrets.DB_USER,
+        password: secrets.DB_PASSWORD,
+        database: secrets.DB_NAME,
+        host: secrets.DB_HOST,
+        port: secrets.DB_PORT,
+    } : {
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_NAME,
+        host: process.env.DB_HOST,
+        port: process.env.DB_PORT,
+    };
+
     if (isProduction) {
-        const pool = new Pool({
-            user: secrets.DB_USER,
-            password: secrets.DB_PASSWORD,
-            database: secrets.DB_NAME,
-            host: secrets.DB_HOST,
-            port: secrets.DB_PORT,
-        });
+        const pool = new Pool(dbConfig);
 
         const connectWithRetry = async (retries = 5, delay = 5000) => {
             for (let i = 0; i < retries; i++) {
