@@ -138,4 +138,68 @@ describe('UI Tests', () => {
         body: JSON.stringify({ date: '2025-01-01', hormone_reading: 'High' }),
     }));
   });
+
+  it('should update a day card with a new reading in production', async () => {
+    process.env.NODE_ENV = 'production';
+    const mockCycles = [
+      {
+        id: 1,
+        start_date: '2025-01-01',
+        end_date: null,
+        days: [{ id: 1, date: '2025-01-01', hormone_reading: 'Low', intercourse: false }],
+      },
+    ];
+
+    fetch.mockImplementation((url) => {
+        if (url.includes('/api/cycles')) {
+            return Promise.resolve({
+                json: () => Promise.resolve(mockCycles),
+                ok: true,
+            });
+        }
+        if (url.includes('/api/analytics')) {
+            return Promise.resolve({
+                json: () => Promise.resolve({}),
+                ok: true,
+            });
+        }
+        if (url.includes('/api/cycles/days/1')) {
+            return Promise.resolve({
+                ok: true,
+            });
+        }
+    });
+
+    // Load the app code
+    require('../public/app.js');
+
+    // Set the HTML content
+    document.body.innerHTML = appHtml;
+
+    // Dispatch the DOMContentLoaded event
+    document.dispatchEvent(new Event('DOMContentLoaded', {
+        bubbles: true,
+        cancelable: true
+    }));
+
+    // Wait for the async operations in fetchAndRenderData to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const editButton = document.querySelector('.edit-cycle');
+    editButton.click();
+
+    const select = document.querySelector('.day .reading select');
+    select.value = 'High';
+
+    editButton.click();
+    
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(fetch).toHaveBeenCalledWith('/api/cycles/days/1', expect.objectContaining({
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: '2025-01-01', hormone_reading: 'High' }),
+    }));
+    process.env.NODE_ENV = 'test';
+  });
 });

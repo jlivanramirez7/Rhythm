@@ -288,4 +288,27 @@ describe('Cycles API', () => {
         expect(cycle.days[4].date).toBe('2025-01-05');
         expect(cycle.days[4].hormone_reading).toBe('High');
     });
+
+    it('should add readings for a date range in production', async () => {
+        process.env.NODE_ENV = 'production';
+        await request(app)
+            .post('/api/cycles')
+            .send({ start_date: '2025-01-01' });
+
+        await request(app)
+            .post('/api/cycles/days/range')
+            .send({ start_date: '2025-01-02', end_date: '2025-01-04', hormone_reading: 'High' });
+
+        const cyclesRes = await request(app).get('/api/cycles');
+        const cycle = cyclesRes.body.find(c => c.start_date === '2025-01-01');
+
+        const day2 = cycle.days.find(d => d.date === '2025-01-02');
+        const day3 = cycle.days.find(d => d.date === '2025-01-03');
+        const day4 = cycle.days.find(d => d.date === '2025-01-04');
+
+        expect(day2.hormone_reading).toBe('High');
+        expect(day3.hormone_reading).toBe('High');
+        expect(day4.hormone_reading).toBe('High');
+        process.env.NODE_ENV = 'test';
+    });
 });

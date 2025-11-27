@@ -1,6 +1,6 @@
 :root {
-    --primary-color: #6200ee;
-    --primary-variant-color: #6200ee;
+    --primary-color: #FA9687;
+    --primary-variant-color: #FA9687;
     --secondary-color: #03dac6;
     --background-color: #f5f5f5;
     --surface-color: #ffffff;
@@ -145,12 +145,19 @@ button:hover {
 }
 
 #period-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
     padding: 10px 0;
+}
+
+#period-section .form-input-group {
+    padding: 0;
 }
 
 #period-button {
     background: var(--primary-variant-color);
-    margin-left: 10px;
 }
 
 #period-button:hover {

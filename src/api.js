@@ -102,7 +102,7 @@ router.post('/cycles/days/range', async (req, res) => {
                     }
                 } else {
                     const intercourseValue = intercourse ? 1 : 0;
-                    const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?)`);
+                    const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?) RETURNING id`);
                     await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
                 }
             }
@@ -321,7 +321,7 @@ router.put('/cycles/days/:id', async (req, res) => {
     values.push(id); // Add the ID for the WHERE clause
 
     try {
-        const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`);
+        const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ? RETURNING id`);
         const result = await db.run(updateSql, values);
         
         if (result.changes === 0) {
