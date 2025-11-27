@@ -18,12 +18,19 @@ const ensureAuthenticated = (req, res, next) => {
     res.redirect('/');
 };
 
-async function startServer(db) {
+let dbError = null;
+
+async function startServer() {
     if (process.env.NODE_ENV === 'production') {
         await loadSecrets();
     }
 
-    require('./auth')(db); // Configure Passport strategies
+    const { db, error } = await initializeDatabase();
+    dbError = error; // Store the error if it exists
+
+    if (!dbError) {
+        require('./auth')(db); // Configure Passport strategies
+    }
 
     // Middleware
     app.use(express.json());
@@ -50,11 +57,29 @@ async function startServer(db) {
 
     // Health check endpoint
     app.get('/_health', (req, res) => {
-        res.status(200).send('OK');
+        if (dbError) {
+            res.status(500).json({
+                status: 'DATABASE_ERROR',
+                error: {
+                    message: dbError.message,
+                    stack: dbError.stack,
+                    code: dbError.code,
+                }
+            });
+        } else {
+            res.status(200).send('OK');
+        }
     });
 
     // API routes
-    app.use('/api', ensureAuthenticated, apiRouter(db));
+    if (!dbError) {
+        app.use('/api', ensureAuthenticated, apiRouter(db));
+    } else {
+        // If the DB is down, prevent access to the API
+        app.use('/api', (req, res) => {
+            res.status(503).send('Service Unavailable: Database connection failed');
+        });
+    }
 
     // Serve app
     app.get('/app', ensureAuthenticated, (req, res) => {
@@ -83,15 +108,7 @@ async function startServer(db) {
 
 // Start the server only if this file is run directly (not when imported as a module in tests)
 if (process.env.NODE_ENV !== 'test') {
-    (async () => {
-        try {
-            const db = await initializeDatabase();
-            await startServer(db);
-        } catch (error) {
-            console.error('Failed to start server:', error);
-            process.exit(1);
-        }
-    })();
+    startServer();
 }
 
 module.exports = { app, startServer };
