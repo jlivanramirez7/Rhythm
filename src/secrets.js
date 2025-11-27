@@ -11,6 +11,7 @@ async function accessSecretVersion(name) {
 async function loadSecrets() {
     console.log('Loading secrets from Google Cloud Secret Manager...');
     try {
+        process.env.DB_USER = await accessSecretVersion('DB_USER');
         process.env.DB_PASSWORD = await accessSecretVersion('DB_PASSWORD');
         process.env.GOOGLE_CLIENT_ID = await accessSecretVersion('GOOGLE_CLIENT_ID');
         process.env.GOOGLE_CLIENT_SECRET = await accessSecretVersion('GOOGLE_CLIENT_SECRET');
