@@ -1,7 +1,7 @@
 steps:
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
-    args: ['services', 'enable', 'secretmanager.googleapis.com']
+    args: ['services', 'enable', 'secretmanager.googleapis.com', 'sqladmin.googleapis.com']
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'gcr.io/rhythm-479516/rhythm', '.']
   - name: 'gcr.io/cloud-builders/docker'
