@@ -3,7 +3,7 @@ const client = new SecretManagerServiceClient();
 
 async function accessSecretVersion(name) {
     const [version] = await client.accessSecretVersion({
-        name: `projects/secret-bloom-474313-m8/secrets/${name}/versions/latest`,
+        name: `projects/rhythm-479516/secrets/${name}/versions/latest`,
     });
     return version.payload.data.toString('utf8');
 }
