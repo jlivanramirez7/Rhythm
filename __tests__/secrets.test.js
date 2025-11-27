@@ -6,10 +6,12 @@ jest.mock('@google-cloud/secret-manager', () => ({
         accessSecretVersion: jest.fn((request) => {
             const secretName = request.name.split('/')[3];
             const mockSecrets = {
+                DB_USER: 'mock_db_user',
                 DB_PASSWORD: 'mock_db_password',
                 GOOGLE_CLIENT_ID: 'mock_google_client_id',
                 GOOGLE_CLIENT_SECRET: 'mock_google_client_secret',
                 AUTHORIZED_USERS: 'mock_user@example.com',
+                SESSION_SECRET: 'mock_session_secret'
             };
             return Promise.resolve([{
                 payload: {
@@ -21,20 +23,16 @@ jest.mock('@google-cloud/secret-manager', () => ({
 }));
 
 describe('Secret Manager', () => {
-    // Store original process.env values
-    const originalEnv = { ...process.env };
+    it('should return an object with loaded secrets', async () => {
+        // Since loadSecrets returns the secrets, we capture the return value
+        const secrets = await loadSecrets();
 
-    afterEach(() => {
-        // Restore original process.env after each test
-        process.env = { ...originalEnv };
-    });
-
-    it('should load secrets into process.env', async () => {
-        await loadSecrets();
-
-        expect(process.env.DB_PASSWORD).toBe('mock_db_password');
-        expect(process.env.GOOGLE_CLIENT_ID).toBe('mock_google_client_id');
-        expect(process.env.GOOGLE_CLIENT_SECRET).toBe('mock_google_client_secret');
-        expect(process.env.AUTHORIZED_USERS).toBe('mock_user@example.com');
+        // Assert that the returned object has the correct properties
+        expect(secrets.DB_USER).toBe('mock_db_user');
+        expect(secrets.DB_PASSWORD).toBe('mock_db_password');
+        expect(secrets.GOOGLE_CLIENT_ID).toBe('mock_google_client_id');
+        expect(secrets.GOOGLE_CLIENT_SECRET).toBe('mock_google_client_secret');
+        expect(secrets.AUTHORIZED_USERS).toBe('mock_user@example.com');
+        expect(secrets.SESSION_SECRET).toBe('mock_session_secret');
     });
 });
