@@ -8,7 +8,7 @@ const { loadSecrets } = require('./secrets');
 const apiRouter = require('./api');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT;
 
 // Middleware to protect routes
 const ensureAuthenticated = (req, res, next) => {
@@ -18,14 +18,12 @@ const ensureAuthenticated = (req, res, next) => {
     res.redirect('/');
 };
 
-async function startServer() {
+async function startServer(db) {
     if (process.env.NODE_ENV === 'production') {
         await loadSecrets();
     }
 
-    const db = await initializeDatabase();
-
-    require('./auth'); // Configure Passport strategies
+    require('./auth')(db); // Configure Passport strategies
 
     // Middleware
     app.use(express.json());
@@ -73,15 +71,27 @@ async function startServer() {
     });
 
     if (require.main === module) {
+        if (!port) {
+            console.error('FATAL: PORT environment variable is not defined.');
+            process.exit(1);
+        }
         app.listen(port, () => {
             console.log(`Rhythm app listening on port ${port}`);
         });
     }
 }
 
-startServer().catch(error => {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-});
+// Start the server only if this file is run directly (not when imported as a module in tests)
+if (process.env.NODE_ENV !== 'test') {
+    (async () => {
+        try {
+            const db = await initializeDatabase();
+            await startServer(db);
+        } catch (error) {
+            console.error('Failed to start server:', error);
+            process.exit(1);
+        }
+    })();
+}
 
-module.exports = { app };
+module.exports = { app, startServer };

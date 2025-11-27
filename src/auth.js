@@ -1,11 +1,11 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const db = require('./database');
 require('dotenv').config();
 
-const authorizedUsers = process.env.AUTHORIZED_USERS ? process.env.AUTHORIZED_USERS.split(',') : [];
+module.exports = (db) => {
+    const authorizedUsers = process.env.AUTHORIZED_USERS ? process.env.AUTHORIZED_USERS.split(',') : [];
 
-passport.use(new GoogleStrategy({
+    passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: "/auth/google/callback",
@@ -36,18 +36,19 @@ passport.use(new GoogleStrategy({
     } catch (err) {
         return cb(err);
     }
-  }
-));
-
-passport.serializeUser((user, done) => {
-    done(null, user.id);
-});
-
-passport.deserializeUser(async (id, done) => {
-    try {
-        const user = await db.get('SELECT * FROM users WHERE id = ?', [id]);
-        done(null, user);
-    } catch (err) {
-        done(err);
     }
-});
+    ));
+
+    passport.serializeUser((user, done) => {
+        done(null, user.id);
+    });
+
+    passport.deserializeUser(async (id, done) => {
+        try {
+            const user = await db.get('SELECT * FROM users WHERE id = ?', [id]);
+            done(null, user);
+        } catch (err) {
+            done(err);
+        }
+    });
+};
