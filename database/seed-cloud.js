@@ -23,7 +23,10 @@ const getDbConfig = () => {
     return dbConfig;
 }
 
+const { createTables } = require('./migrate.js');
+
 const seed = async () => {
+  await createTables();
   const pool = new Pool(getDbConfig());
   const client = await pool.connect();
   try {
