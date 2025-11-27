@@ -11,13 +11,24 @@ async function accessSecretVersion(name) {
 async function loadSecrets() {
     console.log('Loading secrets from Google Cloud Secret Manager...');
     try {
-        process.env.DB_USER = await accessSecretVersion('DB_USER');
-        process.env.DB_PASSWORD = await accessSecretVersion('DB_PASSWORD');
-        process.env.GOOGLE_CLIENT_ID = await accessSecretVersion('GOOGLE_CLIENT_ID');
-        process.env.GOOGLE_CLIENT_SECRET = await accessSecretVersion('GOOGLE_CLIENT_SECRET');
-        process.env.AUTHORIZED_USERS = await accessSecretVersion('AUTHORIZED_USERS');
-        process.env.SESSION_SECRET = await accessSecretVersion('SESSION_SECRET');
+        const [dbUser, dbPassword, googleClientId, googleClientSecret, authorizedUsers, sessionSecret] = await Promise.all([
+            accessSecretVersion('DB_USER'),
+            accessSecretVersion('DB_PASSWORD'),
+            accessSecretVersion('GOOGLE_CLIENT_ID'),
+            accessSecretVersion('GOOGLE_CLIENT_SECRET'),
+            accessSecretVersion('AUTHORIZED_USERS'),
+            accessSecretVersion('SESSION_SECRET')
+        ]);
+        
         console.log('Secrets loaded successfully.');
+        return {
+            DB_USER: dbUser,
+            DB_PASSWORD: dbPassword,
+            GOOGLE_CLIENT_ID: googleClientId,
+            GOOGLE_CLIENT_SECRET: googleClientSecret,
+            AUTHORIZED_USERS: authorizedUsers,
+            SESSION_SECRET: sessionSecret
+        };
     } catch (error) {
         console.error('Failed to load secrets:', error);
         process.exit(1);

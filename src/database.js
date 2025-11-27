@@ -75,16 +75,16 @@ async function createTables(dbInstance) {
     console.log('Tables created or already exist.');
 }
 
-async function initializeDatabase() {
+async function initializeDatabase(secrets) {
     if (db) return db;
 
     if (isProduction) {
         const pool = new Pool({
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            database: process.env.DB_NAME,
-            host: process.env.DB_HOST,
-            port: process.env.DB_PORT,
+            user: secrets.DB_USER,
+            password: secrets.DB_PASSWORD,
+            database: secrets.DB_NAME,
+            host: secrets.DB_HOST,
+            port: secrets.DB_PORT,
         });
 
         const connectWithRetry = async (retries = 5, delay = 5000) => {

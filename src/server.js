@@ -19,18 +19,33 @@ const ensureAuthenticated = (req, res, next) => {
 };
 
 async function main() {
+    let secrets = {};
     if (process.env.NODE_ENV === 'production') {
-        await loadSecrets();
+        secrets = await loadSecrets();
+    } else {
+        // In development, load secrets from .env file for local testing
+        secrets = {
+            DB_USER: process.env.DB_USER,
+            DB_PASSWORD: process.env.DB_PASSWORD,
+            DB_HOST: process.env.DB_HOST,
+            DB_PORT: process.env.DB_PORT,
+            DB_NAME: process.env.DB_NAME,
+            GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+            GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+            AUTHORIZED_USERS: process.env.AUTHORIZED_USERS,
+            SESSION_SECRET: process.env.SESSION_SECRET,
+        };
     }
     
-    const db = await initializeDatabase();
+    // Pass secrets to the database initialization
+    const db = await initializeDatabase(secrets);
     
-    require('./auth')(db);
+    require('./auth')(db, secrets);
 
     app.use(express.json());
     app.use(express.static(path.join(__dirname, '../public')));
     app.use(session({
-        secret: process.env.SESSION_SECRET,
+        secret: secrets.SESSION_SECRET,
         resave: false,
         saveUninitialized: true,
     }));
@@ -78,4 +93,4 @@ if (process.env.NODE_ENV !== 'test') {
     });
 }
 
-module.exports = { app };
+module.exports = { app, main };
