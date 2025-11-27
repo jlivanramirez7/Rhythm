@@ -11,7 +11,7 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'rhythm-deploy' # Deploy to the new service name
+      - 'rhythm-deploy'
       - '--image'
       - 'gcr.io/rhythm-479516/rhythm'
       - '--region'
@@ -19,6 +19,7 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
+      - '--set-env-vars=NODE_ENV=production,DB_NAME=postgres'
 images:
   - 'gcr.io/rhythm-479516/rhythm'
 substitutions:
