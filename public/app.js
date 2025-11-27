@@ -74,15 +74,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     endDate = new Date(cycle.end_date + 'T00:00:00');
                     effectiveEndDate = endDate;
                 } else {
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-
                     const latestReadingDate = cycle.days.length > 0 ? cycle.days.reduce((max, day) => {
                         const dayDate = new Date(day.date + 'T00:00:00');
                         return dayDate > max ? dayDate : max;
-                    }, new Date(0)) : startDate;
+                    }, startDate) : startDate;
                     
-                    effectiveEndDate = today > latestReadingDate ? today : latestReadingDate;
+                    effectiveEndDate = latestReadingDate;
                 }
 
                 const cycleLength = (effectiveEndDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24) + 1;
@@ -379,7 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (!hasData && !rangeCheckbox.checked) {
-                alert('Please select a hormone reading or check the intercourse box.');
+                console.log('Please select a hormone reading or check the intercourse box.');
                 return;
             }
 
@@ -387,11 +384,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const startDate = dateInput.value;
                 const endDate = endDateInput.value;
                 if (!startDate || !endDate) {
-                    alert('Please select both a start and end date for the range.');
+                    console.log('Please select both a start and end date for the range.');
                     return;
                 }
                 if (new Date(startDate) > new Date(endDate)) {
-                    alert('The start date must be before the end date.');
+                    console.log('The start date must be before the end date.');
                     return;
                 }
 
@@ -413,7 +410,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error(errorText);
                     }
                     fetchAndRenderData();
-                    alert('Readings for the date range logged successfully!');
                 } catch (error) {
                     console.error('Error logging date range readings:', error);
                     alert(`Error logging date range readings: ${error.message}`);
@@ -431,7 +427,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error(errorText);
                     }
                     fetchAndRenderData();
-                    alert('Reading logged successfully!');
                 } catch (error) {
                     console.error('Error logging reading:', error);
                     alert(`Error logging reading: ${error.message}`);
@@ -442,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
         periodButton.addEventListener('click', async () => {
             const startDate = periodStartDateInput.value;
             if (!startDate) {
-                alert('Please select a start date for your period.');
+                console.log('Please select a start date for your period.');
                 return;
             }
 
@@ -457,7 +452,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(errorText);
                 }
                 fetchAndRenderData();
-                alert('New cycle started successfully!');
             } catch (error) {
                 console.error('Error starting new cycle:', error);
                 alert(`Error starting new cycle: ${error.message}`);
@@ -472,13 +466,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch('/api/data', {
                     method: 'DELETE',
                 });
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(errorText);
-                }
-                fetchAndRenderData();
-                alert('All data cleared successfully!');
-            } catch (error) {
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(errorText);
+                    }
+                    fetchAndRenderData();
+                } catch (error) {
                 console.error('Error clearing all data:', error);
                 alert(`Error clearing all data: ${error.message}`);
             }
@@ -497,7 +490,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(errorText);
                 }
                 fetchAndRenderData();
-                alert('Cycle deleted successfully!');
             } catch (error) {
                 console.error('Error deleting cycle:', error);
                 alert(`Error deleting cycle: ${error.message}`);
@@ -517,7 +509,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(errorText);
                 }
                 fetchAndRenderData();
-                alert('Reading deleted successfully!');
             } catch (error) {
                 console.error('Error deleting reading:', error);
                 alert(`Error deleting reading: ${error.message}`);
@@ -575,7 +566,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error(errorText);
                     }
                     fetchAndRenderData();
-                    alert('Reading updated successfully!');
                     modal.style.display = 'none';
                 } catch (error) {
                     console.error('Error updating reading:', error);
