@@ -109,22 +109,21 @@ async function initializeDatabase() {
         
         try {
             const connectedPool = await connectWithRetry();
-            if (!connectedPool) throw new Error('Pool not connected');
             await createTables(connectedPool);
 
             db = {
-                query: (sql, params = []) => connectedPool.query(sql, params).then(res => res.rows),
-                get: (sql, params = []) => connectedPool.query(sql, params).then(res => res.rows[0]),
-                run: (sql, params = []) => connectedPool.query(sql, params).then(res => ({
+                query: (sql, params = []) => pool.query(sql, params).then(res => res.rows),
+                get: (sql, params = []) => pool.query(sql, params).then(res => res.rows[0]),
+                run: (sql, params = []) => pool.query(sql, params).then(res => ({
                     lastID: res.rows.length > 0 ? res.rows[0].id : undefined,
                     changes: res.rowCount,
                 })),
                 isProduction,
             };
-            return { db }; // Return db object on success
+            return db;
         } catch (error) {
-            console.error('Database initialization failed:', error);
-            return { error }; // Return error object on failure
+            console.error('FATAL: Failed to connect to the PostgreSQL database.', error);
+            process.exit(1);
         }
     } else {
         console.log('Connecting to SQLite database...');
