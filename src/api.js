@@ -190,29 +190,37 @@ const apiRouter = (db) => {
                 const days = await db.query(daysSql, [cycle.id]);
                 
                 const filledDays = [];
-                if (days.length > 0) {
-                    // Use the cycle's start_date as the definitive beginning.
-                    const startDate = new Date(cycle.start_date);
-                    // Find the latest date among the existing days to define the end of the range.
-                    const lastDate = new Date(Math.max(...days.map(d => new Date(d.date))));
-    
-                    let currentDate = new Date(startDate);
-                    // Ensure the loop runs at least once for the start date.
-                    while (currentDate <= lastDate) {
-                        const dateStr = currentDate.toISOString().split('T')[0];
-                        const existingDay = days.find(d => d.date === dateStr);
-                        if (existingDay) {
-                            filledDays.push(existingDay);
-                        } else {
-                            filledDays.push({
-                                cycle_id: cycle.id,
-                                date: dateStr,
-                                hormone_reading: null,
-                                intercourse: 0,
-                            });
-                        }
-                        currentDate.setDate(currentDate.getDate() + 1);
+                const lastDate = days.length > 0
+                    ? new Date(Math.max(...days.map(d => new Date(d.date))))
+                    : new Date(cycle.start_date);
+
+                const startDate = new Date(cycle.start_date);
+                let currentDate = new Date(startDate);
+                
+                while (currentDate <= lastDate) {
+                    const dateStr = currentDate.toISOString().split('T')[0];
+                    const existingDay = days.find(d => d.date === dateStr);
+                    if (existingDay) {
+                        filledDays.push(existingDay);
+                    } else {
+                        filledDays.push({
+                            cycle_id: cycle.id,
+                            date: dateStr,
+                            hormone_reading: null,
+                            intercourse: 0,
+                        });
                     }
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+
+                // If there are no readings, ensure at least the start day is shown.
+                if (filledDays.length === 0) {
+                    filledDays.push({
+                        cycle_id: cycle.id,
+                        date: cycle.start_date,
+                        hormone_reading: null,
+                        intercourse: 0,
+                    });
                 }
                 cycle.days = filledDays;
             }
