@@ -68,12 +68,13 @@ router.post('/cycles/days/range', async (req, res) => {
     const endDate = new Date(end_date);
 
     try {
-        for (let d = startDate; d <= endDate; d.setDate(d.getDate() + 1)) {
-            const date = new Date(d).toISOString().split('T')[0];
+        let currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+            const date = currentDate.toISOString().split('T')[0];
             const findCycleSql = sql(`
-                SELECT id FROM cycles 
+                SELECT id FROM cycles
                 WHERE ? >= start_date AND (end_date IS NULL OR ? <= end_date)
-                ORDER BY start_date DESC 
+                ORDER BY start_date DESC
                 LIMIT 1
             `);
             const cycle = await db.get(findCycleSql, [date, date]);
@@ -106,6 +107,7 @@ router.post('/cycles/days/range', async (req, res) => {
                     await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
                 }
             }
+            currentDate.setDate(currentDate.getDate() + 1);
         }
         res.status(201).json({ message: 'Readings for the date range logged successfully!' });
     } catch (err) {
