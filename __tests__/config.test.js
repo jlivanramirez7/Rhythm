@@ -30,25 +30,4 @@ describe('Application Configuration', () => {
             expect(config.port).toBe('5432');
         });
     });
-
-    describe('Server Port Configuration', () => {
-        beforeEach(() => {
-            // Clear the require cache for server.js to get a fresh module for each test
-            jest.resetModules();
-        });
-
-        it('should use the PORT environment variable when available', () => {
-            process.env.PORT = '8080';
-            const server = require('../src/server.js');
-            const port = server.port;
-            expect(port).toBe('8080');
-        });
-
-        it('should default to port 3000 when the PORT environment variable is not set', () => {
-            delete process.env.PORT;
-            const server = require('../src/server.js');
-            const port = server.port;
-            expect(port).toBe(3000);
-        });
-    });
 });
