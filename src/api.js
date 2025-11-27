@@ -117,6 +117,7 @@ const apiRouter = (db) => {
 
     // Add or update a daily reading
     router.post('/cycles/days', async (req, res) => {
+        console.log('RHYTHM_APP_LOG: Processing daily reading.');
         let { date, hormone_reading, intercourse } = req.body;
 
         if (hormone_reading === '') {
