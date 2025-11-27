@@ -4,7 +4,7 @@
   "description": "Rhythm is a web application designed to help users track their ovulation cycle by manually inputting hormonal readings from an external device. The application will provide a clear visualization of the user's cycle, store historical data, and offer basic analytics to help users understand their patterns.",
   "main": "index.js",
   "scripts": {
-    "start": "node -r dotenv/config database/migrate.js && node -r dotenv/config index.js",
+    "start": "node index.js",
     "test": "jest --runInBand",
     "test:pg": "NODE_ENV=test jest --config jest.config.pg.js",
     "seed:cloud": "node database/seed-cloud.js",
