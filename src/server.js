@@ -6,6 +6,8 @@ const { loadSecrets } = require('./secrets');
 const apiRouter = require('./api');
 
 const app = express();
+const port = process.env.PORT || 3000;
+
 if (process.env.NODE_ENV === 'production') {
     loadSecrets();
 }
@@ -75,5 +77,11 @@ app.get('/', (req, res) => {
         res.sendFile(path.join(__dirname, '../public/index.html'));
     }
 });
+
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`Rhythm app listening on port ${port}`);
+    });
+}
 
 module.exports = { app };
