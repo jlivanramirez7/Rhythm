@@ -116,7 +116,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 menuButton.onclick = (e) => {
                     e.stopPropagation();
-                    menuContent.classList.toggle('active');
+                    if (cycleDiv.classList.contains('edit-mode')) {
+                        toggleEditMode(cycleDiv, cycle.id);
+                    } else {
+                        menuContent.classList.toggle('active');
+                    }
                 };
 
                 menuContent.querySelector('.edit-cycle').onclick = (e) => {
