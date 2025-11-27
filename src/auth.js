@@ -21,17 +21,32 @@ module.exports = (db, secrets) => {
         const googleId = profile.id;
         const name = profile.displayName;
 
-        const user = await db.get('SELECT * FROM users WHERE google_id = ?', [googleId]);
+        if (db.isProduction) {
+            let user = await db.get('SELECT * FROM users WHERE google_id = $1', [googleId]);
 
-        if (user) {
-            return cb(null, user);
+            if (user) {
+                return cb(null, user);
+            } else {
+                const result = await db.run(
+                    'INSERT INTO users (google_id, email, name) VALUES ($1, $2, $3) RETURNING id',
+                    [googleId, email, name]
+                );
+                user = await db.get('SELECT * FROM users WHERE id = $1', [result.rows[0].id]);
+                return cb(null, user);
+            }
         } else {
-            const result = await db.run(
-                'INSERT INTO users (google_id, email, name) VALUES (?, ?, ?)',
-                [googleId, email, name]
-            );
-            const newUser = await db.get('SELECT * FROM users WHERE id = ?', [result.lastID]);
-            return cb(null, newUser);
+            const user = await db.get('SELECT * FROM users WHERE google_id = ?', [googleId]);
+
+            if (user) {
+                return cb(null, user);
+            } else {
+                const result = await db.run(
+                    'INSERT INTO users (google_id, email, name) VALUES (?, ?, ?)',
+                    [googleId, email, name]
+                );
+                const newUser = await db.get('SELECT * FROM users WHERE id = ?', [result.lastID]);
+                return cb(null, newUser);
+            }
         }
     } catch (err) {
         return cb(err);
@@ -45,7 +60,12 @@ module.exports = (db, secrets) => {
 
     passport.deserializeUser(async (id, done) => {
         try {
-            const user = await db.get('SELECT * FROM users WHERE id = ?', [id]);
+            let user;
+            if (db.isProduction) {
+                user = await db.get('SELECT * FROM users WHERE id = $1', [id]);
+            } else {
+                user = await db.get('SELECT * FROM users WHERE id = ?', [id]);
+            }
             done(null, user);
         } catch (err) {
             done(err);
