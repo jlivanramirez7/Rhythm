@@ -191,10 +191,13 @@ const apiRouter = (db) => {
                 
                 const filledDays = [];
                 if (days.length > 0) {
-                    const startDate = new Date(days[0].date);
-                    const lastDate = new Date(days[days.length - 1].date);
+                    // Use the cycle's start_date as the definitive beginning.
+                    const startDate = new Date(cycle.start_date);
+                    // Find the latest date among the existing days to define the end of the range.
+                    const lastDate = new Date(Math.max(...days.map(d => new Date(d.date))));
     
                     let currentDate = new Date(startDate);
+                    // Ensure the loop runs at least once for the start date.
                     while (currentDate <= lastDate) {
                         const dateStr = currentDate.toISOString().split('T')[0];
                         const existingDay = days.find(d => d.date === dateStr);
