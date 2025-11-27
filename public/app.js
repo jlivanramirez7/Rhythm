@@ -289,15 +289,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         intercourseLabel.prepend(intercourseCheckbox);
                         readingDiv.appendChild(intercourseLabel);
 
-                        const deleteButton = document.createElement('button');
-                        deleteButton.textContent = 'x';
-                        deleteButton.classList.add('delete-day-button');
-                        deleteButton.onclick = (e) => {
-                            e.stopPropagation();
-                            const dayData = JSON.parse(dayDiv.dataset.dayData);
-                            deleteReading(dayData.id);
-                        };
-                        dayDiv.appendChild(deleteButton);
+                        const dayData = JSON.parse(dayDiv.dataset.dayData);
+                        if (dayData.id) {
+                            const deleteButton = document.createElement('button');
+                            deleteButton.textContent = 'x';
+                            deleteButton.classList.add('delete-day-button');
+                            deleteButton.onclick = (e) => {
+                                e.stopPropagation();
+                                deleteReading(dayData.id);
+                            };
+                            dayDiv.appendChild(deleteButton);
+                        }
                     } else {
                         const select = readingDiv.querySelector('select');
                         const newReading = select.value;
@@ -432,8 +434,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm('Are you sure you want to delete this reading?')) {
                 return;
             }
+            let response;
             try {
-                const response = await fetch(`/api/cycles/days/${id}`, {
+                response = await fetch(`/api/cycles/days/${id}`, {
                     method: 'DELETE',
                 });
                 if (!response.ok) {
@@ -443,8 +446,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchAndRenderData();
             } catch (error) {
                 console.error('Error deleting reading:', error);
-                const errorData = await response.json();
-                alert(`Error deleting reading: ${errorData.error}\nDetails: ${errorData.details}`);
+                if (response) {
+                    try {
+                        const errorData = await response.json();
+                        alert(`Error deleting reading: ${errorData.error}\nDetails: ${errorData.details}`);
+                    } catch (e) {
+                        alert('An unknown error occurred while deleting the reading.');
+                    }
+                } else {
+                    alert('An unknown network error occurred. Please check the console.');
+                }
             }
         };
 
