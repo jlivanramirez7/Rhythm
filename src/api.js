@@ -30,7 +30,7 @@ const apiRouter = (db) => {
             const insertNewCycle = async () => {
                 const insertCycleSql = sql(`INSERT INTO cycles (start_date) VALUES (?) RETURNING id`);
                 const result = await db.run(insertCycleSql, [formattedStartDate]);
-                const newCycleId = isProduction ? result.lastID : result.lastID;
+                const newCycleId = result.lastID;
                 
                 const insertDay1Sql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, NULL, 0)`);
                 await db.run(insertDay1Sql, [newCycleId, formattedStartDate]);
@@ -190,7 +190,7 @@ const apiRouter = (db) => {
                 if (days.length > 0) {
                     const startDate = new Date(days[0].date);
                     const lastDate = new Date(days[days.length - 1].date);
-                    
+    
                     let currentDate = new Date(startDate);
                     while (currentDate <= lastDate) {
                         const dateStr = currentDate.toISOString().split('T')[0];
@@ -202,7 +202,7 @@ const apiRouter = (db) => {
                                 cycle_id: cycle.id,
                                 date: dateStr,
                                 hormone_reading: null,
-                                intercourse: 0
+                                intercourse: 0,
                             });
                         }
                         currentDate.setDate(currentDate.getDate() + 1);
@@ -210,7 +210,7 @@ const apiRouter = (db) => {
                 }
                 cycle.days = filledDays;
             }
-            
+    
             res.json(cycles);
         } catch (err) {
             console.error('Error in GET /api/cycles:', err);

@@ -4,17 +4,18 @@ const path = require('path');
 require('dotenv').config();
 
 let db;
+const isProduction = process.env.NODE_ENV === 'production';
 
-const createTables = async (db) => {
-    if (process.env.NODE_ENV === 'production') {
-        await db.query(`
+const createTables = (dbInstance) => {
+    if (isProduction) {
+        dbInstance.query(`
             CREATE TABLE IF NOT EXISTS cycles (
                 id SERIAL PRIMARY KEY,
                 start_date DATE NOT NULL,
                 end_date DATE
             );
         `);
-        await db.query(`
+        dbInstance.query(`
             CREATE TABLE IF NOT EXISTS cycle_days (
                 id SERIAL PRIMARY KEY,
                 cycle_id INTEGER NOT NULL,
@@ -25,18 +26,16 @@ const createTables = async (db) => {
             );
         `);
     } else {
-        db.serialize(() => {
-            db.run(`CREATE TABLE IF NOT EXISTS cycles (
+        dbInstance.serialize(() => {
+            dbInstance.run(`CREATE TABLE IF NOT EXISTS cycles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 start_date TEXT NOT NULL,
                 end_date TEXT
             )`, (err) => {
-                if (err) {
-                    console.error("Error creating cycles table:", err.message);
-                }
+                if (err) console.error("Error creating cycles table:", err.message);
             });
 
-            db.run(`CREATE TABLE IF NOT EXISTS cycle_days (
+            dbInstance.run(`CREATE TABLE IF NOT EXISTS cycle_days (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 cycle_id INTEGER NOT NULL,
                 date TEXT NOT NULL,
@@ -44,34 +43,67 @@ const createTables = async (db) => {
                 intercourse INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY (cycle_id) REFERENCES cycles (id)
             )`, (err) => {
-                if (err) {
-                    console.error("Error creating cycle_days table:", err.message);
-                }
+                if (err) console.error("Error creating cycle_days table:", err.message);
             });
         });
     }
     console.log('Tables created or already exist.');
 };
 
-if (process.env.NODE_ENV === 'production') {
-    db = new Pool({
+if (isProduction) {
+    const pool = new Pool({
         user: process.env.DB_USER,
         host: process.env.DB_HOST,
         database: process.env.DB_DATABASE,
         password: process.env.DB_PASSWORD,
         port: process.env.DB_PORT,
     });
-    createTables(db);
+    createTables(pool);
+    db = {
+        query: async (sql, params = []) => {
+            const result = await pool.query(sql, params);
+            return result.rows;
+        },
+        get: async (sql, params = []) => {
+            const result = await pool.query(sql, params);
+            return result.rows[0];
+        },
+        run: async (sql, params = []) => {
+            const result = await pool.query(sql, params);
+            return {
+                lastID: result.rows.length > 0 ? result.rows[0].id : undefined,
+                changes: result.rowCount
+            };
+        }
+    };
     console.log('Connected to the PostgreSQL database.');
 } else {
     const dbPath = path.resolve(__dirname, '../database/rhythm.db');
-    db = new sqlite3.Database(dbPath, (err) => {
-        if (err) {
-            console.error(err.message);
-        }
-        console.log('Connected to the SQLite database.');
+    const sqliteDb = new sqlite3.Database(dbPath, (err) => {
+        if (err) console.error(err.message);
+        else console.log('Connected to the SQLite database.');
     });
-    createTables(db);
+    createTables(sqliteDb);
+    db = {
+        query: (sql, params = []) => new Promise((resolve, reject) => {
+            sqliteDb.all(sql, params, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        }),
+        get: (sql, params = []) => new Promise((resolve, reject) => {
+            sqliteDb.get(sql, params, (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        }),
+        run: (sql, params = []) => new Promise((resolve, reject) => {
+            sqliteDb.run(sql, params, function (err) {
+                if (err) reject(err);
+                else resolve({ lastID: this.lastID, changes: this.changes });
+            });
+        }),
+    };
 }
 
 module.exports = db;
