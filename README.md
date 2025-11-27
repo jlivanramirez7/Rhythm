@@ -6,13 +6,14 @@ Rhythm is a web application designed to help users track their ovulation cycle b
 
 ## 2. Features
 
+*   **Google Authentication:** Secure login using Google OAuth 2.0, restricted to a list of authorized users.
 *   **Hormonal Reading and Intercourse Input:** Users can input daily hormonal readings ("Low", "High", or "Peak") and log intercourse independently.
 *   **Bulk Data Entry:** Users can log a reading for a continuous date range, simplifying data entry.
 *   **Period Tracking:** Users can mark the first day of their period to signify the start of a new cycle.
-*   **Cycle Visualization:** Each cycle is displayed day-by-day, showing the cycle day number, the date in `DD/MM` format, the hormonal reading, and a heart icon for intercourse.
+*   **Cycle Visualization:** Each cycle is displayed day-by-day, showing the cycle day number, the date in `MM/DD` format, the hormonal reading, and a heart icon for intercourse.
 *   **Fertile Window Highlighting:** The estimated fertile window for each cycle is highlighted in light red.
-*   **Data Storage:** All cycle data is persistently stored in a local SQLite database.
-*   **Data Management:** Users can edit or delete individual readings, delete entire cycles, or clear all application data via an intuitive UI with a burger menu for each cycle.
+*   **Data Storage:** All cycle data is persistently stored in a Cloud SQL for PostgreSQL database.
+*   **Data Management:** Users can edit or delete individual readings, delete entire cycles, or clear all application data via an intuitive UI.
 *   **Advanced Analytics:** The application calculates and displays:
     *   Average cycle length.
     *   Average number of days to the "Peak" hormonal reading.
@@ -22,24 +23,18 @@ Rhythm is a web application designed to help users track their ovulation cycle b
 
 ## 3. Technology Stack
 
-*   **Frontend:** HTML, CSS, and vanilla JavaScript.
+*   **Frontend:** HTML, CSS, and vanilla JavaScript, with a Material Design-inspired aesthetic.
 *   **Backend:** Node.js with the Express.js framework.
-*   **Database:** SQLite
-*   **Development:**
-    *   **Testing:** Jest, Supertest for API endpoint testing, and Jest with jsdom for UI testing.
-    *   **Data Seeding:** `chance.js` for generating realistic dummy data.
+*   **Database:** Cloud SQL for PostgreSQL.
+*   **Authentication:** Passport.js with the Google OAuth 2.0 strategy.
+*   **Deployment:** Google Cloud Run with automated builds and deployments via Cloud Build.
+*   **Secrets Management:** Google Cloud Secret Manager.
+*   **Testing:** Jest, Supertest for API endpoint testing, and Jest with jsdom for UI testing.
+*   **Data Seeding:** `chance.js` for generating realistic dummy data.
 
 ## 4. Testing
 
-The project includes a comprehensive test suite covering both the API and the UI.
-
-### API Tests
-
-The API tests are located in `__tests__/api.test.js` and `__tests__/intercourse.test.js`. They use Jest and Supertest to make requests to the API endpoints and assert that the responses are correct. The database is mocked with an in-memory version of SQLite to ensure tests are isolated and repeatable.
-
-### UI Tests
-
-The UI tests are located in `__tests__/ui.test.js`. They use Jest and jsdom to simulate a browser environment and test the frontend code. The tests load the `index.html` file, mock the `fetch` API, and then simulate user interactions to assert that the DOM is updated correctly.
+The project includes a comprehensive test suite covering the API, UI, and application configuration.
 
 To run all tests, use the following command:
 
@@ -49,27 +44,35 @@ npm test
 
 ## 5. Setup and Running the Application
 
-1.  **Install Dependencies:**
+### Local Development
+
+1.  **Create a `.env` file:** Copy the `.env.example` file to a new file named `.env` and fill in the required values for your local PostgreSQL database and Google OAuth credentials.
+2.  **Install Dependencies:**
     ```bash
     npm install
     ```
-2.  **Run the Application:**
+3.  **Run the Application:**
     ```bash
     npm start
     ```
     The application will be available at `http://localhost:3000`.
 
-## 5. Seeding the Database
+### Cloud Deployment
 
-The project includes a script to populate the database with 10 cycles of realistic dummy data, which is useful for development and testing.
+The application is configured for automated deployment to Google Cloud Run using Cloud Build. The `cloudbuild.yaml` file defines the build, test, and deployment steps.
 
-To run the seed script:
+**Note:** The Cloud Build service account must have the **Cloud SQL Client** role to connect to the database.
+
+## 6. Seeding the Database
+
+The project includes a script to populate the database with 10 cycles of realistic dummy data.
+
+To run the seed script for your local database:
 ```bash
-node database/seed.js
+npm run seed:cloud
 ```
-**Note:** This will clear all existing data in the database before adding the new dummy data.
 
-## 6. Database Schema
+## 7. Database Schema
 
 The database consists of two main tables:
 
@@ -77,21 +80,21 @@ The database consists of two main tables:
 
 | Column      | Type      | Description                                  |
 |-------------|-----------|----------------------------------------------|
-| `id`        | INTEGER   | Primary Key                                  |
-| `start_date`| TEXT      | The start date of the cycle (first day of period). |
-| `end_date`  | TEXT      | The end date of the cycle (day before next period). |
+| `id`        | SERIAL   | Primary Key                                  |
+| `start_date`| DATE      | The start date of the cycle (first day of period). |
+| `end_date`  | DATE      | The end date of the cycle (day before next period). |
 
 ### `cycle_days`
 
 | Column          | Type    | Description                                                     |
 |-----------------|---------|-----------------------------------------------------------------|
-| `id`            | INTEGER | Primary Key                                                     |
+| `id`            | SERIAL | Primary Key                                                     |
 | `cycle_id`      | INTEGER | Foreign Key referencing the `cycles` table.                     |
-| `date`          | TEXT    | The specific date of the reading.                               |
+| `date`          | DATE    | The specific date of the reading.                               |
 | `hormone_reading`| TEXT    | The hormonal reading for the day ('Low', 'High', 'Peak').      |
-| `intercourse`   | INTEGER | A boolean (0 or 1) indicating if intercourse occurred.          |
+| `intercourse`   | BOOLEAN | A boolean indicating if intercourse occurred.          |
 
-## 7. API Endpoints
+## 8. API Endpoints
 
 The backend exposes the following API endpoints, which are consumed by the frontend client:
 
@@ -104,24 +107,3 @@ The backend exposes the following API endpoints, which are consumed by the front
 *   `DELETE /api/cycles/days/:id`: Deletes a specific daily reading.
 *   `GET /api/analytics`: Retrieves the calculated analytics.
 *   `DELETE /api/data`: Clears all cycle and reading data from the database.
-
-## 8. Project Structure
-
-```
-/
-├── database/
-│   ├── rhythm.db
-│   └── seed.js
-├── public/
-│   ├── index.html
-│   ├── styles.css
-│   └── app.js
-├── src/
-│   ├── server.js
-│   ├── database.js
-│   └── api.js
-├── __tests__/
-│   ├── api.test.js
-│   └── intercourse.test.js
-├── package.json
-└── README.md

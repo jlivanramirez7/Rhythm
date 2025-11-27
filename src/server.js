@@ -49,13 +49,18 @@ async function startServer() {
         });
     });
 
-    // Middleware to protect routes
-    const ensureAuthenticated = (req, res, next) => {
-        if (req.isAuthenticated()) {
-            return next();
-        }
-        res.redirect('/');
-    };
+// Middleware to protect routes
+const ensureAuthenticated = (req, res, next) => {
+    if (req.isAuthenticated()) {
+        return next();
+    }
+    res.redirect('/');
+};
+
+// Health check endpoint
+app.get('/_health', (req, res) => {
+    res.status(200).send('OK');
+});
 
     // API routes
     app.use('/api', ensureAuthenticated, apiRouter);

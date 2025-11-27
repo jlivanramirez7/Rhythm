@@ -57,6 +57,10 @@ document.addEventListener('DOMContentLoaded', () => {
             cyclesContainer.innerHTML = '';
             // The backend sends cycles sorted newest first. To display them in that order,
             // and still get correct chronological numbering, we iterate normally and calculate the number.
+            if (!cycles || cycles.length === 0) {
+                cyclesContainer.innerHTML = '<p>No cycle data yet. Start a new cycle to begin tracking.</p>';
+                return;
+            }
             cycles.forEach((cycle, index) => {
                 const cycleDiv = document.createElement('div');
                 cycleDiv.className = 'cycle';
@@ -382,11 +386,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
+                const rangePayload = {
+                    start_date: startDate,
+                    end_date: endDate,
+                    hormone_reading,
+                    intercourse,
+                };
+
                 try {
                     const response = await fetch('/api/cycles/days/range', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ start_date: startDate, end_date: endDate, hormone_reading }),
+                        body: JSON.stringify(rangePayload),
                     });
                     if (!response.ok) {
                         const errorText = await response.text();

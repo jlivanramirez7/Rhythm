@@ -7,7 +7,8 @@ const isProduction = process.env.NODE_ENV === 'production';
 const sql = (query) => {
     if (isProduction) {
         // Use $1, $2, etc. for PostgreSQL
-        return query.replace(/\?/g, (match, index) => `$${index / 2 + 1}`);
+        let i = 0;
+        return query.replace(/\?/g, () => `$${++i}`);
     }
     // Use ? for SQLite
     return query;
@@ -54,6 +55,64 @@ router.post('/cycles', async (req, res) => {
     }
 });
 
+
+// Add or update a daily reading for a range of dates
+router.post('/cycles/days/range', async (req, res) => {
+    const { start_date, end_date, hormone_reading, intercourse } = req.body;
+
+    if (!start_date || !end_date) {
+        return res.status(400).send('start_date and end_date are required');
+    }
+
+    const startDate = new Date(start_date);
+    const endDate = new Date(end_date);
+
+    try {
+        for (let d = startDate; d <= endDate; d.setDate(d.getDate() + 1)) {
+            const date = new Date(d).toISOString().split('T')[0];
+            const findCycleSql = sql(`
+                SELECT id FROM cycles 
+                WHERE ? >= start_date AND (end_date IS NULL OR ? <= end_date)
+                ORDER BY start_date DESC 
+                LIMIT 1
+            `);
+            const cycle = await db.get(findCycleSql, [date, date]);
+
+            if (cycle) {
+                const cycle_id = cycle.id;
+                const findExistingSql = sql(`SELECT id FROM cycle_days WHERE cycle_id = ? AND date = ?`);
+                const existingReading = await db.get(findExistingSql, [cycle_id, date]);
+
+                if (existingReading) {
+                    const fieldsToUpdate = [];
+                    const values = [];
+                    if (hormone_reading !== undefined) {
+                        fieldsToUpdate.push('hormone_reading = ?');
+                        values.push(hormone_reading);
+                    }
+                    if (intercourse !== undefined) {
+                        fieldsToUpdate.push('intercourse = ?');
+                        values.push(intercourse ? 1 : 0);
+                    }
+
+                    if (fieldsToUpdate.length > 0) {
+                        values.push(existingReading.id);
+                        const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`);
+                        await db.run(updateSql, values);
+                    }
+                } else {
+                    const intercourseValue = intercourse ? 1 : 0;
+                    const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?)`);
+                    await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
+                }
+            }
+        }
+        res.status(201).json({ message: 'Readings for the date range logged successfully!' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ error: 'Failed to process date range readings' });
+    }
+});
 
 // Add or update a daily reading
 router.post('/cycles/days', async (req, res) => {
