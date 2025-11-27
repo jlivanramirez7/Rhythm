@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderAnalytics(analytics, cycles);
             } catch (error) {
                 console.error('Error fetching data:', error);
+                alert('An error occurred while fetching data. Please check the console for details.');
             }
         };
 
@@ -353,7 +354,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchAndRenderData();
             } catch (error) {
                 console.error('Error updating reading:', error);
-                alert(`Error updating reading: ${error.message}`);
+                const errorData = await response.json();
+                alert(`Error updating reading: ${errorData.error}\nDetails: ${errorData.details}`);
             }
         };
 
@@ -411,7 +413,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     fetchAndRenderData();
                 } catch (error) {
                     console.error('Error logging date range readings:', error);
-                    alert(`Error logging date range readings: ${error.message}`);
+                    const errorData = await response.json();
+                    alert(`Error logging date range readings: ${errorData.error}\nDetails: ${errorData.details}`);
                 }
             } else {
                 const date = dateInput.value;
@@ -428,7 +431,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     fetchAndRenderData();
                 } catch (error) {
                     console.error('Error logging reading:', error);
-                    alert(`Error logging reading: ${error.message}`);
+                    const errorData = await response.json();
+                    alert(`Error logging reading: ${errorData.error}\nDetails: ${errorData.details}`);
                 }
             }
         });
@@ -453,7 +457,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchAndRenderData();
             } catch (error) {
                 console.error('Error starting new cycle:', error);
-                alert(`Error starting new cycle: ${error.message}`);
+                const errorData = await response.json();
+                alert(`Error starting new cycle: ${errorData.error}\nDetails: ${errorData.details}`);
             }
         });
 
@@ -473,7 +478,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchAndRenderData();
             } catch (error) {
                 console.error('Error deleting cycle:', error);
-                alert(`Error deleting cycle: ${error.message}`);
+                const errorData = await response.json();
+                alert(`Error deleting cycle: ${errorData.error}\nDetails: ${errorData.details}`);
             }
         };
 
@@ -492,7 +498,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchAndRenderData();
             } catch (error) {
                 console.error('Error deleting reading:', error);
-                alert(`Error deleting reading: ${error.message}`);
+                const errorData = await response.json();
+                alert(`Error deleting reading: ${errorData.error}\nDetails: ${errorData.details}`);
             }
         };
 
@@ -550,7 +557,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     modal.style.display = 'none';
                 } catch (error) {
                     console.error('Error updating reading:', error);
-                    alert(`Error updating reading: ${error.message}`);
+                    const errorData = await response.json();
+                    alert(`Error updating reading: ${errorData.error}\nDetails: ${errorData.details}`);
                 }
             };
 

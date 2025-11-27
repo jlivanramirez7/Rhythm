@@ -50,8 +50,8 @@ const apiRouter = (db) => {
                 await insertNewCycle();
             }
         } catch (err) {
-            console.error(err.message);
-            res.status(500).json({ error: 'Failed to create a new cycle' });
+            console.error('Error in POST /api/cycles:', err);
+            res.status(500).json({ error: 'Failed to create a new cycle', details: err.message });
         }
     });
 
@@ -108,8 +108,8 @@ const apiRouter = (db) => {
             }
             res.status(201).json({ message: 'Readings for the date range logged successfully!' });
         } catch (err) {
-            console.error(err.message);
-            res.status(500).json({ error: 'Failed to process date range readings' });
+            console.error('Error in POST /api/cycles/days/range:', err);
+            res.status(500).json({ error: 'Failed to process date range readings', details: err.message });
         }
     });
 
@@ -171,8 +171,8 @@ const apiRouter = (db) => {
                 res.status(201).json({ id: result.lastID, message: 'Reading created.' });
             }
         } catch (err) {
-            console.error(err.message);
-            res.status(500).json({ error: 'Failed to process daily reading' });
+            console.error('Error in POST /api/cycles/days:', err);
+            res.status(500).json({ error: 'Failed to process daily reading', details: err.message });
         }
     });
 
@@ -212,10 +212,10 @@ const apiRouter = (db) => {
             }
             
             res.json(cycles);
-        } catch (err) {
-            console.error('GET /api/cycles: Database error:', err.message);
-            res.status(500).json({ error: err.message });
-        }
+    } catch (err) {
+        console.error('Error in GET /api/cycles:', err);
+        res.status(500).json({ error: 'Failed to fetch cycles', details: err.message });
+    }
     });
 
     // Get analytics
@@ -275,10 +275,10 @@ const apiRouter = (db) => {
             }
 
             res.json(analytics);
-        } catch (err) {
-            console.error('Analytics error:', err.message);
-            res.status(500).json({ error: 'Failed to fetch analytics' });
-        }
+    } catch (err) {
+        console.error('Error in GET /api/analytics:', err);
+        res.status(500).json({ error: 'Failed to fetch analytics', details: err.message });
+    }
     });
 
     // Delete a cycle and all its readings
@@ -289,10 +289,10 @@ const apiRouter = (db) => {
             const result = await db.run(sql(`DELETE FROM cycles WHERE id = ?`), [id]);
             
             res.status(200).send('Cycle deleted successfully.');
-        } catch (err) {
-            console.error(err.message);
-            res.status(500).json({ error: 'Failed to delete cycle' });
-        }
+    } catch (err) {
+        console.error('Error in DELETE /api/cycles/:id:', err);
+        res.status(500).json({ error: 'Failed to delete cycle', details: err.message });
+    }
     });
 
     // Update a specific day's reading
@@ -326,10 +326,10 @@ const apiRouter = (db) => {
                 return res.status(404).send('Reading not found.');
             }
             res.status(200).json({ id, message: 'Reading updated.' });
-        } catch (err) {
-            console.error(err.message);
-            res.status(500).json({ error: 'Failed to update reading' });
-        }
+    } catch (err) {
+        console.error('Error in PUT /api/cycles/days/:id:', err);
+        res.status(500).json({ error: 'Failed to update reading', details: err.message });
+    }
     });
 
     return router;

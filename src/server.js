@@ -11,12 +11,17 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 async function main() {
+    console.log('Starting application...');
     if (process.env.NODE_ENV === 'production') {
+        console.log('Production environment detected. Loading secrets...');
         await loadSecrets();
     }
+    console.log('Initializing database...');
     const db = await init();
+    console.log('Database initialized successfully.');
 
     // Now that the database is initialized, we can configure and start the app
+    console.log('Configuring Passport strategies...');
     require('./auth'); // Configure Passport strategies
     app.use(express.json());
     app.use(express.static(path.join(__dirname, '../public')));
@@ -78,6 +83,9 @@ app.use('/api', ensureAuthenticated, apiRouter(db));
     }
 }
 
-main();
+main().catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+});
 
 module.exports = { app };
