@@ -287,7 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         const deleteButton = document.createElement('button');
                         deleteButton.textContent = 'x';
                         deleteButton.classList.add('delete-day-button');
-                        deleteButton.onclick = () => {
+                        deleteButton.onclick = (e) => {
+                            e.stopPropagation();
                             const dayData = JSON.parse(dayDiv.dataset.dayData);
                             deleteReading(dayData.id);
                         };

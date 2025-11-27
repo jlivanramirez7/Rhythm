@@ -25,16 +25,7 @@
         </div>
     </header>
 
-    <main>
-        <section id="analytics-section">
-            <h2>Analytics</h2>
-            <p><strong>Average Cycle Length:</strong> <span id="avg-cycle-length">--</span> days</p>
-            <p><strong>Average Days to Peak:</strong> <span id="avg-days-to-peak">--</span> days</p>
-            <p><strong>Average Fertile Window:</strong> <span id="avg-fertile-window">--</span> days</p>
-            <p><strong>Estimated Next Period:</strong> <span id="estimated-next-period">--</span></p>
-            <p><strong>Estimated Fertile Window:</strong> <span id="fertile-window-start">--</span> to <span id="fertile-window-end">--</span></p>
-        </section>
-
+    <main class="main-grid">
         <section id="input-section" class="form-container">
             <h2>Log Today's Reading</h2>
             <form id="reading-form">
@@ -78,6 +69,32 @@
         <section id="cycles-section">
             <h2>Your Cycles</h2>
             <div id="cycles-container"></div>
+        </section>
+
+        <section id="analytics-section">
+            <h2>Analytics</h2>
+            <div class="analytics-grid">
+                <div class="analytic-card">
+                    <h4>Average Cycle Length</h4>
+                    <p><span id="avg-cycle-length">--</span> days</p>
+                </div>
+                <div class="analytic-card">
+                    <h4>Average Days to Peak</h4>
+                    <p><span id="avg-days-to-peak">--</span> days</p>
+                </div>
+                <div class="analytic-card">
+                    <h4>Average Fertile Window</h4>
+                    <p><span id="avg-fertile-window">--</span> days</p>
+                </div>
+                <div class="analytic-card">
+                    <h4>Estimated Next Period</h4>
+                    <p><span id="estimated-next-period">--</span></p>
+                </div>
+                <div class="analytic-card">
+                    <h4>Estimated Fertile Window</h4>
+                    <p><span id="fertile-window-start">--</span> to <span id="fertile-window-end">--</span></p>
+                </div>
+            </div>
         </section>
     </main>
 

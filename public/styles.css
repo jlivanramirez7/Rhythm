@@ -38,10 +38,37 @@ header {
     margin-right: 10px;
 }
 
-main {
+.main-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 20px;
     padding: 1rem;
-    max-width: 800px;
+    max-width: 1200px;
     margin: 20px auto;
+}
+
+@media (max-width: 768px) {
+    .main-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.analytic-card {
+    background: var(--surface-color);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.analytic-card h4 {
+    margin: 0 0 10px 0;
 }
 
 section {
@@ -120,6 +147,10 @@ button:hover {
 
 #period-button:hover {
     background: #c0392b;
+}
+
+#cycles-section, #input-section, #analytics-section {
+    align-self: start;
 }
 
 #cycles-container {
@@ -274,7 +305,7 @@ button:hover {
         font-size: 1.2rem;
     }
 
-    main {
+    .main-grid {
         padding: 0.5rem;
     }
 
@@ -295,6 +326,7 @@ button:hover {
     .cycle-menu-button {
         top: 10px;
         right: 10px;
+        display: flex; /* Ensure it's always visible */
     }
 
     .menu-content {
