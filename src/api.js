@@ -17,21 +17,23 @@ const apiRouter = (db) => {
     // Create a new cycle
     router.post('/cycles', async (req, res) => {
         const { start_date } = req.body;
+        const userId = req.user.id;
+
         if (!start_date) {
             return res.status(400).json({ error: 'start_date is required' });
         }
 
         try {
-            const findPreviousCycleSql = sql(`SELECT id FROM cycles WHERE end_date IS NULL ORDER BY start_date DESC LIMIT 1`);
-            const previousCycle = await db.get(findPreviousCycleSql);
+            const findPreviousCycleSql = sql(`SELECT id FROM cycles WHERE user_id = ? AND end_date IS NULL ORDER BY start_date DESC LIMIT 1`);
+            const previousCycle = await db.get(findPreviousCycleSql, [userId]);
 
             const formattedStartDate = start_date;
 
             const insertNewCycle = async () => {
-                const insertCycleSql = sql(`INSERT INTO cycles (start_date) VALUES (?) RETURNING id`);
-                const result = await db.run(insertCycleSql, [formattedStartDate]);
+                const insertCycleSql = sql(`INSERT INTO cycles (user_id, start_date) VALUES (?, ?) RETURNING id`);
+                const result = await db.run(insertCycleSql, [userId, formattedStartDate]);
                 const newCycleId = result.lastID;
-                
+
                 const insertDay1Sql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, NULL, 0)`);
                 await db.run(insertDay1Sql, [newCycleId, formattedStartDate]);
 
@@ -42,7 +44,7 @@ const apiRouter = (db) => {
                 const previousCycleEndDate = new Date(formattedStartDate);
                 previousCycleEndDate.setDate(previousCycleEndDate.getDate() - 1);
                 const formattedPreviousCycleEndDate = previousCycleEndDate.toISOString().split('T')[0];
-                
+
                 const updatePreviousCycleSql = sql(`UPDATE cycles SET end_date = ? WHERE id = ?`);
                 await db.run(updatePreviousCycleSql, [formattedPreviousCycleEndDate, previousCycle.id]);
                 await insertNewCycle();
@@ -178,9 +180,10 @@ const apiRouter = (db) => {
 
     // Get all cycles with their days
     router.get('/cycles', async (req, res) => {
+        const userId = req.user.id;
         try {
-            const cyclesSql = sql(`SELECT * FROM cycles ORDER BY start_date DESC`);
-            const cycles = await db.query(cyclesSql);
+            const cyclesSql = sql(`SELECT * FROM cycles WHERE user_id = ? ORDER BY start_date DESC`);
+            const cycles = await db.query(cyclesSql, [userId]);
 
             for (const cycle of cycles) {
                 const daysSql = sql(`SELECT * FROM cycle_days WHERE cycle_id = ? ORDER BY date`);
@@ -225,11 +228,11 @@ const apiRouter = (db) => {
             
             let cycleLengthSql;
             if(isProduction) {
-                cycleLengthSql = `SELECT (end_date - start_date + 1) as length FROM cycles WHERE end_date IS NOT NULL`;
+                cycleLengthSql = `SELECT (end_date - start_date + 1) as length FROM cycles WHERE user_id = ${req.user.id} AND end_date IS NOT NULL`;
             } else {
-                cycleLengthSql = `SELECT CAST(julianday(end_date) - julianday(start_date) + 1 AS INTEGER) as length FROM cycles WHERE end_date IS NOT NULL`;
+                cycleLengthSql = `SELECT CAST(julianday(end_date) - julianday(start_date) + 1 AS INTEGER) as length FROM cycles WHERE user_id = ${req.user.id} AND end_date IS NOT NULL`;
             }
-            
+
             const cycleLengths = await db.query(cycleLengthSql);
 
             if (cycleLengths.length > 0) {
@@ -284,9 +287,10 @@ const apiRouter = (db) => {
     // Delete a cycle and all its readings
     router.delete('/cycles/:id', async (req, res) => {
         const { id } = req.params;
+        const userId = req.user.id;
         try {
             await db.run(sql(`DELETE FROM cycle_days WHERE cycle_id = ?`), [id]);
-            const result = await db.run(sql(`DELETE FROM cycles WHERE id = ?`), [id]);
+            const result = await db.run(sql(`DELETE FROM cycles WHERE id = ? AND user_id = ?`), [id, userId]);
             
             res.status(200).send('Cycle deleted successfully.');
         } catch (err) {

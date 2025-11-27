@@ -11,8 +11,10 @@ const createTables = (dbInstance) => {
         dbInstance.query(`
             CREATE TABLE IF NOT EXISTS cycles (
                 id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
                 start_date DATE NOT NULL,
-                end_date DATE
+                end_date DATE,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
             );
         `);
         dbInstance.query(`
@@ -25,12 +27,22 @@ const createTables = (dbInstance) => {
                 FOREIGN KEY (cycle_id) REFERENCES cycles (id) ON DELETE CASCADE
             );
         `);
+        dbInstance.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                google_id TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                name TEXT
+            );
+        `);
     } else {
         dbInstance.serialize(() => {
             dbInstance.run(`CREATE TABLE IF NOT EXISTS cycles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
                 start_date TEXT NOT NULL,
-                end_date TEXT
+                end_date TEXT,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
             )`, (err) => {
                 if (err) console.error("Error creating cycles table:", err.message);
             });
@@ -44,6 +56,15 @@ const createTables = (dbInstance) => {
                 FOREIGN KEY (cycle_id) REFERENCES cycles (id)
             )`, (err) => {
                 if (err) console.error("Error creating cycle_days table:", err.message);
+            });
+
+            dbInstance.run(`CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                google_id TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                name TEXT
+            )`, (err) => {
+                if (err) console.error("Error creating users table:", err.message);
             });
         });
     }
