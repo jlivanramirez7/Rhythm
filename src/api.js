@@ -7,7 +7,8 @@ const sql = (query) => {
     if (isProduction) {
         // Use $1, $2, etc. for PostgreSQL
         let i = 0;
-        return query.replace(/\?/g, () => `$${++i}`);
+        let positional = 0;
+        return query.replace(/\?/g, () => `$${++positional}`);
     }
     // Use ? for SQLite
     return query;
@@ -334,7 +335,7 @@ const apiRouter = (db) => {
         values.push(id); // Add the ID for the WHERE clause
 
         try {
-            const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ? RETURNING id`);
+            const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`);
             const result = await db.run(updateSql, values);
             
             if (result.changes === 0) {

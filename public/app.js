@@ -38,13 +38,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const fetchAndRenderData = async () => {
             try {
-                // Fetch cycles, ensuring we don't use a cached version.
-                const cyclesRes = await fetch('/api/cycles', { cache: 'no-store' });
+                // Fetch cycles
+                const cyclesRes = await fetch('/api/cycles');
                 const cycles = await cyclesRes.json();
                 renderCycles(cycles);
 
-                // Fetch analytics, also bypassing the cache.
-                const analyticsRes = await fetch('/api/analytics', { cache: 'no-store' });
+                // Fetch analytics
+                const analyticsRes = await fetch('/api/analytics');
                 const analytics = await analyticsRes.json();
                 renderAnalytics(analytics, cycles);
             } catch (error) {
@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
 
                         if (changesMade) {
-                            updateReading(dayData.id, payload);
+                            logOrUpdateReading({ id: dayData.id, ...payload });
                         }
 
                         const deleteButton = dayDiv.querySelector('.delete-day-button');
@@ -340,12 +340,18 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         };
         
-        const updateReading = async (id, payload) => {
+        const logOrUpdateReading = async (payload) => {
+            const { id, ...body } = payload;
+            const isUpdate = id !== undefined && id !== null;
+            const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
+            const method = isUpdate ? 'PUT' : 'POST';
+
+            let response; // Define response here to be accessible in catch block
             try {
-                const response = await fetch(`/api/cycles/days/${id}`, {
-                    method: 'PUT',
+                response = await fetch(url, {
+                    method: method,
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
+                    body: JSON.stringify(body),
                 });
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -353,88 +359,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 fetchAndRenderData();
             } catch (error) {
-                console.error('Error updating reading:', error);
-                const errorData = await response.json();
-                alert(`Error updating reading: ${errorData.error}\nDetails: ${errorData.details}`);
+                console.error(`Error ${isUpdate ? 'updating' : 'logging'} reading:`, error);
+                if (response) {
+                    try {
+                        const errorData = await response.json();
+                        alert(`Error: ${errorData.error}\nDetails: ${errorData.details}`);
+                    } catch (e) {
+                        alert('An unknown error occurred. Please check the console.');
+                    }
+                } else {
+                    alert('An unknown error occurred. Please check the console.');
+                }
             }
         };
 
         readingForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const hormone_reading = e.target.reading.value;
-            const intercourse = e.target.intercourse.checked;
+            const hormone_reading = document.getElementById('reading').value;
+            const intercourse = document.getElementById('intercourse-checkbox').checked;
 
-            const payload = { date: e.target.date.value };
-            let hasData = false;
-
-            if (hormone_reading) {
-                payload.hormone_reading = hormone_reading;
-                hasData = true;
-            }
-            if (intercourse) {
-                payload.intercourse = intercourse;
-                hasData = true;
-            }
-
-            if (!hasData && !rangeCheckbox.checked) {
-                console.log('Please select a hormone reading or check the intercourse box.');
-                return;
-            }
-
-            if (rangeCheckbox.checked) {
-                const startDate = dateInput.value;
-                const endDate = endDateInput.value;
-                if (!startDate || !endDate) {
-                    console.log('Please select both a start and end date for the range.');
-                    return;
-                }
-                if (new Date(startDate) > new Date(endDate)) {
-                    console.log('The start date must be before the end date.');
-                    return;
-                }
-
-                const rangePayload = {
-                    start_date: startDate,
-                    end_date: endDate,
-                    hormone_reading,
-                    intercourse,
-                };
-
-                try {
-                    const response = await fetch('/api/cycles/days/range', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(rangePayload),
-                    });
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(errorText);
-                    }
-                    fetchAndRenderData();
-                } catch (error) {
-                    console.error('Error logging date range readings:', error);
-                    const errorData = await response.json();
-                    alert(`Error logging date range readings: ${errorData.error}\nDetails: ${errorData.details}`);
-                }
-            } else {
-                const date = dateInput.value;
-                try {
-                    const response = await fetch('/api/cycles/days', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload),
-                    });
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(errorText);
-                    }
-                    fetchAndRenderData();
-                } catch (error) {
-                    console.error('Error logging reading:', error);
-                    const errorData = await response.json();
-                    alert(`Error logging reading: ${errorData.error}\nDetails: ${errorData.details}`);
-                }
-            }
+            const payload = { date: document.getElementById('date').value, hormone_reading, intercourse };
+            await logOrUpdateReading(payload);
         });
 
         periodButton.addEventListener('click', async () => {
