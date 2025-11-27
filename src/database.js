@@ -79,13 +79,15 @@ async function initializeDatabase(secrets) {
     if (db) return db;
 
     if (isProduction) {
-        const pool = new Pool({
+        const dbConfig = {
             user: secrets.DB_USER,
             password: secrets.DB_PASSWORD,
             database: secrets.DB_NAME,
-            host: secrets.DB_HOST,
-            port: secrets.DB_PORT,
-        });
+            // The host is the path to the unix socket provided by the Cloud SQL Proxy.
+            // e.g. /cloudsql/your-instance-connection-name
+            host: '/cloudsql/rhythm-479516:us-central1:rhythm-db'
+        };
+        const pool = new Pool(dbConfig);
 
         const connectWithRetry = async (retries = 5, delay = 5000) => {
             for (let i = 0; i < retries; i++) {
