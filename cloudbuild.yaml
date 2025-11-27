@@ -19,13 +19,6 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
-    env:
-      - 'DB_HOST=34.46.1.48'
-      - 'DB_PORT=5432'
-      - 'DB_NAME=postgres'
-      - 'DB_USER=postgres'
-      - 'DB_PASSWORD=demopassword123'
-      - 'NODE_ENV=production'
 images:
   - 'gcr.io/$PROJECT_ID/rhythm'
 options:

@@ -19,9 +19,9 @@ const ensureAuthenticated = (req, res, next) => {
 };
 
 async function main() {
-    // if (process.env.NODE_ENV === 'production') {
-    //     await loadSecrets();
-    // }
+    if (process.env.NODE_ENV === 'production') {
+        await loadSecrets();
+    }
     
     const db = await initializeDatabase();
     
