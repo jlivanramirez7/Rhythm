@@ -87,11 +87,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const cycleLength = (effectiveEndDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24) + 1;
                 
+                const cycleHeaderContainer = document.createElement('div');
+                cycleHeaderContainer.className = 'cycle-header-container';
+
                 const cycleHeader = document.createElement('div');
                 cycleHeader.className = 'cycle-header';
                 const cycleNumber = cycles.length - index;
                 cycleHeader.textContent = `Cycle ${cycleNumber} started on ${startDate.toLocaleDateString()} (Length: ${Math.floor(cycleLength)} days)`;
-                cycleDiv.appendChild(cycleHeader);
+                cycleHeaderContainer.appendChild(cycleHeader);
 
                 const menuContainer = document.createElement('div');
                 menuContainer.className = 'cycle-menu-container';
@@ -108,7 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <a href="#" class="delete-cycle">Delete</a>
                 `;
                 menuContainer.appendChild(menuContent);
-                cycleDiv.appendChild(menuContainer);
+                cycleHeaderContainer.appendChild(menuContainer);
+                cycleDiv.appendChild(cycleHeaderContainer);
 
                 menuButton.onclick = (e) => {
                     e.stopPropagation();

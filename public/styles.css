@@ -1,6 +1,6 @@
 :root {
     --primary-color: #6200ee;
-    --primary-variant-color: #3700b3;
+    --primary-variant-color: #6200ee;
     --secondary-color: #03dac6;
     --background-color: #f5f5f5;
     --surface-color: #ffffff;
@@ -84,6 +84,10 @@ h2 {
     color: #333;
 }
 
+#reading-form > div {
+    padding: 5px 0;
+}
+
 #reading-form {
     display: flex;
     flex-direction: column;
@@ -95,7 +99,8 @@ h2 {
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 5px;
+    gap: 15px;
+    padding: 5px 0;
 }
 
 .date-input-container {
@@ -107,7 +112,6 @@ h2 {
 .form-container {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
 }
 
 form#reading-form {
@@ -141,12 +145,17 @@ button:hover {
     background: var(--primary-variant-color);
 }
 
+#period-section {
+    padding: 10px 0;
+}
+
 #period-button {
     background: var(--primary-variant-color);
+    margin-left: 10px;
 }
 
 #period-button:hover {
-    background: #c0392b;
+    background: var(--primary-color);
 }
 
 #cycles-section, #input-section, #analytics-section {
@@ -166,9 +175,15 @@ button:hover {
     border-radius: 5px;
 }
 
+.cycle-header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
 .cycle-header {
     font-weight: bold;
-    margin-bottom: 10px;
 }
 
 .day-grid {
@@ -233,9 +248,6 @@ button:hover {
 }
 
 .cycle-menu-button {
-    position: absolute;
-    top: 15px;
-    right: 15px;
     cursor: pointer;
     display: flex;
     flex-direction: column;
@@ -246,7 +258,7 @@ button:hover {
     display: block;
     width: 25px;
     height: 3px;
-    background-color: #333;
+    background-color: var(--primary-color);
     border-radius: 3px;
     transition: all 0.3s ease-in-out;
 }
@@ -381,7 +393,7 @@ button:hover {
     background-color: #f9f9f9;
     min-width: 160px;
     box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 1;
+    z-index: 1000;
 }
 
 .menu-content a {

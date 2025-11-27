@@ -50,8 +50,7 @@ jest.mock('../src/db', () => {
     return { query, get, run, serialize, _db: db };
 });
 
-describe('Rhythm API', () => {
-    // Re-create the database schema before each test
+describe('Cycles API', () => {
     beforeEach((done) => {
         db.serialize(() => {
             db._db.run(`DROP TABLE IF EXISTS cycle_days`);
@@ -86,6 +85,13 @@ describe('Rhythm API', () => {
             .send({ start_date: '2025-01-01' });
         expect(res.statusCode).toEqual(201);
         expect(res.body).toHaveProperty('id');
+    });
+
+    it('should not create a new cycle without a start date', async () => {
+        const res = await request(app)
+            .post('/api/cycles')
+            .send({});
+        expect(res.statusCode).toEqual(400);
     });
 
     it('should add a reading to the correct cycle', async () => {
@@ -185,5 +191,101 @@ describe('Rhythm API', () => {
         expect(day2.hormone_reading).toBe('High');
         expect(day3.hormone_reading).toBe('High');
         expect(day4.hormone_reading).toBe('High');
+    });
+
+    it('should log intercourse without a hormone reading', async () => {
+        await request(app).post('/api/cycles').send({ start_date: '2025-01-01' });
+
+        const readingRes = await request(app).post('/api/cycles/days').send({
+            date: '2025-01-01',
+            intercourse: true
+        });
+        expect(readingRes.statusCode).toEqual(200);
+
+        const cyclesRes = await request(app).get('/api/cycles');
+        const day = cyclesRes.body[0].days.find(d => d.date === '2025-01-01');
+        expect(day.intercourse).toBe(1);
+        expect(day.hormone_reading).toBeNull();
+    });
+
+    it('should update intercourse status without affecting hormone reading', async () => {
+        await request(app).post('/api/cycles').send({ start_date: '2025-01-01' });
+
+        await request(app).post('/api/cycles/days').send({
+            date: '2025-01-02',
+            hormone_reading: 'Low',
+            intercourse: false
+        });
+
+        const cyclesRes1 = await request(app).get('/api/cycles');
+        const day1 = cyclesRes1.body[0].days.find(d => d.date === '2025-01-02');
+
+        await request(app).post('/api/cycles/days').send({
+            date: '2025-01-02',
+            intercourse: true
+        });
+
+        const cyclesRes2 = await request(app).get('/api/cycles');
+        const day2 = cyclesRes2.body[0].days.find(d => d.date === '2025-01-02');
+        expect(day2.intercourse).toBe(1);
+        expect(day2.hormone_reading).toBe('Low');
+    });
+
+    it('should add intercourse to an existing reading', async () => {
+        await request(app).post('/api/cycles').send({ start_date: '2025-02-01' });
+        await request(app).post('/api/cycles/days').send({ date: '2025-02-02', hormone_reading: 'High' });
+
+        const cyclesRes1 = await request(app).get('/api/cycles');
+        const day1 = cyclesRes1.body[0].days.find(d => d.date === '2025-02-02');
+        expect(day1.intercourse).toBe(0);
+
+        await request(app).post('/api/cycles/days').send({ date: '2025-02-02', intercourse: true });
+
+        const cyclesRes2 = await request(app).get('/api/cycles');
+        const day2 = cyclesRes2.body[0].days.find(d => d.date === '2025-02-02');
+        expect(day2.intercourse).toBe(1);
+        expect(day2.hormone_reading).toBe('High');
+    });
+
+    it('should delete a cycle and all its readings', async () => {
+        const cycleRes = await request(app)
+            .post('/api/cycles')
+            .send({ start_date: '2025-03-01' });
+        const cycleId = cycleRes.body.id;
+
+        await request(app)
+            .post('/api/cycles/days')
+            .send({ date: '2025-03-02', hormone_reading: 'Peak' });
+
+        const deleteRes = await request(app).delete(`/api/cycles/${cycleId}`);
+        expect(deleteRes.statusCode).toEqual(200);
+
+        const cyclesRes = await request(app).get('/api/cycles');
+        const deletedCycle = cyclesRes.body.find(c => c.id === cycleId);
+        expect(deletedCycle).toBeUndefined();
+
+        const readingsRes = await db.query('SELECT * FROM cycle_days WHERE cycle_id = ?', [cycleId]);
+        expect(readingsRes.length).toBe(0);
+    });
+
+    it('should fill in blank day cards when a future date is added', async () => {
+        await request(app)
+            .post('/api/cycles')
+            .send({ start_date: '2025-01-01' });
+
+        await request(app)
+            .post('/api/cycles/days')
+            .send({ date: '2025-01-05', hormone_reading: 'High' });
+
+        const cyclesRes = await request(app).get('/api/cycles');
+        const cycle = cyclesRes.body.find(c => c.start_date === '2025-01-01');
+        
+        expect(cycle.days.length).toBe(5);
+        expect(cycle.days[0].date).toBe('2025-01-01');
+        expect(cycle.days[1].date).toBe('2025-01-02');
+        expect(cycle.days[2].date).toBe('2025-01-03');
+        expect(cycle.days[3].date).toBe('2025-01-04');
+        expect(cycle.days[4].date).toBe('2025-01-05');
+        expect(cycle.days[4].hormone_reading).toBe('High');
     });
 });

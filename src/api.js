@@ -18,7 +18,7 @@ const sql = (query) => {
 router.post('/cycles', async (req, res) => {
     const { start_date } = req.body;
     if (!start_date) {
-        return res.status(400).send('start_date is required');
+        return res.status(400).json({ error: 'start_date is required' });
     }
 
     try {
@@ -185,7 +185,31 @@ router.get('/cycles', async (req, res) => {
 
         for (const cycle of cycles) {
             const daysSql = sql(`SELECT * FROM cycle_days WHERE cycle_id = ? ORDER BY date`);
-            cycle.days = await db.query(daysSql, [cycle.id]);
+            const days = await db.query(daysSql, [cycle.id]);
+            
+            const filledDays = [];
+            if (days.length > 0) {
+                const startDate = new Date(days[0].date);
+                const lastDate = new Date(days[days.length - 1].date);
+                
+                let currentDate = new Date(startDate);
+                while (currentDate <= lastDate) {
+                    const dateStr = currentDate.toISOString().split('T')[0];
+                    const existingDay = days.find(d => d.date === dateStr);
+                    if (existingDay) {
+                        filledDays.push(existingDay);
+                    } else {
+                        filledDays.push({
+                            cycle_id: cycle.id,
+                            date: dateStr,
+                            hormone_reading: null,
+                            intercourse: 0
+                        });
+                    }
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+            }
+            cycle.days = filledDays;
         }
         
         res.json(cycles);
@@ -266,9 +290,6 @@ router.delete('/cycles/:id', async (req, res) => {
         await db.run(sql(`DELETE FROM cycle_days WHERE cycle_id = ?`), [id]);
         const result = await db.run(sql(`DELETE FROM cycles WHERE id = ?`), [id]);
         
-        if (result.changes === 0) {
-            return res.status(404).send('Cycle not found.');
-        }
         res.status(200).send('Cycle deleted successfully.');
     } catch (err) {
         console.error(err.message);
