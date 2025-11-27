@@ -16,7 +16,6 @@ COPY . .
 # Your app binds to port 3000, so you'll use the 'PORT' environment variable
 # to tell the app which port to listen on
 ENV PORT 8080
-ENV NODE_ENV production
 EXPOSE 8080
 
 # Define the command to run your app
