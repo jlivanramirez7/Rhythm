@@ -64,6 +64,15 @@ async function main() {
     });
 
     app.get('/_health', (req, res) => res.status(200).send('OK'));
+    
+    // Middleware to prevent caching of API responses
+    app.use('/api', (req, res, next) => {
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+        next();
+    });
+
     app.use('/api', ensureAuthenticated, apiRouter(db));
 
     app.get('/app', ensureAuthenticated, (req, res) => {
