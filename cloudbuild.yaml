@@ -13,7 +13,7 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'rhythm-deploy'
+      - 'rhythm'
       - '--image'
       - 'gcr.io/rhythm-479516/rhythm'
       - '--region'
