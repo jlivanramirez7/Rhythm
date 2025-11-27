@@ -31,7 +31,7 @@ module.exports = (db, secrets) => {
                     'INSERT INTO users (google_id, email, name) VALUES ($1, $2, $3) RETURNING id',
                     [googleId, email, name]
                 );
-                user = await db.get('SELECT * FROM users WHERE id = $1', [result.rows[0].id]);
+                user = await db.get('SELECT * FROM users WHERE id = $1', [result.lastID]);
                 return cb(null, user);
             }
         } else {
