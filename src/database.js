@@ -4,6 +4,7 @@ const path = require('path');
 require('dotenv').config();
 
 const isProduction = process.env.NODE_ENV === 'production';
+const INSTANCE_CONNECTION_NAME = 'secret-bloom-474313-m8:us-central1:rhythm-db';
 
 let db;
 
@@ -83,8 +84,7 @@ async function initializeDatabase() {
             user: process.env.DB_USER,
             password: process.env.DB_PASSWORD,
             database: process.env.DB_NAME,
-            host: process.env.DB_HOST,
-            port: process.env.DB_PORT,
+            host: `/cloudsql/${INSTANCE_CONNECTION_NAME}`,
         });
 
         const connectWithRetry = async (retries = 5, delay = 5000) => {

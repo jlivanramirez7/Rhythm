@@ -19,6 +19,8 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
+      - '--add-cloudsql-instances'
+      - '$PROJECT_ID:us-central1:rhythm-db'
 images:
   - 'gcr.io/$PROJECT_ID/rhythm'
 options:
