@@ -212,10 +212,10 @@ const apiRouter = (db) => {
             }
             
             res.json(cycles);
-    } catch (err) {
-        console.error('Error in GET /api/cycles:', err);
-        res.status(500).json({ error: 'Failed to fetch cycles', details: err.message });
-    }
+        } catch (err) {
+            console.error('Error in GET /api/cycles:', err);
+            res.status(500).json({ error: 'Failed to fetch cycles', details: err.message });
+        }
     });
 
     // Get analytics
@@ -275,10 +275,10 @@ const apiRouter = (db) => {
             }
 
             res.json(analytics);
-    } catch (err) {
-        console.error('Error in GET /api/analytics:', err);
-        res.status(500).json({ error: 'Failed to fetch analytics', details: err.message });
-    }
+        } catch (err) {
+            console.error('Error in GET /api/analytics:', err);
+            res.status(500).json({ error: 'Failed to fetch analytics', details: err.message });
+        }
     });
 
     // Delete a cycle and all its readings
@@ -289,10 +289,10 @@ const apiRouter = (db) => {
             const result = await db.run(sql(`DELETE FROM cycles WHERE id = ?`), [id]);
             
             res.status(200).send('Cycle deleted successfully.');
-    } catch (err) {
-        console.error('Error in DELETE /api/cycles/:id:', err);
-        res.status(500).json({ error: 'Failed to delete cycle', details: err.message });
-    }
+        } catch (err) {
+            console.error('Error in DELETE /api/cycles/:id:', err);
+            res.status(500).json({ error: 'Failed to delete cycle', details: err.message });
+        }
     });
 
     // Update a specific day's reading
@@ -326,10 +326,10 @@ const apiRouter = (db) => {
                 return res.status(404).send('Reading not found.');
             }
             res.status(200).json({ id, message: 'Reading updated.' });
-    } catch (err) {
-        console.error('Error in PUT /api/cycles/days/:id:', err);
-        res.status(500).json({ error: 'Failed to update reading', details: err.message });
-    }
+        } catch (err) {
+            console.error('Error in PUT /api/cycles/days/:id:', err);
+            res.status(500).json({ error: 'Failed to update reading', details: err.message });
+        }
     });
 
     return router;
