@@ -96,8 +96,12 @@ async function initializeDatabase() {
                     client.release();
                     return pool; // Return the pool on success
                 } catch (err) {
-                    console.log(`Connection attempt ${i + 1} failed. Retrying in ${delay / 1000}s...`);
-                    if (i === retries - 1) throw err; // Throw error on last attempt
+                    console.error(`Connection attempt ${i + 1} failed with error:`, err);
+                    if (i === retries - 1) {
+                        console.error('Final connection attempt failed. Exiting.');
+                        throw err;
+                    }
+                    console.log(`Retrying in ${delay / 1000}s...`);
                     await new Promise(res => setTimeout(res, delay));
                 }
             }
