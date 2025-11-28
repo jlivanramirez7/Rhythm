@@ -30,7 +30,7 @@ async function main() {
     app.use((req, res, next) => {
         res.setHeader(
             'Content-Security-Policy',
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' data: fonts.gstatic.com; img-src 'self' data:; connect-src 'self';"
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' data: fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://www.googleapis.com;"
         );
         next();
     });
