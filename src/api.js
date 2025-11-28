@@ -3,18 +3,21 @@ const router = express.Router();
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Helper to adjust SQL queries for different databases
-const sql = (query) => {
-    if (isProduction) {
-        // Use $1, $2, etc. for PostgreSQL
-        let i = 0;
+const sql = (query, isPostgres) => {
+    let finalQuery = query;
+    if (isPostgres) {
         let positional = 0;
-        return query.replace(/\?/g, () => `$${++positional}`);
+        finalQuery = finalQuery.replace(/\?/g, () => `$${++positional}`);
     }
-    // Use ? for SQLite
-    return query;
+    if (isPostgres && finalQuery.toUpperCase().startsWith('INSERT')) {
+        finalQuery += ' RETURNING id';
+    }
+    return finalQuery;
 };
 
 const apiRouter = (db) => {
+    const isPostgres = db.adapter === 'postgres';
+
     // Create a new cycle
     router.post('/cycles', async (req, res) => {
         const { start_date } = req.body;
@@ -25,17 +28,17 @@ const apiRouter = (db) => {
         }
 
         try {
-            const findPreviousCycleSql = sql(`SELECT id FROM cycles WHERE user_id = ? AND end_date IS NULL ORDER BY start_date DESC LIMIT 1`);
+            const findPreviousCycleSql = sql(`SELECT id FROM cycles WHERE user_id = ? AND end_date IS NULL ORDER BY start_date DESC LIMIT 1`, isPostgres);
             const previousCycle = await db.get(findPreviousCycleSql, [userId]);
 
             const formattedStartDate = start_date;
 
             const insertNewCycle = async () => {
-                const insertCycleSql = sql(`INSERT INTO cycles (user_id, start_date) VALUES (?, ?) RETURNING id`);
+                const insertCycleSql = sql(`INSERT INTO cycles (user_id, start_date) VALUES (?, ?)`, isPostgres);
                 const result = await db.run(insertCycleSql, [userId, formattedStartDate]);
                 const newCycleId = result.lastID;
 
-                const insertDay1Sql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, NULL, false)`);
+                const insertDay1Sql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, NULL, false)`, isPostgres);
                 await db.run(insertDay1Sql, [newCycleId, formattedStartDate]);
 
                 res.status(201).json({ id: newCycleId, start_date: formattedStartDate });
@@ -46,7 +49,7 @@ const apiRouter = (db) => {
                 previousCycleEndDate.setDate(previousCycleEndDate.getDate() - 1);
                 const formattedPreviousCycleEndDate = previousCycleEndDate.toISOString().split('T')[0];
 
-                const updatePreviousCycleSql = sql(`UPDATE cycles SET end_date = ? WHERE id = ?`);
+                const updatePreviousCycleSql = sql(`UPDATE cycles SET end_date = ? WHERE id = ?`, isPostgres);
                 await db.run(updatePreviousCycleSql, [formattedPreviousCycleEndDate, previousCycle.id]);
                 await insertNewCycle();
             } else {
@@ -77,12 +80,12 @@ const apiRouter = (db) => {
                     WHERE ? >= start_date AND (end_date IS NULL OR ? <= end_date)
                     ORDER BY start_date DESC 
                     LIMIT 1
-                `);
+                `, isPostgres);
                 const cycle = await db.get(findCycleSql, [date, date]);
 
                 if (cycle) {
                     const cycle_id = cycle.id;
-                    const findExistingSql = sql(`SELECT id FROM cycle_days WHERE cycle_id = ? AND date = ?`);
+                    const findExistingSql = sql(`SELECT id FROM cycle_days WHERE cycle_id = ? AND date = ?`, isPostgres);
                     const existingReading = await db.get(findExistingSql, [cycle_id, date]);
 
                     if (existingReading) {
@@ -99,12 +102,12 @@ const apiRouter = (db) => {
 
                         if (fieldsToUpdate.length > 0) {
                             values.push(existingReading.id);
-                            const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`);
+                            const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`, isPostgres);
                             await db.run(updateSql, values);
                         }
                     } else {
                         const intercourseValue = intercourse ? 1 : 0;
-                        const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?) RETURNING id`);
+                        const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?)`, isPostgres);
                         await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
                     }
                 }
@@ -137,7 +140,7 @@ const apiRouter = (db) => {
                 WHERE ? >= start_date AND (end_date IS NULL OR ? <= end_date)
                 ORDER BY start_date DESC 
                 LIMIT 1
-            `);
+            `, isPostgres);
             const cycle = await db.get(findCycleSql, [date, date]);
 
             if (!cycle) {
@@ -145,7 +148,7 @@ const apiRouter = (db) => {
             }
 
             const cycle_id = cycle.id;
-            const findExistingSql = sql(`SELECT id FROM cycle_days WHERE cycle_id = ? AND date = ?`);
+            const findExistingSql = sql(`SELECT id FROM cycle_days WHERE cycle_id = ? AND date = ?`, isPostgres);
             const existingReading = await db.get(findExistingSql, [cycle_id, date]);
 
             if (existingReading) {
@@ -162,7 +165,7 @@ const apiRouter = (db) => {
 
                 if (fieldsToUpdate.length > 0) {
                     values.push(existingReading.id);
-                    const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`);
+                    const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`, isPostgres);
                     await db.run(updateSql, values);
                     res.status(200).json({ id: existingReading.id, message: 'Reading updated.' });
                 } else {
@@ -170,7 +173,7 @@ const apiRouter = (db) => {
                 }
             } else {
                 const intercourseValue = intercourse ? 1 : 0;
-                const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?)`);
+                const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?)`, isPostgres);
                 const result = await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
                 res.status(201).json({ id: result.lastID, message: 'Reading created.' });
             }
@@ -184,11 +187,11 @@ const apiRouter = (db) => {
     router.get('/cycles', async (req, res) => {
         const userId = req.user.id;
         try {
-            const cyclesSql = sql(`SELECT * FROM cycles WHERE user_id = ? ORDER BY start_date DESC`);
+            const cyclesSql = sql(`SELECT * FROM cycles WHERE user_id = ? ORDER BY start_date DESC`, isPostgres);
             const cycles = await db.query(cyclesSql, [userId]);
 
             for (const cycle of cycles) {
-                const daysSql = sql(`SELECT * FROM cycle_days WHERE cycle_id = ? ORDER BY date`);
+                const daysSql = sql(`SELECT * FROM cycle_days WHERE cycle_id = ? ORDER BY date`, isPostgres);
                 const days = await db.query(daysSql, [cycle.id]);
                 
                 const filledDays = [];
@@ -302,8 +305,8 @@ const apiRouter = (db) => {
         const { id } = req.params;
         const userId = req.user.id;
         try {
-            await db.run(sql(`DELETE FROM cycle_days WHERE cycle_id = ?`), [id]);
-            const result = await db.run(sql(`DELETE FROM cycles WHERE id = ? AND user_id = ?`), [id, userId]);
+            await db.run(sql(`DELETE FROM cycle_days WHERE cycle_id = ?`, isPostgres), [id]);
+            const result = await db.run(sql(`DELETE FROM cycles WHERE id = ? AND user_id = ?`, isPostgres), [id, userId]);
             
             res.status(200).send('Cycle deleted successfully.');
         } catch (err) {
@@ -336,7 +339,7 @@ const apiRouter = (db) => {
         values.push(id); // Add the ID for the WHERE clause
 
         try {
-            const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`);
+            const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`, isPostgres);
             const result = await db.run(updateSql, values);
             
             if (result.changes === 0) {
@@ -353,7 +356,7 @@ const apiRouter = (db) => {
     router.delete('/cycles/days/:id', async (req, res) => {
         const { id } = req.params;
         try {
-            const result = await db.run(sql(`DELETE FROM cycle_days WHERE id = ?`), [id]);
+            const result = await db.run(sql(`DELETE FROM cycle_days WHERE id = ?`, isPostgres), [id]);
             if (result.changes === 0) {
                 return res.status(404).send('Reading not found.');
             }
@@ -368,12 +371,12 @@ const apiRouter = (db) => {
     router.delete('/data', async (req, res) => {
         const userId = req.user.id;
         try {
-            const cycles = await db.query(sql(`SELECT id FROM cycles WHERE user_id = ?`), [userId]);
+            const cycles = await db.query(sql(`SELECT id FROM cycles WHERE user_id = ?`, isPostgres), [userId]);
             const cycleIds = cycles.map(c => c.id);
             if (cycleIds.length > 0) {
                 const placeholders = cycleIds.map(() => '?').join(',');
-                await db.run(sql(`DELETE FROM cycle_days WHERE cycle_id IN (${placeholders})`), cycleIds);
-                await db.run(sql(`DELETE FROM cycles WHERE user_id = ?`), [userId]);
+                await db.run(sql(`DELETE FROM cycle_days WHERE cycle_id IN (${placeholders})`, isPostgres), cycleIds);
+                await db.run(sql(`DELETE FROM cycles WHERE user_id = ?`, isPostgres), [userId]);
             }
             res.status(204).send();
         } catch (err) {
