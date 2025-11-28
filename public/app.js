@@ -37,13 +37,11 @@ document.addEventListener('DOMContentLoaded', () => {
         periodStartDateInput.value = new Date().toISOString().split('T')[0];
 
         const fetchAndRenderData = async () => {
-            console.log('Fetching and rendering data...');
             try {
                 const cacheBust = `?t=${new Date().getTime()}`;
                 // Fetch cycles
                 const cyclesRes = await fetch(`/api/cycles${cacheBust}`);
                 const cycles = await cyclesRes.json();
-                console.log('Fetched cycles:', cycles);
                 renderCycles(cycles);
 
                 // Fetch analytics
@@ -57,10 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const renderCycles = (cycles) => {
-            console.log('Rendering cycles...');
             cyclesContainer.innerHTML = '';
-            // The backend sends cycles sorted newest first. To display them in that order,
-            // and still get correct chronological numbering, we iterate normally and calculate the number.
             if (!cycles || cycles.length === 0) {
                 cyclesContainer.innerHTML = '<p>No cycle data yet. Start a new cycle to begin tracking.</p>';
                 return;
@@ -70,17 +65,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 cycleDiv.className = 'cycle';
                 cycleDiv.dataset.cycleId = cycle.id;
 
-                // Treat date strings from backend as UTC to prevent timezone shifts
-                const startDate = new Date(cycle.start_date + 'T00:00:00');
+                const startDate = new Date(cycle.start_date);
                 
                 let endDate;
                 let effectiveEndDate;
                 if (cycle.end_date) {
-                    endDate = new Date(cycle.end_date + 'T00:00:00');
+                    endDate = new Date(cycle.end_date);
                     effectiveEndDate = endDate;
                 } else {
                     const latestReadingDate = cycle.days.length > 0 ? cycle.days.reduce((max, day) => {
-                        const dayDate = new Date(day.date + 'T00:00:00');
+                        const dayDate = new Date(day.date);
                         return dayDate > max ? dayDate : max;
                     }, startDate) : startDate;
                     
@@ -161,22 +155,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     return null;
                 }
 
-                const firstHighOrPeakDate = new Date(highOrPeakDays[0].date + 'T00:00:00');
+                const firstHighOrPeakDate = new Date(highOrPeakDays[0].date);
                 const fertileStart = new Date(firstHighOrPeakDate);
                 fertileStart.setDate(fertileStart.getDate() - 6);
 
                 let fertileEnd;
                 if (peakDays.length > 0) {
-                    const lastPeakDate = new Date(peakDays[peakDays.length - 1].date + 'T00:00:00');
+                    const lastPeakDate = new Date(peakDays[peakDays.length - 1].date);
                     fertileEnd = new Date(lastPeakDate);
                     fertileEnd.setDate(fertileEnd.getDate() + 3);
                 } else {
-                    // If no peak, maybe the fertile window is just the high days? This is an assumption.
-                    const lastHighDate = new Date(highOrPeakDays[highOrPeakDays.length - 1].date + 'T00:00:00');
+                    const lastHighDate = new Date(highOrPeakDays[highOrPeakDays.length - 1].date);
                     fertileEnd = new Date(lastHighDate);
                 }
                 
-                const cycleStartDate = new Date(cycle.start_date + 'T00:00:00');
+                const cycleStartDate = new Date(cycle.start_date);
                 if (fertileStart < cycleStartDate) {
                     fertileStart.setTime(cycleStartDate.getTime());
                 }
@@ -199,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
             avgCycleLengthSpan.textContent = analytics.averageCycleLength || '--';
             avgDaysToPeakSpan.textContent = analytics.averageDaysToPeak || '--';
 
-            const { averageFertileWindow, fertileWindows } = calculateFertileWindows(cycles);
+            const { averageFertileWindow } = calculateFertileWindows(cycles);
             document.getElementById('avg-fertile-window').textContent = averageFertileWindow > 0 ? `${averageFertileWindow} days` : '--';
 
             const estimatedNextPeriodSpan = document.getElementById('estimated-next-period');
@@ -208,14 +201,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (analytics.averageCycleLength > 0 && cycles.length > 0) {
                 const lastCycle = cycles[0];
-                const lastCycleStartDate = new Date(lastCycle.start_date + 'T00:00:00');
+                const lastCycleStartDate = new Date(lastCycle.start_date);
                 const estimatedNextDate = new Date(lastCycleStartDate);
                 estimatedNextDate.setDate(lastCycleStartDate.getDate() + analytics.averageCycleLength);
                 estimatedNextPeriodSpan.textContent = estimatedNextDate.toLocaleDateString();
 
                 if (analytics.averageDaysToPeak > 0) {
                     const estimatedFertileStart = new Date(estimatedNextDate);
-                    estimatedFertileStart.setDate(estimatedNextDate.getDate() + analytics.averageDaysToPeak - 7); // 6 days before + peak day
+                    estimatedFertileStart.setDate(estimatedNextDate.getDate() + analytics.averageDaysToPeak - 7);
                     const estimatedFertileEnd = new Date(estimatedNextDate);
                     estimatedFertileEnd.setDate(estimatedNextDate.getDate() + analytics.averageDaysToPeak + 3);
                     fertileWindowStartSpan.textContent = estimatedFertileStart.toLocaleDateString();
@@ -232,7 +225,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const updateCycleUI = (updatedCycle) => {
-            console.log('Updating cycle UI for cycle:', updatedCycle);
             let cycleDiv = document.querySelector(`.cycle[data-cycle-id='${updatedCycle.id}']`);
             if (cycleDiv) {
                 const dayGrid = cycleDiv.querySelector('.day-grid');
@@ -247,20 +239,19 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const createDayDiv = (dayData, cycle) => {
-            console.log('Creating day div for:', dayData, cycle);
-            const dayDate = new Date(dayData.date + 'T00:00:00');
+            const dayDate = new Date(dayData.date);
             const dayDiv = document.createElement('div');
             dayDiv.className = 'day';
             dayDiv.dataset.dayData = JSON.stringify(dayData);
 
-            const dayNumber = Math.floor((dayDate.getTime() - new Date(cycle.start_date + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1;
+            const dayNumber = Math.floor((dayDate.getTime() - new Date(cycle.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1;
             const dayNumberDiv = document.createElement('div');
             dayNumberDiv.className = 'day-number';
             dayNumberDiv.textContent = `Day ${dayNumber}`;
             dayDiv.appendChild(dayNumberDiv);
 
-            const dayOfMonth = dayDate.getDate();
-            const month = dayDate.getMonth() + 1;
+            const dayOfMonth = dayDate.getUTCDate();
+            const month = dayDate.getUTCMonth() + 1;
             const formattedDate = `${String(month).padStart(2, '0')}/${String(dayOfMonth).padStart(2, '0')}`;
             const dateDiv = document.createElement('div');
             dateDiv.className = 'day-date';
@@ -282,7 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         const logOrUpdateReading = async (payload) => {
-            console.log('Logging or updating reading:', payload);
             const { id, ...body } = payload;
             const isUpdate = id !== undefined && id !== null;
             const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
@@ -307,7 +297,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const toggleEditMode = (cycleDiv, cycleId) => {
-            console.log('Toggling edit mode for cycle:', cycleId);
             const isEditing = cycleDiv.classList.toggle('edit-mode');
             const dayDivs = cycleDiv.querySelectorAll('.day');
             dayDivs.forEach(dayDiv => {
@@ -368,7 +357,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         readingForm.addEventListener('submit', async (e) => {
-            console.log('Reading form submitted');
             e.preventDefault();
             const hormone_reading = document.getElementById('reading').value;
             const intercourse = document.getElementById('intercourse-checkbox').checked;
@@ -510,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Determine if it's an update or a new reading
                 const method = dayData.id.toString().startsWith('placeholder') ? 'POST' : 'PUT';
                 const url = method === 'PUT' ? `/api/cycles/days/${dayData.id}` : '/api/cycles/days';
-                const body = { date: formattedDayDate, hormone_reading: newHormoneReading };
+                const body = { date: formattedDayDate, hormone_reading: newHromoneReading };
 
                 try {
                     const response = await fetch(url, {
