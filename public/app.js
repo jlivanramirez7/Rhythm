@@ -388,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 end_date: document.getElementById('end-date').value,
                 range: document.getElementById('range-checkbox').checked
             };
-            logOrUpdateReading(payload);
+            await logOrUpdateReading(payload);
         });
 
         periodButton.addEventListener('click', async () => {
