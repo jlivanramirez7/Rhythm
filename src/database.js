@@ -59,7 +59,6 @@ async function initializeDatabase(secrets) {
             user: secrets.DB_USER,
             password: secrets.DB_PASSWORD,
             database: secrets.DB_NAME,
-            // When running in production on Cloud Run, we connect to the Cloud SQL instance via a Unix socket.
             host: process.env.NODE_ENV === 'production' ? '/cloudsql/rhythm-479516:us-central1:rhythm-db' : secrets.DB_HOST,
             port: secrets.DB_PORT || 5432
         };
