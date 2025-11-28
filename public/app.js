@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cycles.forEach((cycle, index) => {
                 const cycleDiv = document.createElement('div');
                 cycleDiv.className = 'cycle';
+                cycleDiv.dataset.cycleId = cycle.id;
 
                 // Treat date strings from backend as UTC to prevent timezone shifts
                 const startDate = new Date(cycle.start_date + 'T00:00:00');
@@ -139,42 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 dayGrid.className = 'day-grid';
 
                 cycle.days.forEach(dayData => {
-                    const dayDate = new Date(dayData.date + 'T00:00:00');
-                    const dayDiv = document.createElement('div');
-                    dayDiv.className = 'day';
-                    dayDiv.dataset.dayData = JSON.stringify(dayData);
-
-                    const { fertileWindows } = calculateFertileWindows(cycles);
-                    const cycleFertileWindow = fertileWindows[index];
-                    if (cycleFertileWindow && dayDate >= cycleFertileWindow.start && dayDate <= cycleFertileWindow.end) {
-                        dayDiv.classList.add('fertile-window');
-                    }
-
-                    const dayNumber = Math.floor((dayDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-                    const dayNumberDiv = document.createElement('div');
-                    dayNumberDiv.className = 'day-number';
-                    dayNumberDiv.textContent = `Day ${dayNumber}`;
-                    dayDiv.appendChild(dayNumberDiv);
-
-                    const dayOfMonth = dayDate.getDate();
-                    const month = dayDate.getMonth() + 1;
-                    const formattedDate = `${String(month).padStart(2, '0')}/${String(dayOfMonth).padStart(2, '0')}`;
-                    const dateDiv = document.createElement('div');
-                    dateDiv.className = 'day-date';
-                    dateDiv.textContent = formattedDate;
-                    dayDiv.appendChild(dateDiv);
-
-                    const readingDiv = document.createElement('div');
-                    readingDiv.className = `reading ${dayData.hormone_reading || 'none'}`;
-                    readingDiv.textContent = dayData.hormone_reading || 'No Reading';
-                    dayDiv.appendChild(readingDiv);
-
-                    if (dayData.intercourse) {
-                        const heartDiv = document.createElement('div');
-                        heartDiv.className = 'heart';
-                        heartDiv.textContent = '❤️';
-                        dayDiv.appendChild(heartDiv);
-                    }
+                    const dayDiv = createDayDiv(dayData, cycle);
                     dayGrid.appendChild(dayDiv);
                 });
 
@@ -395,24 +361,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         if (changesMade) {
                             logOrUpdateReading({ ...payload, id: dayData.id });
-                        } else {
-                            const dayData = JSON.parse(dayDiv.dataset.dayData);
-                            const readingDiv = dayDiv.querySelector('.reading');
-                            readingDiv.className = `reading ${dayData.hormone_reading || 'none'}`;
-                            readingDiv.textContent = dayData.hormone_reading || 'No Reading';
-                            const heartDiv = dayDiv.querySelector('.heart');
-                            if (dayData.intercourse) {
-                                if (!heartDiv) {
-                                    const newHeartDiv = document.createElement('div');
-                                    newHeartDiv.className = 'heart';
-                                    newHeartDiv.textContent = '❤️';
-                                    dayDiv.appendChild(newHeartDiv);
-                                }
-                            } else {
-                                if (heartDiv) {
-                                    heartDiv.remove();
-                                }
-                            }
                         }
                     }
                 }
