@@ -131,8 +131,7 @@ const apiRouter = (db) => {
             return res.status(400).send('date and either hormone_reading or intercourse are required');
         }
 
-        // Treat date as UTC to prevent timezone shifts
-        date = new Date(date + 'T00:00:00').toISOString().split('T')[0];
+        date = new Date(date + 'T00:00:00Z').toISOString().split('T')[0];
 
         try {
             const findCycleSql = sql(`
@@ -194,42 +193,37 @@ const apiRouter = (db) => {
         try {
             const cyclesSql = sql(`SELECT * FROM cycles WHERE user_id = ? ORDER BY start_date DESC`, isPostgres);
             const cycles = await db.query(cyclesSql, [userId]);
-            console.log('Raw cycles from DB:', JSON.stringify(cycles, null, 2));
 
             for (const cycle of cycles) {
                 const daysSql = sql(`SELECT * FROM cycle_days WHERE cycle_id = ? ORDER BY date`, isPostgres);
                 const days = await db.query(daysSql, [cycle.id]);
-                console.log(`Raw days for cycle ${cycle.id}:`, JSON.stringify(days, null, 2));
 
-                // Normalize all day dates to YYYY-MM-DD strings for reliable lookup
                 const daysMap = new Map(days.map(d => [new Date(d.date).toISOString().split('T')[0], d]));
                 
                 const filledDays = [];
-                const lastDateStr = days.length > 0
-                    ? new Date(days[days.length - 1].date).toISOString().split('T')[0]
-                    : new Date(cycle.start_date).toISOString().split('T')[0];
 
-                const startDate = new Date(cycle.start_date + 'T00:00:00');
-                const lastDate = new Date(lastDateStr + 'T00:00:00');
-                
-                for (let d = new Date(startDate); d <= lastDate; d.setDate(d.getDate() + 1)) {
-                    const dateStr = d.toISOString().split('T')[0];
-                    const existingDay = daysMap.get(dateStr);
+                if (days.length > 0) {
+                    const startDate = new Date(cycle.start_date);
+                    const lastReadingDate = new Date(days[days.length - 1].date);
+                    const today = new Date();
+                    const lastDate = lastReadingDate > today ? lastReadingDate : today;
                     
-                    if (existingDay) {
-                        filledDays.push(existingDay);
-                    } else {
-                        filledDays.push({
-                            cycle_id: cycle.id,
-                            date: dateStr,
-                            hormone_reading: null,
-                            intercourse: 0,
-                        });
+                    for (let d = new Date(startDate); d <= lastDate; d.setUTCDate(d.getUTCDate() + 1)) {
+                        const dateStr = d.toISOString().split('T')[0];
+                        const existingDay = daysMap.get(dateStr);
+                        
+                        if (existingDay) {
+                            filledDays.push(existingDay);
+                        } else {
+                            filledDays.push({
+                                cycle_id: cycle.id,
+                                date: dateStr,
+                                hormone_reading: null,
+                                intercourse: 0,
+                            });
+                        }
                     }
-                }
-
-                // If there are no readings, ensure at least the start day is shown.
-                if (filledDays.length === 0) {
+                } else {
                     filledDays.push({
                         cycle_id: cycle.id,
                         date: new Date(cycle.start_date).toISOString().split('T')[0],
@@ -238,7 +232,6 @@ const apiRouter = (db) => {
                     });
                 }
                 cycle.days = filledDays;
-                console.log(`Filled days for cycle ${cycle.id}:`, JSON.stringify(filledDays, null, 2));
             }
     
             res.json(cycles);
@@ -306,7 +299,7 @@ const apiRouter = (db) => {
 
             res.json(analytics);
         } catch (err) {
-            console.error('Error in GET /api/analytics:', err);
+            console.error('Error in GET /api/cycles:', err);
             res.status(500).json({ error: 'Failed to fetch analytics', details: err.message });
         }
     });
