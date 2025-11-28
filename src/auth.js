@@ -7,9 +7,9 @@ module.exports = (db, secrets) => {
     passport.use(new GoogleStrategy({
         clientID: secrets.GOOGLE_CLIENT_ID,
         clientSecret: secrets.GOOGLE_CLIENT_SECRET,
-    callbackURL: "/auth/google/callback",
-    proxy: true
-  },
+        callbackURL: process.env.NODE_ENV === 'production' ? 'https://rhythm-632601707892.us-central1.run.app/auth/google/callback' : '/auth/google/callback',
+        proxy: true
+    },
   async (accessToken, refreshToken, profile, cb) => {
     if (authorizedUsers.length > 0 && !authorizedUsers.includes(profile.emails[0].value)) {
       return cb(null, false, { message: 'Unauthorized User' });
@@ -20,7 +20,7 @@ module.exports = (db, secrets) => {
         const googleId = profile.id;
         const name = profile.displayName;
 
-        if (db.isProduction) {
+        if (db.adapter === 'postgres') {
             let user = await db.get('SELECT * FROM users WHERE google_id = $1', [googleId]);
 
             if (user) {
@@ -60,7 +60,7 @@ module.exports = (db, secrets) => {
     passport.deserializeUser(async (id, done) => {
         try {
             let user;
-            if (db.isProduction) {
+            if (db.adapter === 'postgres') {
                 user = await db.get('SELECT * FROM users WHERE id = $1', [id]);
             } else {
                 user = await db.get('SELECT * FROM users WHERE id = ?', [id]);

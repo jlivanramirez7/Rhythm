@@ -50,7 +50,7 @@ async function loadSecrets() {
             GOOGLE_CLIENT_SECRET: googleClientSecret,
             AUTHORIZED_USERS: authorizedUsers,
             SESSION_SECRET: sessionSecret,
-            DB_ADAPTER: 'postgres' // Assume postgres in production
+            DB_ADAPTER: 'postgres'
         };
     } catch (error) {
         console.error('Failed to load secrets:', error);
