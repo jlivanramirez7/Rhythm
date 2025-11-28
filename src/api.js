@@ -15,6 +15,64 @@ const sql = (query, isPostgres) => {
     return finalQuery;
 };
 
+// Centralized function to get a cycle and fill its days
+const getFilledCycle = async (cycleId, db) => {
+    const isPostgres = db.adapter === 'postgres';
+    const cycleSql = sql(`SELECT * FROM cycles WHERE id = ?`, isPostgres);
+    const cycle = await db.get(cycleSql, [cycleId]);
+
+    if (!cycle) {
+        return null;
+    }
+
+    const daysSql = sql(`SELECT * FROM cycle_days WHERE cycle_id = ? ORDER BY date`, isPostgres);
+    const days = await db.query(daysSql, [cycle.id]);
+
+    const daysMap = new Map(days.map(d => [new Date(d.date).toISOString().split('T')[0], d]));
+    
+    const filledDays = [];
+    const startDate = new Date(cycle.start_date + 'T00:00:00Z');
+
+    let lastDate = startDate;
+    if (days.length > 0) {
+        const lastReadingDate = new Date(days[days.length - 1].date);
+        if (lastReadingDate > startDate) {
+            lastDate = lastReadingDate;
+        }
+    }
+    
+    // Use UTC methods to iterate to avoid timezone issues
+    for (let d = new Date(startDate.getTime()); d <= lastDate; d.setUTCDate(d.getUTCDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0];
+        const existingDay = daysMap.get(dateStr);
+        
+        if (existingDay) {
+            filledDays.push(existingDay);
+        } else {
+            filledDays.push({
+                cycle_id: cycle.id,
+                date: dateStr,
+                hormone_reading: null,
+                intercourse: 0,
+            });
+        }
+    }
+
+    // Ensure the array is never empty for a valid cycle
+    if (filledDays.length === 0) {
+        filledDays.push({
+            cycle_id: cycle.id,
+            date: new Date(cycle.start_date).toISOString().split('T')[0],
+            hormone_reading: null,
+            intercourse: 0,
+        });
+    }
+
+    cycle.days = filledDays;
+    return cycle;
+};
+
+
 const apiRouter = (db) => {
     const isPostgres = db.adapter === 'postgres';
 
@@ -173,13 +231,7 @@ const apiRouter = (db) => {
                 await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
             }
             
-            const daysSql = sql(`SELECT * FROM cycle_days WHERE cycle_id = ? ORDER BY date`, isPostgres);
-            const days = await db.query(daysSql, [cycle_id]);
-            
-            const fullCycleSql = sql(`SELECT * FROM cycles WHERE id = ?`, isPostgres);
-            const fullCycle = await db.get(fullCycleSql, [cycle_id]);
-            fullCycle.days = days;
-
+            const fullCycle = await getFilledCycle(cycle_id, db);
             res.status(200).json(fullCycle);
         } catch (err) {
             console.error('Error in POST /api/cycles/days:', err);
@@ -194,45 +246,15 @@ const apiRouter = (db) => {
             const cyclesSql = sql(`SELECT * FROM cycles WHERE user_id = ? ORDER BY start_date DESC`, isPostgres);
             const cycles = await db.query(cyclesSql, [userId]);
 
+            const filledCycles = [];
             for (const cycle of cycles) {
-                const daysSql = sql(`SELECT * FROM cycle_days WHERE cycle_id = ? ORDER BY date`, isPostgres);
-                const days = await db.query(daysSql, [cycle.id]);
-
-                const daysMap = new Map(days.map(d => [new Date(d.date).toISOString().split('T')[0], d]));
-                
-                const filledDays = [];
-
-                if (days.length > 0) {
-                    const startDate = new Date(cycle.start_date);
-                    const lastDate = new Date(days[days.length - 1].date);
-                    
-                    for (let d = new Date(startDate); d <= lastDate; d.setUTCDate(d.getUTCDate() + 1)) {
-                        const dateStr = d.toISOString().split('T')[0];
-                        const existingDay = daysMap.get(dateStr);
-                        
-                        if (existingDay) {
-                            filledDays.push(existingDay);
-                        } else {
-                            filledDays.push({
-                                cycle_id: cycle.id,
-                                date: dateStr,
-                                hormone_reading: null,
-                                intercourse: 0,
-                            });
-                        }
-                    }
-                } else {
-                    filledDays.push({
-                        cycle_id: cycle.id,
-                        date: new Date(cycle.start_date).toISOString().split('T')[0],
-                        hormone_reading: null,
-                        intercourse: 0,
-                    });
+                const filledCycle = await getFilledCycle(cycle.id, db);
+                if(filledCycle) {
+                    filledCycles.push(filledCycle);
                 }
-                cycle.days = filledDays;
             }
     
-            res.json(cycles);
+            res.json(filledCycles);
         } catch (err) {
             console.error('Error in GET /api/cycles:', err);
             res.status(500).json({ error: 'Failed to fetch cycles', details: err.message });
