@@ -297,7 +297,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             const dayData = JSON.parse(dayDiv.dataset.dayData);
                             deleteReading(dayData.id);
                         };
-                        dayDiv.appendChild(deleteButton);
+                        const dayData = JSON.parse(dayDiv.dataset.dayData);
+                        if (dayData.id) {
+                            dayDiv.appendChild(deleteButton);
+                        }
                     } else {
                         const select = readingDiv.querySelector('select');
                         const newReading = select.value;
@@ -378,7 +381,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const hormone_reading = document.getElementById('reading').value;
             const intercourse = document.getElementById('intercourse-checkbox').checked;
 
-            const payload = { date: document.getElementById('date').value, hormone_reading, intercourse };
+            const payload = { 
+                date: document.getElementById('date').value, 
+                hormone_reading, 
+                intercourse,
+                end_date: document.getElementById('end-date').value,
+                range: document.getElementById('range-checkbox').checked
+            };
             await logOrUpdateReading(payload);
         });
 
@@ -418,13 +427,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(errorText);
+                    throw new Error(errorText || 'Failed to delete cycle.');
                 }
                 fetchAndRenderData();
             } catch (error) {
                 console.error('Error deleting cycle:', error);
-                const errorData = await response.json();
-                alert(`Error deleting cycle: ${errorData.error}\nDetails: ${errorData.details}`);
+                alert(`Error deleting cycle: ${error.message}`);
             }
         };
 
@@ -436,28 +444,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm('Are you sure you want to delete this reading?')) {
                 return;
             }
-            let response;
             try {
-                response = await fetch(`/api/cycles/days/${id}`, {
+                const response = await fetch(`/api/cycles/days/${id}`, {
                     method: 'DELETE',
                 });
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(errorText);
+                    throw new Error(errorText || 'Failed to delete reading.');
                 }
                 fetchAndRenderData();
             } catch (error) {
                 console.error('Error deleting reading:', error);
-                if (response) {
-                    try {
-                        const errorData = await response.json();
-                        alert(`Error deleting reading: ${errorData.error}\nDetails: ${errorData.details}`);
-                    } catch (e) {
-                        alert('An unknown error occurred while deleting the reading.');
-                    }
-                } else {
-                    alert('An unknown network error occurred. Please check the console.');
-                }
+                alert(`Error deleting reading: ${error.message}`);
             }
         };
 

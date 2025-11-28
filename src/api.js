@@ -128,7 +128,8 @@ const apiRouter = (db) => {
             return res.status(400).send('date and either hormone_reading or intercourse are required');
         }
 
-        date = new Date(date).toISOString().split('T')[0];
+        // Treat date as UTC to prevent timezone shifts
+        date = new Date(date + 'T00:00:00').toISOString().split('T')[0];
 
         try {
             const findCycleSql = sql(`
@@ -345,6 +346,39 @@ const apiRouter = (db) => {
         } catch (err) {
             console.error('Error in PUT /api/cycles/days/:id:', err);
             res.status(500).json({ error: 'Failed to update reading', details: err.message });
+        }
+    });
+
+    // Delete a specific day's reading
+    router.delete('/cycles/days/:id', async (req, res) => {
+        const { id } = req.params;
+        try {
+            const result = await db.run(sql(`DELETE FROM cycle_days WHERE id = ?`), [id]);
+            if (result.changes === 0) {
+                return res.status(404).send('Reading not found.');
+            }
+            res.status(204).send();
+        } catch (err) {
+            console.error('Error in DELETE /api/cycles/days/:id:', err);
+            res.status(500).json({ error: 'Failed to delete reading', details: err.message });
+        }
+    });
+
+    // Clear all data for the user
+    router.delete('/data', async (req, res) => {
+        const userId = req.user.id;
+        try {
+            const cycles = await db.query(sql(`SELECT id FROM cycles WHERE user_id = ?`), [userId]);
+            const cycleIds = cycles.map(c => c.id);
+            if (cycleIds.length > 0) {
+                const placeholders = cycleIds.map(() => '?').join(',');
+                await db.run(sql(`DELETE FROM cycle_days WHERE cycle_id IN (${placeholders})`), cycleIds);
+                await db.run(sql(`DELETE FROM cycles WHERE user_id = ?`), [userId]);
+            }
+            res.status(204).send();
+        } catch (err) {
+            console.error('Error in DELETE /api/data:', err);
+            res.status(500).json({ error: 'Failed to clear data', details: err.message });
         }
     });
 

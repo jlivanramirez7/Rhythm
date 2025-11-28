@@ -12,38 +12,30 @@ const port = process.env.PORT;
 
 // Middleware to protect routes
 const ensureAuthenticated = (req, res, next) => {
-    if (req.isAuthenticated()) {
+    if (req.isAuthenticated() || process.env.NODE_ENV !== 'production') {
         return next();
     }
     res.redirect('/');
 };
 
 async function main() {
-    let secrets = {};
-    if (process.env.NODE_ENV === 'production') {
-        secrets = await loadSecrets();
-    } else {
-        // In development, load secrets from .env file for local testing
-        secrets = {
-            DB_USER: process.env.DB_USER,
-            DB_PASSWORD: process.env.DB_PASSWORD,
-            DB_HOST: process.env.DB_HOST,
-            DB_PORT: process.env.DB_PORT,
-            DB_NAME: process.env.DB_NAME,
-            GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-            GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-            AUTHORIZED_USERS: process.env.AUTHORIZED_USERS,
-            SESSION_SECRET: process.env.SESSION_SECRET,
-        };
-    }
+    const secrets = await loadSecrets();
     
     // Pass secrets to the database initialization
     const db = await initializeDatabase(secrets);
     
     require('./auth')(db, secrets);
 
+    // Mock authentication for local development
+    if (process.env.NODE_ENV !== 'production') {
+        app.use((req, res, next) => {
+            req.user = { id: 1, name: 'Test User', email: 'test@example.com' }; // Mock user
+            next();
+        });
+    }
+
     app.use(express.json());
-    app.use(express.static(path.join(__dirname, '../public')));
+    app.use(express.static(path.join(__dirname, '../public'), { index: false }));
     app.use(session({
         secret: secrets.SESSION_SECRET,
         resave: false,
@@ -79,7 +71,7 @@ async function main() {
         res.sendFile(path.join(__dirname, '../public/app.html'));
     });
     app.get('/', (req, res) => {
-        if (req.isAuthenticated()) {
+        if (req.isAuthenticated() || process.env.NODE_ENV !== 'production') {
             res.redirect('/app');
         } else {
             res.sendFile(path.join(__dirname, '../public/index.html'));

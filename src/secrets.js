@@ -1,7 +1,7 @@
- const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
-const client = new SecretManagerServiceClient();
+const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 
 async function accessSecretVersion(name) {
+    const client = new SecretManagerServiceClient();
     const [version] = await client.accessSecretVersion({
         name: `projects/rhythm-479516/secrets/${name}/versions/latest`,
     });
@@ -9,11 +9,30 @@ async function accessSecretVersion(name) {
 }
 
 async function loadSecrets() {
+    // For local development, load from .env file
+    if (process.env.NODE_ENV !== 'production') {
+        console.log('Loading secrets from .env file for local development...');
+        return {
+            DB_ADAPTER: process.env.DB_ADAPTER,
+            DB_NAME: process.env.DB_NAME,
+            DB_USER: process.env.DB_USER,
+            DB_PASSWORD: process.env.DB_PASSWORD,
+            DB_HOST: process.env.DB_HOST,
+            DB_PORT: process.env.DB_PORT,
+            GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+            GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+            AUTHORIZED_USERS: process.env.AUTHORIZED_USERS,
+            SESSION_SECRET: process.env.SESSION_SECRET
+        };
+    }
+
+    // For production, load from Google Cloud Secret Manager
     console.log('Loading secrets from Google Cloud Secret Manager...');
     try {
-        const [dbUser, dbPassword, googleClientId, googleClientSecret, authorizedUsers, sessionSecret] = await Promise.all([
+        const [dbUser, dbPassword, dbName, googleClientId, googleClientSecret, authorizedUsers, sessionSecret] = await Promise.all([
             accessSecretVersion('DB_USER'),
             accessSecretVersion('DB_PASSWORD'),
+            accessSecretVersion('DB_NAME'),
             accessSecretVersion('GOOGLE_CLIENT_ID'),
             accessSecretVersion('GOOGLE_CLIENT_SECRET'),
             accessSecretVersion('AUTHORIZED_USERS'),
@@ -24,10 +43,12 @@ async function loadSecrets() {
         return {
             DB_USER: dbUser,
             DB_PASSWORD: dbPassword,
+            DB_NAME: dbName,
             GOOGLE_CLIENT_ID: googleClientId,
             GOOGLE_CLIENT_SECRET: googleClientSecret,
             AUTHORIZED_USERS: authorizedUsers,
-            SESSION_SECRET: sessionSecret
+            SESSION_SECRET: sessionSecret,
+            DB_ADAPTER: 'postgres' // Assume postgres in production
         };
     } catch (error) {
         console.error('Failed to load secrets:', error);

@@ -202,4 +202,339 @@ describe('UI Tests', () => {
     }));
     process.env.NODE_ENV = 'test';
   });
+
+  it('should log a new reading when the form is submitted', async () => {
+    // Set the HTML content
+    document.body.innerHTML = appHtml;
+    
+    // Load the app code
+    require('../public/app.js');
+
+    // Dispatch the DOMContentLoaded event
+    document.dispatchEvent(new Event('DOMContentLoaded', {
+        bubbles: true,
+        cancelable: true
+    }));
+
+    // Wait for any initial data fetching to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Simulate user input
+    document.getElementById('date').value = '2025-01-02';
+    document.getElementById('reading').value = 'High';
+    document.getElementById('intercourse-checkbox').checked = true;
+
+    // Submit the form
+    const form = document.getElementById('reading-form');
+    form.dispatchEvent(new Event('submit'));
+
+    // Wait for the async operations in logOrUpdateReading to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Check if fetch was called with the correct data
+    expect(fetch).toHaveBeenCalledWith('/api/cycles/days', expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            date: '2025-01-02', 
+            hormone_reading: 'High', 
+            intercourse: true,
+            end_date: '',
+            range: false
+        }),
+    }));
+  });
+
+  it('should log a new reading for a date range when the form is submitted', async () => {
+    // Set the HTML content
+    document.body.innerHTML = appHtml;
+    
+    // Load the app code
+    require('../public/app.js');
+
+    // Dispatch the DOMContentLoaded event
+    document.dispatchEvent(new Event('DOMContentLoaded', {
+        bubbles: true,
+        cancelable: true
+    }));
+
+    // Wait for any initial data fetching to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Simulate user input
+    document.getElementById('date').value = '2025-01-03';
+    document.getElementById('end-date').value = '2025-01-05';
+    document.getElementById('reading').value = 'Peak';
+    document.getElementById('range-checkbox').checked = true;
+
+    // Submit the form
+    const form = document.getElementById('reading-form');
+    form.dispatchEvent(new Event('submit'));
+
+    // Wait for the async operations in logOrUpdateReading to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Check if fetch was called with the correct data
+    expect(fetch).toHaveBeenCalledWith('/api/cycles/days', expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            date: '2025-01-03',
+            hormone_reading: 'Peak',
+            intercourse: false,
+            end_date: '2025-01-05',
+            range: true
+        }),
+    }));
+  });
+
+  it('should start a new cycle when the "Start New Cycle" button is clicked', async () => {
+    // Set the HTML content
+    document.body.innerHTML = appHtml;
+    
+    // Load the app code
+    require('../public/app.js');
+
+    // Dispatch the DOMContentLoaded event
+    document.dispatchEvent(new Event('DOMContentLoaded', {
+        bubbles: true,
+        cancelable: true
+    }));
+
+    // Wait for any initial data fetching to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Simulate user input
+    const periodStartDateInput = document.getElementById('period-start-date');
+    periodStartDateInput.value = '2025-02-01';
+
+    // Click the button
+    const periodButton = document.getElementById('period-button');
+    periodButton.click();
+
+    // Wait for the async operations in the event listener to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Check if fetch was called with the correct data
+    expect(fetch).toHaveBeenCalledWith('/api/cycles', expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ start_date: '2025-02-01' }),
+    }));
+  });
+
+  it('should delete a cycle when the delete button is clicked', async () => {
+    const mockCycles = [
+      {
+        id: 1,
+        start_date: '2025-01-01',
+        end_date: null,
+        days: [],
+      },
+    ];
+
+    fetch.mockImplementation((url) => {
+        if (url.includes('/api/cycles')) {
+            return Promise.resolve({
+                json: () => Promise.resolve(mockCycles),
+                ok: true,
+            });
+        }
+        if (url.includes('/api/analytics')) {
+            return Promise.resolve({
+                json: () => Promise.resolve({}),
+                ok: true,
+            });
+        }
+        if (url.includes('/api/cycles/1')) {
+            return Promise.resolve({
+                ok: true,
+            });
+        }
+    });
+
+    // Mock the confirm function
+    global.confirm = jest.fn(() => true);
+
+    // Set the HTML content
+    document.body.innerHTML = appHtml;
+
+    // Load the app code
+    require('../public/app.js');
+
+    // Dispatch the DOMContentLoaded event
+    document.dispatchEvent(new Event('DOMContentLoaded', {
+        bubbles: true,
+        cancelable: true
+    }));
+
+    // Wait for any initial data fetching to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Click the delete button
+    const deleteButton = document.querySelector('.delete-cycle');
+    deleteButton.click();
+
+    // Wait for the async operations in the event listener to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Check if fetch was called with the correct data
+    expect(fetch).toHaveBeenCalledWith('/api/cycles/1', expect.objectContaining({
+        method: 'DELETE',
+    }));
+  });
+
+  it('should delete a reading when the delete button is clicked in edit mode', async () => {
+    const mockCycles = [
+      {
+        id: 1,
+        start_date: '2025-01-01',
+        end_date: null,
+        days: [{ id: 1, date: '2025-01-01', hormone_reading: 'Low', intercourse: false }],
+      },
+    ];
+
+    fetch.mockImplementation((url) => {
+        if (url.includes('/api/cycles')) {
+            return Promise.resolve({
+                json: () => Promise.resolve(mockCycles),
+                ok: true,
+            });
+        }
+        if (url.includes('/api/analytics')) {
+            return Promise.resolve({
+                json: () => Promise.resolve({}),
+                ok: true,
+            });
+        }
+        if (url.includes('/api/cycles/days/1')) {
+            return Promise.resolve({
+                ok: true,
+            });
+        }
+    });
+
+    // Mock the confirm function
+    global.confirm = jest.fn(() => true);
+
+    // Set the HTML content
+    document.body.innerHTML = appHtml;
+
+    // Load the app code
+    require('../public/app.js');
+
+    // Dispatch the DOMContentLoaded event
+    document.dispatchEvent(new Event('DOMContentLoaded', {
+        bubbles: true,
+        cancelable: true
+    }));
+
+    // Wait for any initial data fetching to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Enter edit mode
+    const editButton = document.querySelector('.edit-cycle');
+    editButton.click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Click the delete button for the reading
+    const deleteButton = document.querySelector('.delete-day-button');
+    deleteButton.click();
+
+    // Wait for the async operations in the event listener to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Check if fetch was called with the correct data
+    expect(fetch).toHaveBeenCalledWith('/api/cycles/days/1', expect.objectContaining({
+        method: 'DELETE',
+    }));
+  });
+
+  it('should toggle the visibility of the end date input when the "Set Date Range" checkbox is clicked', async () => {
+    // Set the HTML content
+    document.body.innerHTML = appHtml;
+    
+    // Load the app code
+    require('../public/app.js');
+
+    // Dispatch the DOMContentLoaded event
+    document.dispatchEvent(new Event('DOMContentLoaded', {
+        bubbles: true,
+        cancelable: true
+    }));
+
+    // Wait for any initial data fetching to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const rangeCheckbox = document.getElementById('range-checkbox');
+    const rangeInputs = document.getElementById('range-inputs');
+
+    // Initially, the end date input should be hidden
+    expect(rangeInputs.style.display).toBe('none');
+
+    // Click the checkbox to show the end date input
+    rangeCheckbox.click();
+    expect(rangeInputs.style.display).toBe('block');
+
+    // Click the checkbox again to hide the end date input
+    rangeCheckbox.click();
+    expect(rangeInputs.style.display).toBe('none');
+  });
+
+  it('should only show the delete button for existing readings in edit mode', async () => {
+    const mockCycles = [
+      {
+        id: 1,
+        start_date: '2025-01-01',
+        end_date: null,
+        days: [
+          { id: 1, date: '2025-01-01', hormone_reading: 'Low', intercourse: false },
+          { date: '2025-01-02', hormone_reading: null, intercourse: false }
+        ],
+      },
+    ];
+
+    fetch.mockImplementation((url) => {
+        if (url.includes('/api/cycles')) {
+            return Promise.resolve({
+                json: () => Promise.resolve(mockCycles),
+                ok: true,
+            });
+        }
+        if (url.includes('/api/analytics')) {
+            return Promise.resolve({
+                json: () => Promise.resolve({}),
+                ok: true,
+            });
+        }
+    });
+
+    // Set the HTML content
+    document.body.innerHTML = appHtml;
+
+    // Load the app code
+    require('../public/app.js');
+
+    // Dispatch the DOMContentLoaded event
+    document.dispatchEvent(new Event('DOMContentLoaded', {
+        bubbles: true,
+        cancelable: true
+    }));
+
+    // Wait for any initial data fetching to complete
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Enter edit mode
+    const editButton = document.querySelector('.edit-cycle');
+    editButton.click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const dayDivs = document.querySelectorAll('.day');
+    const day1DeleteButton = dayDivs[0].querySelector('.delete-day-button');
+    const day2DeleteButton = dayDivs[1].querySelector('.delete-day-button');
+
+    expect(day1DeleteButton).not.toBeNull();
+    expect(day2DeleteButton).toBeNull();
+  });
+
 });
