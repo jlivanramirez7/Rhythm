@@ -37,11 +37,13 @@ document.addEventListener('DOMContentLoaded', () => {
         periodStartDateInput.value = new Date().toISOString().split('T')[0];
 
         const fetchAndRenderData = async () => {
+            console.log('Fetching and rendering data...');
             try {
                 const cacheBust = `?t=${new Date().getTime()}`;
                 // Fetch cycles
                 const cyclesRes = await fetch(`/api/cycles${cacheBust}`);
                 const cycles = await cyclesRes.json();
+                console.log('Fetched cycles:', cycles);
                 renderCycles(cycles);
 
                 // Fetch analytics
@@ -55,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const renderCycles = (cycles) => {
+            console.log('Rendering cycles...');
             cyclesContainer.innerHTML = '';
             // The backend sends cycles sorted newest first. To display them in that order,
             // and still get correct chronological numbering, we iterate normally and calculate the number.
@@ -263,6 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const updateCycleUI = (updatedCycle) => {
+            console.log('Updating cycle UI for cycle:', updatedCycle);
             let cycleDiv = document.querySelector(`.cycle[data-cycle-id='${updatedCycle.id}']`);
             if (cycleDiv) {
                 const dayGrid = cycleDiv.querySelector('.day-grid');
@@ -277,6 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const createDayDiv = (dayData, cycle) => {
+            console.log('Creating day div for:', dayData, cycle);
             const dayDate = new Date(dayData.date + 'T00:00:00');
             const dayDiv = document.createElement('div');
             dayDiv.className = 'day';
@@ -311,6 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         const logOrUpdateReading = async (payload) => {
+            console.log('Logging or updating reading:', payload);
             const { id, ...body } = payload;
             const isUpdate = id !== undefined && id !== null;
             const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
@@ -335,6 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const toggleEditMode = (cycleDiv, cycleId) => {
+            console.log('Toggling edit mode for cycle:', cycleId);
             const isEditing = cycleDiv.classList.toggle('edit-mode');
             const dayDivs = cycleDiv.querySelectorAll('.day');
             dayDivs.forEach(dayDiv => {
@@ -413,6 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         readingForm.addEventListener('submit', async (e) => {
+            console.log('Reading form submitted');
             e.preventDefault();
             const hormone_reading = document.getElementById('reading').value;
             const intercourse = document.getElementById('intercourse-checkbox').checked;
