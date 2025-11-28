@@ -202,7 +202,7 @@ const apiRouter = (db) => {
                 console.log(`Raw days for cycle ${cycle.id}:`, JSON.stringify(days, null, 2));
 
                 // Normalize all day dates to YYYY-MM-DD strings for reliable lookup
-                const daysMap = new Map(days.map(d => [d.date.split('T')[0], d]));
+                const daysMap = new Map(days.map(d => [new Date(d.date).toISOString().split('T')[0], d]));
                 
                 const filledDays = [];
                 const lastDateStr = days.length > 0
