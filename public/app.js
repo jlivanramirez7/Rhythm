@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Fetch cycles
                 const cyclesRes = await fetch(`/api/cycles${cacheBust}`);
                 const cycles = await cyclesRes.json();
-                console.log('Fetched cycles:', cycles);
+                console.log('Fetched cycles:', JSON.stringify(cycles, null, 2));
                 renderCycles(cycles);
 
                 // Fetch analytics

@@ -194,22 +194,28 @@ const apiRouter = (db) => {
         try {
             const cyclesSql = sql(`SELECT * FROM cycles WHERE user_id = ? ORDER BY start_date DESC`, isPostgres);
             const cycles = await db.query(cyclesSql, [userId]);
+            console.log('Raw cycles from DB:', JSON.stringify(cycles, null, 2));
 
             for (const cycle of cycles) {
                 const daysSql = sql(`SELECT * FROM cycle_days WHERE cycle_id = ? ORDER BY date`, isPostgres);
                 const days = await db.query(daysSql, [cycle.id]);
+                console.log(`Raw days for cycle ${cycle.id}:`, JSON.stringify(days, null, 2));
+
+                // Normalize all day dates to YYYY-MM-DD strings for reliable lookup
+                const daysMap = new Map(days.map(d => [d.date.split('T')[0], d]));
                 
                 const filledDays = [];
-                const lastDate = days.length > 0
-                    ? new Date(Math.max(...days.map(d => new Date(d.date))))
-                    : new Date(cycle.start_date);
+                const lastDateStr = days.length > 0
+                    ? days[days.length - 1].date.split('T')[0]
+                    : cycle.start_date.split('T')[0];
 
-                const startDate = new Date(cycle.start_date);
-                let currentDate = new Date(startDate);
+                const startDate = new Date(cycle.start_date + 'T00:00:00');
+                const lastDate = new Date(lastDateStr + 'T00:00:00');
                 
-                while (currentDate <= lastDate) {
-                    const dateStr = currentDate.toISOString().split('T')[0];
-                    const existingDay = days.find(d => d.date === dateStr);
+                for (let d = new Date(startDate); d <= lastDate; d.setDate(d.getDate() + 1)) {
+                    const dateStr = d.toISOString().split('T')[0];
+                    const existingDay = daysMap.get(dateStr);
+                    
                     if (existingDay) {
                         filledDays.push(existingDay);
                     } else {
@@ -220,19 +226,19 @@ const apiRouter = (db) => {
                             intercourse: 0,
                         });
                     }
-                    currentDate.setDate(currentDate.getDate() + 1);
                 }
 
                 // If there are no readings, ensure at least the start day is shown.
                 if (filledDays.length === 0) {
                     filledDays.push({
                         cycle_id: cycle.id,
-                        date: cycle.start_date,
+                        date: cycle.start_date.split('T')[0],
                         hormone_reading: null,
                         intercourse: 0,
                     });
                 }
                 cycle.days = filledDays;
+                console.log(`Filled days for cycle ${cycle.id}:`, JSON.stringify(filledDays, null, 2));
             }
     
             res.json(cycles);
