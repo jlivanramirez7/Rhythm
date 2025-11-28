@@ -206,8 +206,8 @@ const apiRouter = (db) => {
                 
                 const filledDays = [];
                 const lastDateStr = days.length > 0
-                    ? days[days.length - 1].date.split('T')[0]
-                    : cycle.start_date.split('T')[0];
+                    ? new Date(days[days.length - 1].date).toISOString().split('T')[0]
+                    : new Date(cycle.start_date).toISOString().split('T')[0];
 
                 const startDate = new Date(cycle.start_date + 'T00:00:00');
                 const lastDate = new Date(lastDateStr + 'T00:00:00');
