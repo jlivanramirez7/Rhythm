@@ -332,7 +332,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
 
                         if (changesMade) {
-                            logOrUpdateReading({ id: dayData.id, ...payload });
+                            const { id, ...body } = { id: dayData.id, ...payload };
+                            const isUpdate = id !== undefined && id !== null;
+                            const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
+                            const method = isUpdate ? 'PUT' : 'POST';
+
+                            fetch(url, {
+                                method: method,
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(body),
+                            }).then(res => {
+                                if (!res.ok) throw new Error('Failed to save reading');
+                                fetchAndRenderData();
+                            }).catch(err => console.error(err));
                         }
 
                         const deleteButton = dayDiv.querySelector('.delete-day-button');
@@ -343,17 +355,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         };
-        
-        const logOrUpdateReading = async (payload) => {
-            const { id, ...body } = payload;
-            const isUpdate = id !== undefined && id !== null;
-            const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
-            const method = isUpdate ? 'PUT' : 'POST';
 
-            let response; // Define response here to be accessible in catch block
+        readingForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const hormone_reading = document.getElementById('reading').value;
+            const intercourse = document.getElementById('intercourse-checkbox').checked;
+            const date = document.getElementById('date').value;
+            const end_date = document.getElementById('end-date').value;
+            const range = document.getElementById('range-checkbox').checked;
+
+            const url = range ? '/api/cycles/days/range' : '/api/cycles/days';
+            const body = range 
+                ? { start_date: date, end_date: end_date, hormone_reading, intercourse }
+                : { date, hormone_reading, intercourse };
+
             try {
-                response = await fetch(url, {
-                    method: method,
+                const response = await fetch(url, {
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body),
                 });
@@ -363,34 +381,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 fetchAndRenderData();
             } catch (error) {
-                console.error(`Error ${isUpdate ? 'updating' : 'logging'} reading:`, error);
-                if (response) {
-                    try {
-                        const errorData = await response.json();
-                        alert(`Error: ${errorData.error}\nDetails: ${errorData.details}`);
-                    } catch (e) {
-                        alert('An unknown error occurred. Please check the console.');
-                    }
-                } else {
-                    alert('An unknown error occurred. Please check the console.');
-                }
+                console.error('Error logging reading:', error);
+                alert('An error occurred while logging the reading. Please check the console for details.');
             }
-        };
-
-        readingForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const hormone_reading = document.getElementById('reading').value;
-            const intercourse = document.getElementById('intercourse-checkbox').checked;
-
-            const payload = { 
-                date: document.getElementById('date').value, 
-                hormone_reading, 
-                intercourse,
-                end_date: document.getElementById('end-date').value,
-                range: document.getElementById('range-checkbox').checked
-            };
-            await logOrUpdateReading(payload);
-            // No need to call fetchAndRenderData() here, as it's called inside logOrUpdateReading
         });
 
         periodButton.addEventListener('click', async () => {
