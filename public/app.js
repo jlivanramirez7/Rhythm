@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const renderCycles = (cycles) => {
+            console.log('Rendering cycles:', cycles);
             cyclesContainer.innerHTML = '';
             // The backend sends cycles sorted newest first. To display them in that order,
             // and still get correct chronological numbering, we iterate normally and calculate the number.
