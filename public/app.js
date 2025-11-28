@@ -37,11 +37,13 @@ document.addEventListener('DOMContentLoaded', () => {
         periodStartDateInput.value = new Date().toISOString().split('T')[0];
 
         const fetchAndRenderData = async () => {
+            console.log('Fetching and rendering data...');
             try {
                 const cacheBust = `?t=${new Date().getTime()}`;
                 // Fetch cycles
                 const cyclesRes = await fetch(`/api/cycles${cacheBust}`);
                 const cycles = await cyclesRes.json();
+                console.log('Fetched cycles:', cycles);
                 renderCycles(cycles);
 
                 // Fetch analytics
@@ -55,7 +57,10 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const renderCycles = (cycles) => {
+            console.log('Rendering cycles...');
             cyclesContainer.innerHTML = '';
+            // The backend sends cycles sorted newest first. To display them in that order,
+            // and still get correct chronological numbering, we iterate normally and calculate the number.
             if (!cycles || cycles.length === 0) {
                 cyclesContainer.innerHTML = '<p>No cycle data yet. Start a new cycle to begin tracking.</p>';
                 return;
@@ -65,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cycleDiv.className = 'cycle';
                 cycleDiv.dataset.cycleId = cycle.id;
 
+                // Treat date strings from backend as UTC to prevent timezone shifts
                 const startDate = new Date(cycle.start_date);
                 
                 let endDate;
@@ -225,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const updateCycleUI = (updatedCycle) => {
+            console.log('Updating cycle UI for cycle:', updatedCycle);
             let cycleDiv = document.querySelector(`.cycle[data-cycle-id='${updatedCycle.id}']`);
             if (cycleDiv) {
                 const dayGrid = cycleDiv.querySelector('.day-grid');
@@ -239,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const createDayDiv = (dayData, cycle) => {
+            console.log('Creating day div for:', dayData, cycle);
             const dayDate = new Date(dayData.date);
             const dayDiv = document.createElement('div');
             dayDiv.className = 'day';
@@ -273,6 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         const logOrUpdateReading = async (payload) => {
+            console.log('Logging or updating reading:', payload);
             const { id, ...body } = payload;
             const isUpdate = id !== undefined && id !== null;
             const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
@@ -297,6 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const toggleEditMode = (cycleDiv, cycleId) => {
+            console.log('Toggling edit mode for cycle:', cycleId);
             const isEditing = cycleDiv.classList.toggle('edit-mode');
             const dayDivs = cycleDiv.querySelectorAll('.day');
             dayDivs.forEach(dayDiv => {
@@ -357,6 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         readingForm.addEventListener('submit', async (e) => {
+            console.log('Reading form submitted');
             e.preventDefault();
             const hormone_reading = document.getElementById('reading').value;
             const intercourse = document.getElementById('intercourse-checkbox').checked;
@@ -498,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Determine if it's an update or a new reading
                 const method = dayData.id.toString().startsWith('placeholder') ? 'POST' : 'PUT';
                 const url = method === 'PUT' ? `/api/cycles/days/${dayData.id}` : '/api/cycles/days';
-                const body = { date: formattedDayDate, hormone_reading: newHromoneReading };
+                const body = { date: formattedDayDate, hormone_reading: newHormoneReading };
 
                 try {
                     const response = await fetch(url, {
