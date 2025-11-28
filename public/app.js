@@ -54,7 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const renderCycles = (cycles) => {
-            console.log('Rendering cycles:', cycles);
             cyclesContainer.innerHTML = '';
             // The backend sends cycles sorted newest first. To display them in that order,
             // and still get correct chronological numbering, we iterate normally and calculate the number.
@@ -390,6 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 range: document.getElementById('range-checkbox').checked
             };
             await logOrUpdateReading(payload);
+            // No need to call fetchAndRenderData() here, as it's called inside logOrUpdateReading
         });
 
         periodButton.addEventListener('click', async () => {
