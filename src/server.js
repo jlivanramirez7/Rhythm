@@ -26,12 +26,17 @@ async function main() {
     
     require('./auth')(db, secrets);
 
-    app.use(express.json());
-    app.use(express.static(path.join(__dirname, '../public'), { index: false }));
+    // Set a robust Content-Security-Policy header to allow necessary resources.
     app.use((req, res, next) => {
-        res.setHeader('Content-Security-Policy', "default-src 'self'; font-src 'self' data: fonts.googleapis.com fonts.gstatic.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com;");
+        res.setHeader(
+            'Content-Security-Policy',
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' data: fonts.gstatic.com; img-src 'self' data:; connect-src 'self';"
+        );
         next();
     });
+
+    app.use(express.json());
+    app.use(express.static(path.join(__dirname, '../public'), { index: false }));
     app.use(session({
         secret: secrets.SESSION_SECRET,
         resave: false,
