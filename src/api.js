@@ -27,18 +27,28 @@ const getFilledCycle = async (cycleId, db) => {
 
     const daysSql = sql(`SELECT * FROM cycle_days WHERE cycle_id = ? ORDER BY date`, isPostgres);
     const days = await db.query(daysSql, [cycle.id]);
+    
+    // ** THE DEFINITIVE FIX **
+    // Explicitly sort days in JS to guarantee order, regardless of DB transaction state.
+    days.sort((a, b) => new Date(a.date) - new Date(b.date));
 
     const daysMap = new Map(days.map(d => [new Date(d.date).toISOString().split('T')[0], d]));
     
     const filledDays = [];
+    // Always start from the cycle's start date
     const startDate = new Date(cycle.start_date + 'T00:00:00Z');
 
-    let lastDate = startDate;
+    // Determine the last date to render: either the last reading or today, whichever is later.
+    let lastDate = new Date(startDate);
     if (days.length > 0) {
         const lastReadingDate = new Date(days[days.length - 1].date);
-        if (lastReadingDate > startDate) {
+        if (lastReadingDate > lastDate) {
             lastDate = lastReadingDate;
         }
+    }
+    const today = new Date();
+    if (today > lastDate) {
+        lastDate = today;
     }
     
     // Use UTC methods to iterate to avoid timezone issues
@@ -56,16 +66,6 @@ const getFilledCycle = async (cycleId, db) => {
                 intercourse: 0,
             });
         }
-    }
-
-    // Ensure the array is never empty for a valid cycle
-    if (filledDays.length === 0) {
-        filledDays.push({
-            cycle_id: cycle.id,
-            date: new Date(cycle.start_date).toISOString().split('T')[0],
-            hormone_reading: null,
-            intercourse: 0,
-        });
     }
 
     cycle.days = filledDays;
@@ -231,8 +231,7 @@ const apiRouter = (db) => {
                 await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
             }
             
-            const fullCycle = await getFilledCycle(cycle_id, db);
-            res.status(200).json(fullCycle);
+            res.status(200).json({ success: true });
         } catch (err) {
             console.error('Error in POST /api/cycles/days:', err);
             res.status(500).json({ error: 'Failed to process daily reading', details: err.message });

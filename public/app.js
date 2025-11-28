@@ -230,23 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        const updateCycleUI = (updatedCycle) => {
-            console.log('Updating cycle UI for cycle:', updatedCycle);
-            let cycleDiv = document.querySelector(`.cycle[data-cycle-id='${updatedCycle.id}']`);
-            if (cycleDiv) {
-                const dayGrid = cycleDiv.querySelector('.day-grid');
-                dayGrid.innerHTML = '';
-                updatedCycle.days.forEach(dayData => {
-                    const dayDiv = createDayDiv(dayData, updatedCycle);
-                    dayGrid.appendChild(dayDiv);
-                });
-            } else {
-                fetchAndRenderData();
-            }
-        };
-
         const createDayDiv = (dayData, cycle) => {
-            console.log('Creating day div for:', dayData, cycle);
             const dayDate = new Date(dayData.date);
             const dayDiv = document.createElement('div');
             dayDiv.className = 'day';
@@ -297,8 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const errorText = await response.text();
                     throw new Error(errorText);
                 }
-                const updatedCycle = await response.json();
-                updateCycleUI(updatedCycle);
+                fetchAndRenderData();
             } catch (error) {
                 console.error(`Error ${isUpdate ? 'updating' : 'logging'} reading:`, error);
                 alert('An unknown error occurred. Please check the console.');
@@ -391,12 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(errorText);
                 }
                 
-                if (range) {
-                    fetchAndRenderData();
-                } else {
-                    const updatedCycle = await response.json();
-                    updateCycleUI(updatedCycle);
-                }
+                fetchAndRenderData();
             } catch (error) {
                 console.error('Error logging reading:', error);
                 alert('An error occurred while logging the reading. Please check the console for details.');
