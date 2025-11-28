@@ -262,84 +262,52 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        const toggleEditMode = (cycleDiv, cycleId) => {
-            const isEditing = cycleDiv.classList.toggle('edit-mode');
-            const menuButton = cycleDiv.querySelector('.cycle-menu-button');
+        const updateCycleUI = (updatedCycle) => {
+            let cycleDiv = document.querySelector(`.cycle[data-cycle-id='${updatedCycle.id}']`);
+            if (cycleDiv) {
+                const dayGrid = cycleDiv.querySelector('.day-grid');
+                dayGrid.innerHTML = '';
+                updatedCycle.days.forEach(dayData => {
+                    const dayDiv = createDayDiv(dayData, updatedCycle);
+                    dayGrid.appendChild(dayDiv);
+                });
+            } else {
+                fetchAndRenderData();
+            }
+        };
 
-            const dayDivs = cycleDiv.querySelectorAll('.day');
-            dayDivs.forEach(dayDiv => {
-                const readingDiv = dayDiv.querySelector('.reading');
-                if (readingDiv) {
-                    if (isEditing) {
-                        const reading = readingDiv.textContent;
-                        readingDiv.innerHTML = `
-                            <select>
-                                <option value="" ${!reading || reading === 'No Reading' ? 'selected' : ''}>No Reading</option>
-                                <option value="Low" ${reading === 'Low' ? 'selected' : ''}>Low</option>
-                                <option value="High" ${reading === 'High' ? 'selected' : ''}>High</option>
-                                <option value="Peak" ${reading === 'Peak' ? 'selected' : ''}>Peak</option>
-                            </select>
-                        `;
+        const createDayDiv = (dayData, cycle) => {
+            const dayDate = new Date(dayData.date + 'T00:00:00');
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'day';
+            dayDiv.dataset.dayData = JSON.stringify(dayData);
 
-                        const intercourseCheckbox = document.createElement('input');
-                        intercourseCheckbox.type = 'checkbox';
-                        intercourseCheckbox.checked = dayDiv.querySelector('.heart') !== null;
-                        
-                        const intercourseLabel = document.createElement('label');
-                        intercourseLabel.textContent = ' ❤️';
-                        intercourseLabel.prepend(intercourseCheckbox);
-                        readingDiv.appendChild(intercourseLabel);
+            const dayNumber = Math.floor((dayDate.getTime() - new Date(cycle.start_date + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1;
+            const dayNumberDiv = document.createElement('div');
+            dayNumberDiv.className = 'day-number';
+            dayNumberDiv.textContent = `Day ${dayNumber}`;
+            dayDiv.appendChild(dayNumberDiv);
 
-                        const deleteButton = document.createElement('button');
-                        deleteButton.textContent = 'x';
-                        deleteButton.classList.add('delete-day-button');
-                        deleteButton.onclick = (e) => {
-                            e.stopPropagation();
-                            const dayData = JSON.parse(dayDiv.dataset.dayData);
-                            deleteReading(dayData.id);
-                        };
-                        const dayData = JSON.parse(dayDiv.dataset.dayData);
-                        if (dayData.id) {
-                            dayDiv.appendChild(deleteButton);
-                        }
-                    } else {
-                        const select = readingDiv.querySelector('select');
-                        const newReading = select.value;
-                        const intercourseCheckbox = readingDiv.querySelector('input[type="checkbox"]');
-                        const newIntercourse = intercourseCheckbox.checked;
+            const dayOfMonth = dayDate.getDate();
+            const month = dayDate.getMonth() + 1;
+            const formattedDate = `${String(month).padStart(2, '0')}/${String(dayOfMonth).padStart(2, '0')}`;
+            const dateDiv = document.createElement('div');
+            dateDiv.className = 'day-date';
+            dateDiv.textContent = formattedDate;
+            dayDiv.appendChild(dateDiv);
 
-                        readingDiv.textContent = newReading || 'No Reading';
+            const readingDiv = document.createElement('div');
+            readingDiv.className = `reading ${dayData.hormone_reading || 'none'}`;
+            readingDiv.textContent = dayData.hormone_reading || 'No Reading';
+            dayDiv.appendChild(readingDiv);
 
-                        const dayData = JSON.parse(dayDiv.dataset.dayData);
-                        const originalReading = dayData.hormone_reading || null;
-                        const updatedReading = newReading === '' ? null : newReading;
-                        const originalIntercourse = !!dayData.intercourse;
-                        const updatedIntercourse = newIntercourse;
-
-                        const payload = { date: dayData.date };
-                        let changesMade = false;
-
-                        if (originalReading !== updatedReading) {
-                            payload.hormone_reading = updatedReading;
-                            changesMade = true;
-                        }
-
-                        if (originalIntercourse !== updatedIntercourse) {
-                            payload.intercourse = updatedIntercourse;
-                            changesMade = true;
-                        }
-
-                        if (changesMade) {
-                            logOrUpdateReading({ id: dayData.id, ...payload });
-                        }
-
-                        const deleteButton = dayDiv.querySelector('.delete-day-button');
-                        if (deleteButton) {
-                            deleteButton.remove();
-                        }
-                    }
-                }
-            });
+            if (dayData.intercourse) {
+                const heartDiv = document.createElement('div');
+                heartDiv.className = 'heart';
+                heartDiv.textContent = '❤️';
+                dayDiv.appendChild(heartDiv);
+            }
+            return dayDiv;
         };
         
         const logOrUpdateReading = async (payload) => {
@@ -358,38 +326,72 @@ document.addEventListener('DOMContentLoaded', () => {
                     const errorText = await response.text();
                     throw new Error(errorText);
                 }
-                const updatedData = await response.json();
-                updateDayCard(updatedData);
+                const updatedCycle = await response.json();
+                updateCycleUI(updatedCycle);
             } catch (error) {
                 console.error(`Error ${isUpdate ? 'updating' : 'logging'} reading:`, error);
                 alert('An unknown error occurred. Please check the console.');
             }
         };
 
-        const updateDayCard = (dayData) => {
-            const dayDiv = document.querySelector(`[data-day-data*='"date":"${dayData.date}"']`);
-            if (dayDiv) {
-                dayDiv.dataset.dayData = JSON.stringify(dayData);
+        const toggleEditMode = (cycleDiv, cycleId) => {
+            const isEditing = cycleDiv.classList.toggle('edit-mode');
+            const dayDivs = cycleDiv.querySelectorAll('.day');
+            dayDivs.forEach(dayDiv => {
                 const readingDiv = dayDiv.querySelector('.reading');
-                readingDiv.className = `reading ${dayData.hormone_reading || 'none'}`;
-                readingDiv.textContent = dayData.hormone_reading || 'No Reading';
+                if (readingDiv) {
+                    if (isEditing) {
+                        const dayData = JSON.parse(dayDiv.dataset.dayData);
+                        const reading = dayData.hormone_reading;
+                        readingDiv.innerHTML = `
+                            <select>
+                                <option value="" ${!reading || reading === 'No Reading' ? 'selected' : ''}>No Reading</option>
+                                <option value="Low" ${reading === 'Low' ? 'selected' : ''}>Low</option>
+                                <option value="High" ${reading === 'High' ? 'selected' : ''}>High</option>
+                                <option value="Peak" ${reading === 'Peak' ? 'selected' : ''}>Peak</option>
+                            </select>
+                        `;
 
-                const heartDiv = dayDiv.querySelector('.heart');
-                if (dayData.intercourse) {
-                    if (!heartDiv) {
-                        const newHeartDiv = document.createElement('div');
-                        newHeartDiv.className = 'heart';
-                        newHeartDiv.textContent = '❤️';
-                        dayDiv.appendChild(newHeartDiv);
-                    }
-                } else {
-                    if (heartDiv) {
-                        heartDiv.remove();
+                        const intercourseCheckbox = document.createElement('input');
+                        intercourseCheckbox.type = 'checkbox';
+                        intercourseCheckbox.checked = dayData.intercourse;
+                        
+                        const intercourseLabel = document.createElement('label');
+                        intercourseLabel.textContent = ' ❤️';
+                        intercourseLabel.prepend(intercourseCheckbox);
+                        readingDiv.appendChild(intercourseLabel);
+
+                    } else {
+                        const select = readingDiv.querySelector('select');
+                        const newReading = select.value;
+                        const intercourseCheckbox = readingDiv.querySelector('input[type="checkbox"]');
+                        const newIntercourse = intercourseCheckbox.checked;
+
+                        const dayData = JSON.parse(dayDiv.dataset.dayData);
+                        const originalReading = dayData.hormone_reading || null;
+                        const updatedReading = newReading === '' ? null : newReading;
+                        const originalIntercourse = !!dayData.intercourse;
+                        const updatedIntercourse = newIntercourse;
+
+                        let changesMade = false;
+                        const payload = { date: dayData.date };
+
+                        if (originalReading !== updatedReading) {
+                            payload.hormone_reading = updatedReading;
+                            changesMade = true;
+                        }
+
+                        if (originalIntercourse !== updatedIntercourse) {
+                            payload.intercourse = updatedIntercourse;
+                            changesMade = true;
+                        }
+
+                        if (changesMade) {
+                            logOrUpdateReading({ ...payload, id: dayData.id });
+                        }
                     }
                 }
-            } else {
-                fetchAndRenderData();
-            }
+            });
         };
 
         readingForm.addEventListener('submit', async (e) => {
@@ -415,11 +417,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const errorText = await response.text();
                     throw new Error(errorText);
                 }
+                
                 if (range) {
                     fetchAndRenderData();
                 } else {
-                    const updatedData = await response.json();
-                    updateDayCard(updatedData);
+                    const updatedCycle = await response.json();
+                    updateCycleUI(updatedCycle);
                 }
             } catch (error) {
                 console.error('Error logging reading:', error);

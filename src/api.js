@@ -167,16 +167,21 @@ const apiRouter = (db) => {
                     values.push(existingReading.id);
                     const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`, isPostgres);
                     await db.run(updateSql, values);
-                    res.status(200).json({ id: existingReading.id, message: 'Reading updated.' });
-                } else {
-                    res.status(200).json({ id: existingReading.id, message: 'No changes provided.' });
                 }
             } else {
                 const intercourseValue = intercourse ? 1 : 0;
                 const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?)`, isPostgres);
-                const result = await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
-                res.status(201).json({ id: result.lastID, message: 'Reading created.' });
+                await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
             }
+            
+            const daysSql = sql(`SELECT * FROM cycle_days WHERE cycle_id = ? ORDER BY date`, isPostgres);
+            const days = await db.query(daysSql, [cycle_id]);
+            
+            const fullCycleSql = sql(`SELECT * FROM cycles WHERE id = ?`, isPostgres);
+            const fullCycle = await db.get(fullCycleSql, [cycle_id]);
+            fullCycle.days = days;
+
+            res.status(200).json(fullCycle);
         } catch (err) {
             console.error('Error in POST /api/cycles/days:', err);
             res.status(500).json({ error: 'Failed to process daily reading', details: err.message });
