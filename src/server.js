@@ -12,7 +12,7 @@ const port = process.env.PORT;
 
 // Middleware to protect routes
 const ensureAuthenticated = (req, res, next) => {
-    if (req.isAuthenticated() || process.env.NODE_ENV !== 'production') {
+    if (req.isAuthenticated()) {
         return next();
     }
     res.redirect('/');
@@ -25,14 +25,6 @@ async function main() {
     const db = await initializeDatabase(secrets);
     
     require('./auth')(db, secrets);
-
-    // Mock authentication for local development
-    if (process.env.NODE_ENV !== 'production') {
-        app.use((req, res, next) => {
-            req.user = { id: 1, name: 'Test User', email: 'test@example.com' }; // Mock user
-            next();
-        });
-    }
 
     app.use(express.json());
     app.use(express.static(path.join(__dirname, '../public'), { index: false }));
