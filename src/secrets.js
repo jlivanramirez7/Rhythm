@@ -29,11 +29,12 @@ async function loadSecrets() {
     // For production, load from Google Cloud Secret Manager
     console.log('Loading secrets from Google Cloud Secret Manager...');
     try {
-        const [dbUser, dbPassword, dbName, dbHost, googleClientId, googleClientSecret, authorizedUsers, sessionSecret] = await Promise.all([
+        const [dbUser, dbPassword, dbName, dbHost, dbConnectionName, googleClientId, googleClientSecret, authorizedUsers, sessionSecret] = await Promise.all([
             accessSecretVersion('DB_USER'),
             accessSecretVersion('DB_PASSWORD'),
             accessSecretVersion('DB_NAME'),
             accessSecretVersion('DB_HOST'),
+            accessSecretVersion('DB_CONNECTION_NAME'),
             accessSecretVersion('GOOGLE_CLIENT_ID'),
             accessSecretVersion('GOOGLE_CLIENT_SECRET'),
             accessSecretVersion('AUTHORIZED_USERS'),
@@ -46,6 +47,7 @@ async function loadSecrets() {
             DB_PASSWORD: dbPassword,
             DB_NAME: dbName,
             DB_HOST: dbHost,
+            DB_CONNECTION_NAME: dbConnectionName,
             GOOGLE_CLIENT_ID: googleClientId,
             GOOGLE_CLIENT_SECRET: googleClientSecret,
             AUTHORIZED_USERS: authorizedUsers,
