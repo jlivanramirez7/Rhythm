@@ -59,7 +59,7 @@ async function initializeDatabase(secrets) {
             user: secrets.DB_USER,
             password: secrets.DB_PASSWORD,
             database: secrets.DB_NAME,
-            host: secrets.DB_HOST || '127.0.0.1',
+            host: process.env.NODE_ENV === 'production' ? `/cloudsql/${secrets.DB_HOST}` : secrets.DB_HOST,
             port: secrets.DB_PORT || 5432
         };
         const pool = new Pool(dbConfig);
