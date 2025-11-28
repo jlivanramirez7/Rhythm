@@ -232,7 +232,7 @@ const apiRouter = (db) => {
                 if (filledDays.length === 0) {
                     filledDays.push({
                         cycle_id: cycle.id,
-                        date: cycle.start_date.split('T')[0],
+                        date: new Date(cycle.start_date).toISOString().split('T')[0],
                         hormone_reading: null,
                         intercourse: 0,
                     });
