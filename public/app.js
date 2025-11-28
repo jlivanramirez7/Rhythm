@@ -319,32 +319,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         const payload = { date: dayData.date };
                         let changesMade = false;
 
-                        // Only add hormone_reading to payload if it actually changed
                         if (originalReading !== updatedReading) {
                             payload.hormone_reading = updatedReading;
                             changesMade = true;
                         }
 
-                        // Only add intercourse to payload if it actually changed
                         if (originalIntercourse !== updatedIntercourse) {
                             payload.intercourse = updatedIntercourse;
                             changesMade = true;
                         }
 
                         if (changesMade) {
-                            const { id, ...body } = { id: dayData.id, ...payload };
-                            const isUpdate = id !== undefined && id !== null;
-                            const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
-                            const method = isUpdate ? 'PUT' : 'POST';
-
-                            fetch(url, {
-                                method: method,
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(body),
-                            }).then(res => {
-                                if (!res.ok) throw new Error('Failed to save reading');
-                                fetchAndRenderData();
-                            }).catch(err => console.error(err));
+                            logOrUpdateReading({ id: dayData.id, ...payload });
                         }
 
                         const deleteButton = dayDiv.querySelector('.delete-day-button');
@@ -354,6 +340,56 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             });
+        };
+        
+        const logOrUpdateReading = async (payload) => {
+            const { id, ...body } = payload;
+            const isUpdate = id !== undefined && id !== null;
+            const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
+            const method = isUpdate ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText);
+                }
+                const updatedData = await response.json();
+                updateDayCard(updatedData);
+            } catch (error) {
+                console.error(`Error ${isUpdate ? 'updating' : 'logging'} reading:`, error);
+                alert('An unknown error occurred. Please check the console.');
+            }
+        };
+
+        const updateDayCard = (dayData) => {
+            const dayDiv = document.querySelector(`[data-day-data*='"date":"${dayData.date}"']`);
+            if (dayDiv) {
+                dayDiv.dataset.dayData = JSON.stringify(dayData);
+                const readingDiv = dayDiv.querySelector('.reading');
+                readingDiv.className = `reading ${dayData.hormone_reading || 'none'}`;
+                readingDiv.textContent = dayData.hormone_reading || 'No Reading';
+
+                const heartDiv = dayDiv.querySelector('.heart');
+                if (dayData.intercourse) {
+                    if (!heartDiv) {
+                        const newHeartDiv = document.createElement('div');
+                        newHeartDiv.className = 'heart';
+                        newHeartDiv.textContent = '❤️';
+                        dayDiv.appendChild(newHeartDiv);
+                    }
+                } else {
+                    if (heartDiv) {
+                        heartDiv.remove();
+                    }
+                }
+            } else {
+                fetchAndRenderData();
+            }
         };
 
         readingForm.addEventListener('submit', async (e) => {
@@ -379,7 +415,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const errorText = await response.text();
                     throw new Error(errorText);
                 }
-                fetchAndRenderData();
+                if (range) {
+                    fetchAndRenderData();
+                } else {
+                    const updatedData = await response.json();
+                    updateDayCard(updatedData);
+                }
             } catch (error) {
                 console.error('Error logging reading:', error);
                 alert('An error occurred while logging the reading. Please check the console for details.');
