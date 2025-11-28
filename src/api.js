@@ -170,7 +170,7 @@ const apiRouter = (db) => {
                 }
             } else {
                 const intercourseValue = intercourse ? 1 : 0;
-                const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?) RETURNING id`);
+                const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?)`);
                 const result = await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
                 res.status(201).json({ id: result.lastID, message: 'Reading created.' });
             }
