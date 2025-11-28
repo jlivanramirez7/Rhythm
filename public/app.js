@@ -38,13 +38,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const fetchAndRenderData = async () => {
             try {
+                const cacheBust = `?t=${new Date().getTime()}`;
                 // Fetch cycles
-                const cyclesRes = await fetch('/api/cycles');
+                const cyclesRes = await fetch(`/api/cycles${cacheBust}`);
                 const cycles = await cyclesRes.json();
                 renderCycles(cycles);
 
                 // Fetch analytics
-                const analyticsRes = await fetch('/api/analytics');
+                const analyticsRes = await fetch(`/api/analytics${cacheBust}`);
                 const analytics = await analyticsRes.json();
                 renderAnalytics(analytics, cycles);
             } catch (error) {
