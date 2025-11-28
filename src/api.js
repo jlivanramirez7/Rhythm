@@ -204,9 +204,7 @@ const apiRouter = (db) => {
 
                 if (days.length > 0) {
                     const startDate = new Date(cycle.start_date);
-                    const lastReadingDate = new Date(days[days.length - 1].date);
-                    const today = new Date();
-                    const lastDate = lastReadingDate > today ? lastReadingDate : today;
+                    const lastDate = new Date(days[days.length - 1].date);
                     
                     for (let d = new Date(startDate); d <= lastDate; d.setUTCDate(d.getUTCDate() + 1)) {
                         const dateStr = d.toISOString().split('T')[0];
@@ -299,7 +297,7 @@ const apiRouter = (db) => {
 
             res.json(analytics);
         } catch (err) {
-            console.error('Error in GET /api/cycles:', err);
+            console.error('Error in GET /api/analytics:', err);
             res.status(500).json({ error: 'Failed to fetch analytics', details: err.message });
         }
     });
