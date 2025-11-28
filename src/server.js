@@ -28,6 +28,10 @@ async function main() {
 
     app.use(express.json());
     app.use(express.static(path.join(__dirname, '../public'), { index: false }));
+    app.use((req, res, next) => {
+        res.setHeader('Content-Security-Policy', "default-src 'self'; font-src 'self' data: fonts.googleapis.com fonts.gstatic.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com;");
+        next();
+    });
     app.use(session({
         secret: secrets.SESSION_SECRET,
         resave: false,
