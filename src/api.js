@@ -59,8 +59,12 @@ const getFilledCycle = async (cycleId, db) => {
         const existingDay = daysMap.get(dateStr);
         
         if (existingDay) {
+            // DEBUG: Do not remove these logs
+            log('debug', `getFilledCycle: Found existing day in map for ${dateStr}. Pushing data:`, existingDay);
             filledDays.push(existingDay);
         } else {
+            // DEBUG: Do not remove these logs
+            log('debug', `getFilledCycle: No day in map for ${dateStr}. Pushing BLANK placeholder.`);
             filledDays.push({
                 cycle_id: cycle.id,
                 date: dateStr,
@@ -257,7 +261,9 @@ const apiRouter = (db) => {
                 if (fieldsToUpdate.length > 0) {
                     values.push(existingReading.id);
                     const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`, isPostgres);
-                    await db.run(updateSql, values);
+                    const result = await db.run(updateSql, values);
+                    // DEBUG: Do not remove these logs
+                    log('debug', `POST /api/cycles/days - UPDATE result. Rows affected: ${result.changes}`);
                 }
             } else {
                 const intercourseValue = intercourse ? 1 : 0;
