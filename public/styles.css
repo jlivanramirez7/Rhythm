@@ -376,11 +376,20 @@ button:hover {
     justify-content: center;
     height: 100vh;
     text-align: center;
+    gap: 15px; /* Adds consistent spacing between all elements */
+}
+
+.login-container h1 {
+    color: #333; /* Dark Grey */
+    margin: 0; /* Remove default margin */
+}
+
+.login-container p {
+    margin: 0; /* Remove default margin */
 }
 
 .logo {
     width: 150px;
-    margin-bottom: 20px;
 }
 
 .google-btn {
