@@ -136,6 +136,9 @@ async function initializeDatabase(secrets) {
                 },
                 run: (sql, params = []) => {
                     console.log('[DEBUG] db.run:', sql, params);
+                    if (sql.toUpperCase().startsWith('INSERT')) {
+                        console.log('[INFO] db.run (insert):', sql, params);
+                    }
                     return connectedPool.query(sql, params).then(res => ({
                         lastID: res.rows.length > 0 ? res.rows[0].id : undefined,
                         changes: res.rowCount,
@@ -178,6 +181,9 @@ async function initializeDatabase(secrets) {
                         },
                         run: (sql, params = []) => {
                             console.log('[DEBUG] db.run (sqlite):', sql, params);
+                            if (sql.toUpperCase().startsWith('INSERT')) {
+                                console.log('[INFO] db.run (insert, sqlite):', sql, params);
+                            }
                             return new Promise((res, rej) => sqliteDb.run(sql, params, function(e) {
                                 if (e) rej(e); else res({ lastID: this.lastID, changes: this.changes });
                             }));
