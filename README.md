@@ -64,7 +64,21 @@ The application is configured for automated deployment to Google Cloud Run using
 
 **Note:** The Cloud Build service account must have the **Cloud SQL Client** role to connect to the database.
 
-## 6. Database Configuration
+## 6. Common Debugging Issues
+
+This project has a few recurring issues that can cause confusing behavior, such as data appearing to not save correctly. If you encounter problems, check these two things first:
+
+1.  **Missing `moment-timezone` Dependency**:
+    *   **Symptom**: The application fails to build on Cloud Run, with an error log showing `Error: Cannot find module 'moment-timezone'`. The app may also crash locally if the dependency is missing.
+    *   **Cause**: The `moment-timezone` library is used for all server-side date handling to ensure timezone consistency. If it's used in the code but not listed in `package.json`, the build will fail.
+    *   **Fix**: Run `npm install moment-timezone` to add it to your project dependencies, then commit the updated `package.json` and `package-lock.json` files.
+
+2.  **Incorrect Database Query Scoping**:
+    *   **Symptom**: A user adds a new reading, the network request succeeds, but the UI does not update. The reading seems to disappear.
+    *   **Cause**: This happens when a database query (especially an `UPDATE` or `SELECT` for a single item) does not include a `WHERE c.user_id = ?` clause. The query either fails to find the correct record or, worse, updates the wrong user's data. This is particularly problematic in the `POST /api/cycles/days` endpoint.
+    *   **Fix**: Ensure that any query that reads or writes user-specific data is correctly joined with the `cycles` table and filtered by the logged-in `user_id`.
+
+## 7. Database Configuration
 
 The application is configured to work with two database setups: a local PostgreSQL instance for development and a managed Cloud SQL for PostgreSQL instance for production.
 
@@ -100,7 +114,7 @@ For this to work, the following conditions must be met:
 
 **Note:** In production, the `DB_HOST` and `DB_PORT` secrets are ignored in favor of the hardcoded socket path.
 
-## 7. Seeding the Database
+## 8. Seeding the Database
 
 The project includes a script to populate the database with 10 cycles of realistic dummy data.
 
@@ -109,7 +123,7 @@ To run the seed script for your local database:
 npm run seed:cloud
 ```
 
-## 8. Database Schema
+## 9. Database Schema
 
 The database consists of two main tables:
 
@@ -131,7 +145,7 @@ The database consists of two main tables:
 | `hormone_reading`| TEXT    | The hormonal reading for the day ('Low', 'High', 'Peak').      |
 | `intercourse`   | BOOLEAN | A boolean indicating if intercourse occurred.          |
 
-## 9. API Endpoints
+## 10. API Endpoints
 
 The backend exposes the following API endpoints, which are consumed by the frontend client:
 
