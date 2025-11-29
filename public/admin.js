@@ -29,6 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <th>Name</th>
                     <th>Email</th>
                     <th>Admin</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -38,12 +40,38 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>${user.name}</td>
                         <td>${user.email}</td>
                         <td>${user.is_admin ? 'Yes' : 'No'}</td>
+                        <td>${user.approved ? 'Approved' : 'Pending'}</td>
+                        <td>
+                            ${!user.approved ? `
+                                <button class="approve-btn" data-id="${user.id}">Approve</button>
+                                <button class="reject-btn" data-id="${user.id}">Reject</button>
+                            ` : ''}
+                        </td>
                     </tr>
                 `).join('')}
             </tbody>
         `;
         usersContainer.innerHTML = '';
         usersContainer.appendChild(table);
+
+        // Add event listeners for the new buttons
+        document.querySelectorAll('.approve-btn').forEach(button => {
+            button.addEventListener('click', async (e) => {
+                const id = e.target.dataset.id;
+                await fetch(`/api/admin/users/approve/${id}`, { method: 'POST' });
+                fetchAndRenderUsers();
+            });
+        });
+
+        document.querySelectorAll('.reject-btn').forEach(button => {
+            button.addEventListener('click', async (e) => {
+                if (confirm('Are you sure you want to reject and delete this user?')) {
+                    const id = e.target.dataset.id;
+                    await fetch(`/api/admin/users/reject/${id}`, { method: 'DELETE' });
+                    fetchAndRenderUsers();
+                }
+            });
+        });
     };
 
     fetchAndRenderUsers();

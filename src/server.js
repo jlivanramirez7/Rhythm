@@ -55,7 +55,12 @@ async function main() {
     app.use(passport.session());
 
     app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+    app.get('/auth/google/register', passport.authenticate('google', { scope: ['profile', 'email'] }));
+    
     app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/' }), (req, res) => {
+        if (!req.user.approved) {
+            return res.redirect('/?message=registration_pending');
+        }
         res.redirect('/app');
     });
     app.get('/logout', (req, res, next) => {

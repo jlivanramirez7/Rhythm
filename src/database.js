@@ -31,7 +31,8 @@ async function createTables(dbInstance, adapter) {
             google_id TEXT UNIQUE NOT NULL,
             email TEXT UNIQUE NOT NULL,
             name TEXT,
-            is_admin BOOLEAN DEFAULT false
+            is_admin BOOLEAN DEFAULT false,
+            approved BOOLEAN DEFAULT false
         );
     `);
     // DEBUG: Do not remove these logs
