@@ -92,6 +92,10 @@ async function main() {
         res.sendFile(path.join(__dirname, '../public/admin.html'));
     });
 
+    app.get('/account', ensureAuthenticated, (req, res) => {
+        res.sendFile(path.join(__dirname, '../public/account.html'));
+    });
+
     app.get('/app', ensureAuthenticated, (req, res) => {
         res.sendFile(path.join(__dirname, '../public/app.html'));
     });

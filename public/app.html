@@ -14,7 +14,18 @@
             <h1>Rhythm</h1>
         </div>
         <div id="nav-links">
-            <a href="/logout" class="logout-link"><img src="/logoutIcon.png" alt="Logout" style="height: 30px;"></a>
+            <!-- Account switcher will be prepended here by JS -->
+        </div>
+        <div class="menu-container">
+            <div id="app-menu-toggle" class="cycle-menu-button">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div id="app-menu-content" class="cycle-menu-content">
+                <a href="/account">Account</a>
+                <a href="/logout">Logout</a>
+            </div>
         </div>
     </header>
 
@@ -93,18 +104,6 @@
             </div>
         </section>
     </main>
-
-    <section id="sharing-section">
-        <h2>Share Your Data</h2>
-        <form id="share-form">
-            <div class="form-input-group">
-                <label for="partner-email">Partner's Email:</label>
-                <input type="email" id="partner-email" name="partner-email" required>
-            </div>
-            <button type="submit">Share</button>
-        </form>
-        <p id="share-message"></p>
-    </section>
 
     <script src="/app.js"></script>
 </body>

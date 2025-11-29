@@ -11,20 +11,21 @@ document.addEventListener('DOMContentLoaded', () => {
     log('info', 'DOM fully loaded and parsed.');
 
     // --- Main Menu Toggle ---
-    const menuToggle = document.getElementById('menu-toggle');
-    const menuContent = document.getElementById('menu-content');
-    if (menuToggle) {
-        menuToggle.addEventListener('click', () => {
-            menuToggle.classList.toggle('active');
-            menuContent.classList.toggle('active');
+    const appMenuToggle = document.getElementById('app-menu-toggle');
+    const appMenuContent = document.getElementById('app-menu-content');
+    if (appMenuToggle) {
+        appMenuToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            appMenuToggle.classList.toggle('active');
+            appMenuContent.classList.toggle('active');
         });
     }
 
     // Close menu if clicking outside
     document.addEventListener('click', (event) => {
-        if (menuContent && !menuContent.contains(event.target) && !menuToggle.contains(event.target) && menuContent.classList.contains('active')) {
-            menuToggle.classList.remove('active');
-            menuContent.classList.remove('active');
+        if (appMenuContent && !appMenuContent.contains(event.target) && !appMenuToggle.contains(event.target) && appMenuContent.classList.contains('active')) {
+            appMenuToggle.classList.remove('active');
+            appMenuContent.classList.remove('active');
         }
     });
 
@@ -61,11 +62,6 @@ function initializeEventListeners(elements) {
 
     elements.readingForm.addEventListener('submit', (e) => handleReadingSubmit(e, elements));
     elements.periodButton.addEventListener('click', () => handleNewCycleSubmit(elements));
-
-    const shareForm = document.getElementById('share-form');
-    if (shareForm) {
-        shareForm.addEventListener('submit', (e) => handleShareSubmit(e, elements));
-    }
 }
 
 /**
@@ -95,13 +91,13 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
         log('debug', 'fetchAndRenderData: Analytics data fetched.', analytics);
 
         if (user.is_admin) {
-            const navLinks = document.getElementById('nav-links');
-            if (!navLinks.querySelector('.admin-link')) {
+            const appMenuContent = document.getElementById('app-menu-content');
+            if (!appMenuContent.querySelector('.admin-link')) {
                 const adminLink = document.createElement('a');
                 adminLink.href = '/admin';
                 adminLink.textContent = 'Admin';
-                adminLink.className = 'logout-link admin-link';
-                navLinks.prepend(adminLink);
+                adminLink.className = 'admin-link';
+                appMenuContent.prepend(adminLink);
             }
         }
 
