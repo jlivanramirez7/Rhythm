@@ -90,7 +90,7 @@ async function initializeDatabase(secrets) {
             user: secrets.DB_USER,
             password: secrets.DB_PASSWORD,
             database: secrets.DB_NAME,
-            host: process.env.NODE_ENV === 'production' ? `/cloudsql/${secrets.INSTANCE_CONNECTION_NAME}` : secrets.DB_HOST,
+            host: process.env.NODE_ENV === 'production' ? '/cloudsql/rhythm-479516:us-central1:rhythm-db' : secrets.DB_HOST,
             port: secrets.DB_PORT || 5432
         };
         // DEBUG: Do not remove these logs
