@@ -375,6 +375,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (changesMade) {
                             logOrUpdateReading({ ...payload, id: dayData.id });
                         }
+                        
+                        // Always revert the UI after exiting edit mode,
+                        // as fetchAndRenderData() will handle the refresh.
+                        readingDiv.innerHTML = '';
+                        readingDiv.className = `reading ${originalReading || 'none'}`;
+                        readingDiv.textContent = originalReading || 'No Reading';
+
+                        const heartIcon = dayDiv.querySelector('.heart');
+                        if (originalIntercourse && !heartIcon) {
+                            const heartDiv = document.createElement('div');
+                            heartDiv.className = 'heart';
+                            heartDiv.textContent = '❤️';
+                            dayDiv.appendChild(heartDiv);
+                        } else if (!originalIntercourse && heartIcon) {
+                            heartIcon.remove();
+                        }
                     }
                 }
             });
