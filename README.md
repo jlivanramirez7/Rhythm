@@ -25,6 +25,7 @@ Rhythm is a web application designed to help users track their ovulation cycle b
 
 *   **Frontend:** HTML, CSS, and vanilla JavaScript, with a Material Design-inspired aesthetic.
 *   **Backend:** Node.js with the Express.js framework.
+*   **Date Handling:** `moment-timezone` is used for all server-side date and time manipulation to ensure timezone consistency and prevent common off-by-one errors. **This is a critical dependency.**
 *   **Database:** Cloud SQL for PostgreSQL.
 *   **Authentication:** Passport.js with the Google OAuth 2.0 strategy.
 *   **Deployment:** Google Cloud Run with automated builds and deployments via Cloud Build.
