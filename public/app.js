@@ -51,7 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cyclesRes = await fetch(`/api/cycles${cacheBust}`);
                 const cycles = await cyclesRes.json();
                 log('debug', 'fetchAndRenderData: Cycles data fetched.', cycles);
-                renderCycles(cycles);
 
                 const analyticsRes = await fetch(`/api/analytics${cacheBust}`);
                 const analytics = await analyticsRes.json();
@@ -62,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        const renderCycles = (cycles) => {
+        const renderCycles = (cycles, fertileWindows = []) => {
             // DEBUG: Do not remove these logs
             log('info', 'renderCycles: Starting to render cycles.');
             cyclesContainer.innerHTML = '';
@@ -75,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cycleDiv = document.createElement('div');
                 cycleDiv.className = 'cycle';
                 cycleDiv.dataset.cycleId = cycle.id;
+                const currentFertileWindow = fertileWindows[index];
 
                 const startDate = new Date(cycle.start_date);
                 
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 dayGrid.className = 'day-grid';
 
                 cycle.days.forEach(dayData => {
-                    const dayDiv = createDayDiv(dayData, cycle);
+                    const dayDiv = createDayDiv(dayData, cycle, currentFertileWindow);
                     dayGrid.appendChild(dayDiv);
                 });
 
@@ -205,8 +205,11 @@ document.addEventListener('DOMContentLoaded', () => {
             avgCycleLengthSpan.textContent = analytics.averageCycleLength || '--';
             avgDaysToPeakSpan.textContent = analytics.averageDaysToPeak || '--';
 
-            const { averageFertileWindow } = calculateFertileWindows(cycles);
+            const { fertileWindows, averageFertileWindow } = calculateFertileWindows(cycles);
             document.getElementById('avg-fertile-window').textContent = averageFertileWindow > 0 ? `${averageFertileWindow} days` : '--';
+            
+            // Re-render cycles with fertile window highlights
+            renderCycles(cycles, fertileWindows);
 
             const estimatedNextPeriodSpan = document.getElementById('estimated-next-period');
             const fertileWindowStartSpan = document.getElementById('fertile-window-start');
@@ -237,10 +240,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        const createDayDiv = (dayData, cycle) => {
+        const createDayDiv = (dayData, cycle, fertileWindow) => {
             const dayDate = new Date(dayData.date);
             const dayDiv = document.createElement('div');
             dayDiv.className = 'day';
+            if (fertileWindow && dayDate >= fertileWindow.start && dayDate <= fertileWindow.end) {
+                dayDiv.classList.add('fertile-window');
+            }
             dayDiv.dataset.dayData = JSON.stringify(dayData);
 
             const dayNumber = Math.floor((dayDate.getTime() - new Date(cycle.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1;
