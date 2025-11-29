@@ -8,7 +8,14 @@ const log = (level, message, ...args) => {
     console.log(`[${level.toUpperCase()}] [API] ${message}`, ...args);
 };
 
-// Helper to adjust SQL queries for different databases
+/**
+ * A helper function to adapt SQL queries for different database dialects.
+ * It replaces '?' placeholders with '$1', '$2', etc. for PostgreSQL and
+ * adds a 'RETURNING id' clause for INSERT statements.
+ * @param {string} query - The SQL query to adapt.
+ * @param {boolean} isPostgres - True if the target database is PostgreSQL.
+ * @returns {string} The adapted SQL query.
+ */
 const sql = (query, isPostgres) => {
     let finalQuery = query;
     if (isPostgres) {
@@ -21,7 +28,14 @@ const sql = (query, isPostgres) => {
     return finalQuery;
 };
 
-// Centralized function to get a cycle and fill its days
+/**
+ * Fetches a single cycle and its associated days from the database.
+ * It "fills in" any missing days between the start date and the last reading
+ * to ensure a complete, continuous cycle is returned.
+ * @param {number} cycleId - The ID of the cycle to fetch.
+ * @param {object} db - The database instance.
+ * @returns {Promise<object|null>} A promise that resolves with the filled cycle object, or null if not found.
+ */
 const getFilledCycle = async (cycleId, db) => {
     // DEBUG: Do not remove these logs
     log('debug', `getFilledCycle: Filling cycle for ID: ${cycleId}`);
@@ -93,10 +107,57 @@ const getFilledCycle = async (cycleId, db) => {
 };
 
 
+/**
+ * A helper function to handle the logic of inserting or updating a daily reading.
+ * This reduces code duplication between the single-day and date-range endpoints.
+ * @param {object} db - The database instance.
+ * @param {object} data - The reading data, including cycle_id, date, hormone_reading, and intercourse.
+ */
+const upsertReading = async (db, data) => {
+    const { cycle_id, date, hormone_reading, intercourse, userId } = data;
+    const isPostgres = db.adapter === 'postgres';
+
+    const findExistingSql = sql(`
+        SELECT cd.id FROM cycle_days cd
+        JOIN cycles c ON cd.cycle_id = c.id
+        WHERE cd.cycle_id = ? AND cd.date = ? AND c.user_id = ?
+    `, isPostgres);
+    const existingReading = await db.get(findExistingSql, [cycle_id, date, userId]);
+
+    if (existingReading) {
+        const fieldsToUpdate = [];
+        const values = [];
+        if (hormone_reading !== undefined) {
+            fieldsToUpdate.push('hormone_reading = ?');
+            values.push(hormone_reading);
+        }
+        if (intercourse !== undefined) {
+            fieldsToUpdate.push('intercourse = ?');
+            values.push(intercourse ? 1 : 0);
+        }
+
+        if (fieldsToUpdate.length > 0) {
+            values.push(existingReading.id);
+            const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`, isPostgres);
+            const result = await db.run(updateSql, values);
+            log('debug', `upsertReading - UPDATE result. Rows affected: ${result.changes}`);
+        }
+    } else {
+        const intercourseValue = intercourse ? 1 : 0;
+        const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?)`, isPostgres);
+        await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
+    }
+};
+
 const apiRouter = (db) => {
     const isPostgres = db.adapter === 'postgres';
 
-    // Create a new cycle
+    /**
+     * @route POST /api/cycles
+     * @description Creates a new cycle for the logged-in user. If an open-ended
+     * cycle exists, its end_date is set to the day before the new cycle's start_date.
+     * @param {object} req.body - { start_date: string }
+     */
     router.post('/cycles', async (req, res) => {
         // DEBUG: Do not remove these logs
         log('info', 'POST /api/cycles - Request received.');
@@ -147,7 +208,11 @@ const apiRouter = (db) => {
         }
     });
 
-    // Add or update a daily reading for a range of dates
+    /**
+     * @route POST /api/cycles/days/range
+     * @description Adds or updates hormone readings for a continuous range of dates.
+     * @param {object} req.body - { start_date: string, end_date: string, hormone_reading: string, intercourse: boolean }
+     */
     router.post('/cycles/days/range', async (req, res) => {
         // DEBUG: Do not remove these logs
         log('info', 'POST /api/cycles/days/range - Request received.');
@@ -181,32 +246,13 @@ const apiRouter = (db) => {
                 const cycle = await db.get(findCycleSql, [date, date]);
 
                 if (cycle) {
-                    const cycle_id = cycle.id;
-                    const findExistingSql = sql(`SELECT id FROM cycle_days WHERE cycle_id = ? AND date = ?`, isPostgres);
-                    const existingReading = await db.get(findExistingSql, [cycle_id, date]);
-
-                    if (existingReading) {
-                        const fieldsToUpdate = [];
-                        const values = [];
-                        if (hormone_reading !== undefined) {
-                            fieldsToUpdate.push('hormone_reading = ?');
-                            values.push(hormone_reading);
-                        }
-                        if (intercourse !== undefined) {
-                            fieldsToUpdate.push('intercourse = ?');
-                            values.push(intercourse ? 1 : 0);
-                        }
-
-                        if (fieldsToUpdate.length > 0) {
-                            values.push(existingReading.id);
-                            const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`, isPostgres);
-                            await db.run(updateSql, values);
-                        }
-                    } else {
-                        const intercourseValue = intercourse ? 1 : 0;
-                        const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?)`, isPostgres);
-                        await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
-                    }
+                    await upsertReading(db, {
+                        cycle_id: cycle.id,
+                        date,
+                        hormone_reading,
+                        intercourse,
+                        userId: req.user.id
+                    });
                 }
             }
             res.status(201).json({ message: 'Readings for the date range logged successfully!' });
@@ -216,7 +262,11 @@ const apiRouter = (db) => {
         }
     });
 
-    // Add or update a daily reading
+    /**
+     * @route POST /api/cycles/days
+     * @description Adds or updates a single day's hormone reading.
+     * @param {object} req.body - { date: string, hormone_reading: string, intercourse: boolean }
+     */
     router.post('/cycles/days', async (req, res) => {
         // DEBUG: Do not remove these logs
         log('info', 'POST /api/cycles/days - Request received.');
@@ -247,38 +297,13 @@ const apiRouter = (db) => {
                 return res.status(404).send('No cycle found for the selected date.');
             }
 
-            const cycle_id = cycle.id;
-            const findExistingSql = sql(`
-                SELECT cd.id FROM cycle_days cd
-                JOIN cycles c ON cd.cycle_id = c.id
-                WHERE cd.cycle_id = ? AND cd.date = ? AND c.user_id = ?
-            `, isPostgres);
-            const existingReading = await db.get(findExistingSql, [cycle_id, date, req.user.id]);
-
-            if (existingReading) {
-                const fieldsToUpdate = [];
-                const values = [];
-                if (hormone_reading !== undefined) {
-                    fieldsToUpdate.push('hormone_reading = ?');
-                    values.push(hormone_reading);
-                }
-                if (intercourse !== undefined) {
-                    fieldsToUpdate.push('intercourse = ?');
-                    values.push(intercourse ? 1 : 0);
-                }
-
-                if (fieldsToUpdate.length > 0) {
-                    values.push(existingReading.id);
-                    const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`, isPostgres);
-                    const result = await db.run(updateSql, values);
-                    // DEBUG: Do not remove these logs
-                    log('debug', `POST /api/cycles/days - UPDATE result. Rows affected: ${result.changes}`);
-                }
-            } else {
-                const intercourseValue = intercourse ? 1 : 0;
-                const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?)`, isPostgres);
-                await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
-            }
+            await upsertReading(db, {
+                cycle_id: cycle.id,
+                date,
+                hormone_reading,
+                intercourse,
+                userId: req.user.id
+            });
             
             res.status(200).json({ success: true });
         } catch (err) {

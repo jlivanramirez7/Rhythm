@@ -1,5 +1,10 @@
 const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 
+/**
+ * Accesses the latest version of a secret from Google Cloud Secret Manager.
+ * @param {string} name - The name of the secret to access.
+ * @returns {Promise<string>} A promise that resolves with the secret value.
+ */
 async function accessSecretVersion(name) {
     const client = new SecretManagerServiceClient();
     const [version] = await client.accessSecretVersion({
@@ -8,8 +13,12 @@ async function accessSecretVersion(name) {
     return version.payload.data.toString('utf8');
 }
 
+/**
+ * Loads application secrets either from local .env file or from Google Cloud Secret Manager
+ * based on the NODE_ENV environment variable.
+ * @returns {Promise<object>} A promise that resolves with an object containing the application secrets.
+ */
 async function loadSecrets() {
-    // For local development, load from .env file
     if (process.env.NODE_ENV !== 'production') {
         console.log('Loading secrets from .env file for local development...');
         return {
@@ -26,32 +35,25 @@ async function loadSecrets() {
         };
     }
 
-    // For production, load from Google Cloud Secret Manager
     console.log('Loading secrets from Google Cloud Secret Manager...');
     try {
-        const [dbUser, dbPassword, dbName, dbHost, googleClientId, googleClientSecret, authorizedUsers, sessionSecret] = await Promise.all([
-            accessSecretVersion('DB_USER'),
-            accessSecretVersion('DB_PASSWORD'),
-            accessSecretVersion('DB_NAME'),
-            accessSecretVersion('DB_HOST'),
-            accessSecretVersion('GOOGLE_CLIENT_ID'),
-            accessSecretVersion('GOOGLE_CLIENT_SECRET'),
-            accessSecretVersion('AUTHORIZED_USERS'),
-            accessSecretVersion('SESSION_SECRET')
-        ]);
+        const secretNames = [
+            'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'DB_HOST',
+            'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET',
+            'AUTHORIZED_USERS', 'SESSION_SECRET'
+        ];
+
+        const secretPromises = secretNames.map(name => accessSecretVersion(name));
+        const secretValues = await Promise.all(secretPromises);
+
+        const secrets = secretNames.reduce((acc, name, index) => {
+            acc[name] = secretValues[index];
+            return acc;
+        }, {});
         
+        secrets.DB_ADAPTER = 'postgres';
         console.log('Secrets loaded successfully.');
-        return {
-            DB_USER: dbUser,
-            DB_PASSWORD: dbPassword,
-            DB_NAME: dbName,
-            DB_HOST: dbHost,
-            GOOGLE_CLIENT_ID: googleClientId,
-            GOOGLE_CLIENT_SECRET: googleClientSecret,
-            AUTHORIZED_USERS: authorizedUsers,
-            SESSION_SECRET: sessionSecret,
-            DB_ADAPTER: 'postgres'
-        };
+        return secrets;
     } catch (error) {
         console.error('Failed to load secrets:', error);
         process.exit(1);

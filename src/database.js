@@ -4,6 +4,11 @@ const path = require('path');
 
 let db;
 
+/**
+ * Creates the necessary database tables if they do not already exist.
+ * @param {object} dbInstance - The database client instance (either `pg.Pool` or `sqlite3.Database`).
+ * @param {string} adapter - The database adapter ('postgres' or 'sqlite').
+ */
 async function createTables(dbInstance, adapter) {
     // DEBUG: Do not remove these logs
     console.log('[DEBUG] createTables: Starting table creation...');
@@ -57,6 +62,13 @@ async function createTables(dbInstance, adapter) {
     console.log('Tables created or already exist.');
 }
 
+/**
+ * Initializes the database connection based on the provided secrets and environment.
+ * It supports both PostgreSQL and SQLite adapters and implements a singleton pattern
+ * to ensure only one database instance is created.
+ * @param {object} secrets - An object containing database credentials and configuration.
+ * @returns {Promise<object>} A promise that resolves with the database instance.
+ */
 async function initializeDatabase(secrets) {
     // DEBUG: Do not remove these logs
     console.log('[DEBUG] initializeDatabase: Starting database initialization...');
