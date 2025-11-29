@@ -235,13 +235,11 @@ describe('UI Tests', () => {
     expect(fetch).toHaveBeenCalledWith('/api/cycles/days', expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            date: '2025-01-02', 
-            hormone_reading: 'High', 
-            intercourse: true,
-            end_date: '',
-            range: false
-        }),
+        body: JSON.stringify({
+            date: '2025-01-02',
+            hormone_reading: 'High',
+            intercourse: true
+        })
     }));
   });
 
@@ -275,16 +273,15 @@ describe('UI Tests', () => {
     await new Promise(resolve => setTimeout(resolve, 0));
 
     // Check if fetch was called with the correct data
-    expect(fetch).toHaveBeenCalledWith('/api/cycles/days', expect.objectContaining({
+    expect(fetch).toHaveBeenCalledWith('/api/cycles/days/range', expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            date: '2025-01-03',
-            hormone_reading: 'Peak',
-            intercourse: false,
+            start_date: '2025-01-03',
             end_date: '2025-01-05',
-            range: true
-        }),
+            hormone_reading: 'Peak',
+            intercourse: false
+        })
     }));
   });
 
@@ -438,7 +435,7 @@ describe('UI Tests', () => {
     await new Promise(resolve => setTimeout(resolve, 0));
 
     // Click the delete button for the reading
-    const deleteButton = document.querySelector('.delete-day-button');
+    const deleteButton = document.querySelector('.delete-day');
     deleteButton.click();
 
     // Wait for the async operations in the event listener to complete
@@ -530,8 +527,8 @@ describe('UI Tests', () => {
     await new Promise(resolve => setTimeout(resolve, 0));
 
     const dayDivs = document.querySelectorAll('.day');
-    const day1DeleteButton = dayDivs[0].querySelector('.delete-day-button');
-    const day2DeleteButton = dayDivs[1].querySelector('.delete-day-button');
+    const day1DeleteButton = dayDivs[0].querySelector('.delete-day');
+    const day2DeleteButton = dayDivs[1].querySelector('.delete-day');
 
     expect(day1DeleteButton).not.toBeNull();
     expect(day2DeleteButton).toBeNull();
