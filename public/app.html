@@ -30,10 +30,11 @@
     </header>
 
     <main class="main-grid">
-        <section id="input-section" class="form-container">
-            <h2>Log Today's Reading</h2>
-            <form id="reading-form">
-                <div>
+        <div class="grid-column">
+            <section id="input-section" class="form-container">
+                <h2>Log Today's Reading</h2>
+                <form id="reading-form">
+                    <div>
                     <input type="checkbox" id="range-checkbox" name="range-checkbox">
                     <label for="range-checkbox">Set Date Range</label>
                 </div>
@@ -74,14 +75,14 @@
         </section>
 
         <section id="account-switcher-section">
-            <h2>View Data</h2>
+            <h2>User's Data:</h2>
             <div id="account-switcher-container">
-                <label for="account-switcher">Select User:</label>
                 <!-- Dropdown will be inserted here by JS -->
             </div>
         </section>
+    </div>
 
-        <section id="cycles-section">
+    <section id="cycles-section">
             <h2>Your Cycles</h2>
             <div id="cycles-container"></div>
         </section>

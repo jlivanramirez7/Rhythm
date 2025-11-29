@@ -246,11 +246,15 @@ function calculateFertileWindows(cycles) {
  */
 function renderAccountSwitcher(users, elements) {
     const container = document.getElementById('account-switcher-container');
+    const section = document.getElementById('account-switcher-section');
+
+    if (!container || !section) return;
+    
     if (users.length <= 1) {
-        container.style.display = 'none';
+        section.style.display = 'none';
         return;
     }
-    container.style.display = 'block';
+    section.style.display = 'block';
 
     let switcher = document.getElementById('account-switcher');
     if (!switcher) {

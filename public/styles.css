@@ -41,10 +41,17 @@ header {
 .main-grid {
     display: grid;
     grid-template-columns: 1fr 2fr 1fr;
+    align-items: start;
     gap: 20px;
     padding: 1rem;
     max-width: 1200px;
     margin: 20px auto;
+}
+
+.grid-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
 @media (max-width: 768px) {
