@@ -10,24 +10,25 @@ const log = (level, message, ...args) => {
 document.addEventListener('DOMContentLoaded', () => {
     log('info', 'DOM fully loaded and parsed.');
 
-    // --- Main Menu Toggle ---
+    // --- Main App Menu ---
     const appMenuToggle = document.getElementById('app-menu-toggle');
     const appMenuContent = document.getElementById('app-menu-content');
-    if (appMenuToggle) {
+
+    if (appMenuToggle && appMenuContent) {
         appMenuToggle.addEventListener('click', (e) => {
             e.stopPropagation();
             appMenuToggle.classList.toggle('active');
             appMenuContent.classList.toggle('active');
         });
+
+        document.addEventListener('click', (event) => {
+            if (!appMenuContent.contains(event.target) && !appMenuToggle.contains(event.target)) {
+                appMenuToggle.classList.remove('active');
+                appMenuContent.classList.remove('active');
+            }
+        });
     }
 
-    // Close menu if clicking outside
-    document.addEventListener('click', (event) => {
-        if (appMenuContent && !appMenuContent.contains(event.target) && !appMenuToggle.contains(event.target) && appMenuContent.classList.contains('active')) {
-            appMenuToggle.classList.remove('active');
-            appMenuContent.classList.remove('active');
-        }
-    });
 
     // --- App Initialization ---
     const readingForm = document.getElementById('reading-form');
