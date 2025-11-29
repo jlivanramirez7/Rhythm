@@ -63,7 +63,43 @@ The application is configured for automated deployment to Google Cloud Run using
 
 **Note:** The Cloud Build service account must have the **Cloud SQL Client** role to connect to the database.
 
-## 6. Seeding the Database
+## 6. Database Configuration
+
+The application is configured to work with two database setups: a local PostgreSQL instance for development and a managed Cloud SQL for PostgreSQL instance for production.
+
+### Local Development
+
+For local development, the application connects to a standard PostgreSQL database using the credentials defined in your `.env` file. Ensure the following variables are set correctly:
+
+-   `DB_HOST`: The hostname of your local database server (e.g., `localhost`).
+-   `DB_PORT`: The port your database is running on (e.g., `5432`).
+-   `DB_USER`: Your PostgreSQL username.
+-   `DB_PASSWORD`: Your PostgreSQL password.
+-   `DB_NAME`: The name of the database to use.
+-   `DB_ADAPTER`: Should be set to `postgres`.
+
+### Production (Cloud Run & Cloud SQL)
+
+In the production environment (`NODE_ENV=production`), the application connects to Cloud SQL via a **Unix socket** for a secure and low-latency connection.
+
+The connection logic in `src/database.js` is hardcoded to use the following socket path:
+
+```javascript
+host: '/cloudsql/rhythm-479516:us-central1:rhythm-db'
+```
+
+For this to work, the following conditions must be met:
+
+1.  **Cloud SQL Instance**: Your Cloud Run service must be connected to the Cloud SQL instance (`rhythm-479516:us-central1:rhythm-db`). This is configured during deployment.
+2.  **Service Account Permissions**: The service account running the Cloud Run instance (and Cloud Build) must have the **"Cloud SQL Client"** IAM role.
+3.  **Secrets**: The following secrets must be available in Google Cloud Secret Manager:
+    -   `DB_USER`: The username for the Cloud SQL database.
+    -   `DB_PASSWORD`: The password for the Cloud SQL user.
+    -   `DB_NAME`: The name of the database in your Cloud SQL instance.
+
+**Note:** In production, the `DB_HOST` and `DB_PORT` secrets are ignored in favor of the hardcoded socket path.
+
+## 7. Seeding the Database
 
 The project includes a script to populate the database with 10 cycles of realistic dummy data.
 
@@ -72,7 +108,7 @@ To run the seed script for your local database:
 npm run seed:cloud
 ```
 
-## 7. Database Schema
+## 8. Database Schema
 
 The database consists of two main tables:
 
@@ -94,7 +130,7 @@ The database consists of two main tables:
 | `hormone_reading`| TEXT    | The hormonal reading for the day ('Low', 'High', 'Peak').      |
 | `intercourse`   | BOOLEAN | A boolean indicating if intercourse occurred.          |
 
-## 8. API Endpoints
+## 9. API Endpoints
 
 The backend exposes the following API endpoints, which are consumed by the frontend client:
 
