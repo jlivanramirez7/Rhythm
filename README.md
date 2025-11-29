@@ -135,6 +135,15 @@ If you encounter unexpected behavior, check these common issues first.
 -   **Cause**: The backend API endpoint (`POST /api/cycles/days/range`) does not validate that the `start_date` is before the `end_date`. The loop to process the days never runs, and the server returns a success status.
 -   **Fix**: Add validation at the beginning of the endpoint to check if `startDate > endDate` and return a `400 Bad Request` if the condition is true.
 
+### 4. Build Fails with `pg_hba.conf rejects connection`
+
+-   **Symptom**: The Cloud Run build fails with an error `pg_hba.conf rejects connection for host ...`.
+-   **Cause**: The application is trying to connect to Cloud SQL over a public IP instead of the secure Unix socket. This happens when the `host` in the database configuration in `src/database.js` is incorrectly set to use `secrets.DB_HOST` in a production environment.
+-   **Fix**: Ensure the `host` configuration in `src/database.js` is **hardcoded** to the Cloud SQL socket path for the production environment. It should look like this:
+    ```javascript
+    host: process.env.NODE_ENV === 'production' ? '/cloudsql/rhythm-479516:us-central1:rhythm-db' : secrets.DB_HOST,
+    ```
+
 ---
 
 ## 7. API Endpoints

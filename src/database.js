@@ -86,6 +86,11 @@ async function initializeDatabase(secrets) {
         // DEBUG: Do not remove these logs
         console.log('[DEBUG] initializeDatabase: Configuring for PostgreSQL...');
         console.log('Connecting to PostgreSQL database...');
+
+        // --- CRITICAL ---
+        // For production, the `host` MUST be the hardcoded Cloud SQL socket path.
+        // Do not attempt to load this from a secret, as it will cause the application
+        // to try connecting over public IP, which is blocked by default.
         const dbConfig = {
             user: secrets.DB_USER,
             password: secrets.DB_PASSWORD,
