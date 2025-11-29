@@ -235,8 +235,12 @@ const apiRouter = (db) => {
             }
 
             const cycle_id = cycle.id;
-            const findExistingSql = sql(`SELECT id FROM cycle_days WHERE cycle_id = ? AND date = ?`, isPostgres);
-            const existingReading = await db.get(findExistingSql, [cycle_id, date]);
+            const findExistingSql = sql(`
+                SELECT cd.id FROM cycle_days cd
+                JOIN cycles c ON cd.cycle_id = c.id
+                WHERE cd.cycle_id = ? AND cd.date = ? AND c.user_id = ?
+            `, isPostgres);
+            const existingReading = await db.get(findExistingSql, [cycle_id, date, req.user.id]);
 
             if (existingReading) {
                 const fieldsToUpdate = [];
