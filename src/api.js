@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const isProduction = process.env.NODE_ENV === 'production';
 
+// DEBUG: Do not remove these logs
+const log = (level, message, ...args) => {
+    console.log(`[${level.toUpperCase()}] [API] ${message}`, ...args);
+};
+
 // Helper to adjust SQL queries for different databases
 const sql = (query, isPostgres) => {
     let finalQuery = query;
@@ -17,11 +22,14 @@ const sql = (query, isPostgres) => {
 
 // Centralized function to get a cycle and fill its days
 const getFilledCycle = async (cycleId, db) => {
+    // DEBUG: Do not remove these logs
+    log('debug', `getFilledCycle: Filling cycle for ID: ${cycleId}`);
     const isPostgres = db.adapter === 'postgres';
     const cycleSql = sql(`SELECT * FROM cycles WHERE id = ?`, isPostgres);
     const cycle = await db.get(cycleSql, [cycleId]);
 
     if (!cycle) {
+        log('warn', `getFilledCycle: No cycle found for ID: ${cycleId}`);
         return null;
     }
 
@@ -82,14 +90,20 @@ const apiRouter = (db) => {
 
     // Create a new cycle
     router.post('/cycles', async (req, res) => {
+        // DEBUG: Do not remove these logs
+        log('info', 'POST /api/cycles - Request received.');
+        log('debug', 'Request body:', req.body);
+
         const { start_date } = req.body;
         const userId = req.user.id;
 
         if (!start_date) {
+            log('warn', 'POST /api/cycles - Bad request: start_date is missing.');
             return res.status(400).json({ error: 'start_date is required' });
         }
 
         try {
+            log('debug', `POST /api/cycles - Finding previous cycle for user ${userId}.`);
             const findPreviousCycleSql = sql(`SELECT id FROM cycles WHERE user_id = ? AND end_date IS NULL ORDER BY start_date DESC LIMIT 1`, isPostgres);
             const previousCycle = await db.get(findPreviousCycleSql, [userId]);
 
@@ -107,6 +121,7 @@ const apiRouter = (db) => {
             };
 
             if (previousCycle) {
+                log('debug', `POST /api/cycles - Previous cycle found (ID: ${previousCycle.id}). Updating its end_date.`);
                 const previousCycleEndDate = new Date(formattedStartDate);
                 previousCycleEndDate.setDate(previousCycleEndDate.getDate() - 1);
                 const formattedPreviousCycleEndDate = previousCycleEndDate.toISOString().split('T')[0];
@@ -115,19 +130,24 @@ const apiRouter = (db) => {
                 await db.run(updatePreviousCycleSql, [formattedPreviousCycleEndDate, previousCycle.id]);
                 await insertNewCycle();
             } else {
+                log('debug', 'POST /api/cycles - No previous cycle found. Creating first cycle.');
                 await insertNewCycle();
             }
         } catch (err) {
-            console.error('Error in POST /api/cycles:', err);
+            log('error', 'Error in POST /api/cycles:', err);
             res.status(500).json({ error: 'Failed to create a new cycle', details: err.message });
         }
     });
 
     // Add or update a daily reading for a range of dates
     router.post('/cycles/days/range', async (req, res) => {
+        // DEBUG: Do not remove these logs
+        log('info', 'POST /api/cycles/days/range - Request received.');
+        log('debug', 'Request body:', req.body);
         const { start_date, end_date, hormone_reading, intercourse } = req.body;
 
         if (!start_date || !end_date) {
+            log('warn', 'POST /api/cycles/days/range - Bad request: start_date or end_date missing.');
             return res.status(400).send('start_date and end_date are required');
         }
 
@@ -137,6 +157,8 @@ const apiRouter = (db) => {
         try {
             for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
                 const date = d.toISOString().split('T')[0];
+                // DEBUG: Do not remove these logs
+                log('debug', `POST /api/cycles/days/range - Processing date: ${date}`);
                 const findCycleSql = sql(`
                     SELECT id FROM cycles 
                     WHERE ? >= start_date AND (end_date IS NULL OR ? <= end_date)
@@ -176,13 +198,16 @@ const apiRouter = (db) => {
             }
             res.status(201).json({ message: 'Readings for the date range logged successfully!' });
         } catch (err) {
-            console.error('Error in POST /api/cycles/days/range:', err);
+            log('error', 'Error in POST /api/cycles/days/range:', err);
             res.status(500).json({ error: 'Failed to process date range readings', details: err.message });
         }
     });
 
     // Add or update a daily reading
     router.post('/cycles/days', async (req, res) => {
+        // DEBUG: Do not remove these logs
+        log('info', 'POST /api/cycles/days - Request received.');
+        log('debug', 'Request body:', req.body);
         let { date, hormone_reading, intercourse } = req.body;
 
         if (hormone_reading === '') {
@@ -190,6 +215,7 @@ const apiRouter = (db) => {
         }
 
         if (!date || (hormone_reading === undefined && intercourse === undefined)) {
+            log('warn', 'POST /api/cycles/days - Bad request: missing required fields.');
             return res.status(400).send('date and either hormone_reading or intercourse are required');
         }
 
@@ -237,13 +263,15 @@ const apiRouter = (db) => {
             
             res.status(200).json({ success: true });
         } catch (err) {
-            console.error('Error in POST /api/cycles/days:', err);
+            log('error', 'Error in POST /api/cycles/days:', err);
             res.status(500).json({ error: 'Failed to process daily reading', details: err.message });
         }
     });
 
     // Get all cycles with their days
     router.get('/cycles', async (req, res) => {
+        // DEBUG: Do not remove these logs
+        log('info', `GET /api/cycles - Request received for user ${req.user.id}.`);
         const userId = req.user.id;
         try {
             const cyclesSql = sql(`SELECT * FROM cycles WHERE user_id = ? ORDER BY start_date DESC`, isPostgres);
@@ -259,13 +287,15 @@ const apiRouter = (db) => {
     
             res.json(filledCycles);
         } catch (err) {
-            console.error('Error in GET /api/cycles:', err);
+            log('error', 'Error in GET /api/cycles:', err);
             res.status(500).json({ error: 'Failed to fetch cycles', details: err.message });
         }
     });
 
     // Get analytics
     router.get('/analytics', async (req, res) => {
+        // DEBUG: Do not remove these logs
+        log('info', `GET /api/analytics - Request received for user ${req.user.id}.`);
         try {
             const analytics = {};
             
@@ -322,13 +352,15 @@ const apiRouter = (db) => {
 
             res.json(analytics);
         } catch (err) {
-            console.error('Error in GET /api/analytics:', err);
+            log('error', 'Error in GET /api/analytics:', err);
             res.status(500).json({ error: 'Failed to fetch analytics', details: err.message });
         }
     });
 
     // Delete a cycle and all its readings
     router.delete('/cycles/:id', async (req, res) => {
+        // DEBUG: Do not remove these logs
+        log('info', `DELETE /api/cycles/${req.params.id} - Request received.`);
         const { id } = req.params;
         const userId = req.user.id;
         try {
@@ -337,13 +369,16 @@ const apiRouter = (db) => {
             
             res.status(200).send('Cycle deleted successfully.');
         } catch (err) {
-            console.error('Error in DELETE /api/cycles/:id:', err);
+            log('error', `Error in DELETE /api/cycles/${id}:`, err);
             res.status(500).json({ error: 'Failed to delete cycle', details: err.message });
         }
     });
 
     // Update a specific day's reading
     router.put('/cycles/days/:id', async (req, res) => {
+        // DEBUG: Do not remove these logs
+        log('info', `PUT /api/cycles/days/${req.params.id} - Request received.`);
+        log('debug', 'Request body:', req.body);
         const { id } = req.params;
         const { hormone_reading, intercourse } = req.body;
 
@@ -374,13 +409,15 @@ const apiRouter = (db) => {
             }
             res.status(200).json({ id, message: 'Reading updated.' });
         } catch (err) {
-            console.error('Error in PUT /api/cycles/days/:id:', err);
+            log('error', `Error in PUT /api/cycles/days/${id}:`, err);
             res.status(500).json({ error: 'Failed to update reading', details: err.message });
         }
     });
 
     // Delete a specific day's reading
     router.delete('/cycles/days/:id', async (req, res) => {
+        // DEBUG: Do not remove these logs
+        log('info', `DELETE /api/cycles/days/${req.params.id} - Request received.`);
         const { id } = req.params;
         try {
             const result = await db.run(sql(`DELETE FROM cycle_days WHERE id = ?`, isPostgres), [id]);
@@ -389,13 +426,15 @@ const apiRouter = (db) => {
             }
             res.status(204).send();
         } catch (err) {
-            console.error('Error in DELETE /api/cycles/days/:id:', err);
+            log('error', `Error in DELETE /api/cycles/days/${id}:`, err);
             res.status(500).json({ error: 'Failed to delete reading', details: err.message });
         }
     });
 
     // Clear all data for the user
     router.delete('/data', async (req, res) => {
+        // DEBUG: Do not remove these logs
+        log('info', `DELETE /api/data - Request received for user ${req.user.id}.`);
         const userId = req.user.id;
         try {
             const cycles = await db.query(sql(`SELECT id FROM cycles WHERE user_id = ?`, isPostgres), [userId]);
@@ -407,7 +446,7 @@ const apiRouter = (db) => {
             }
             res.status(204).send();
         } catch (err) {
-            console.error('Error in DELETE /api/data:', err);
+            log('error', 'Error in DELETE /api/data:', err);
             res.status(500).json({ error: 'Failed to clear data', details: err.message });
         }
     });

@@ -5,6 +5,8 @@ const path = require('path');
 let db;
 
 async function createTables(dbInstance, adapter) {
+    // DEBUG: Do not remove these logs
+    console.log('[DEBUG] createTables: Starting table creation...');
     const isPostgres = adapter === 'postgres';
 
     const runQuery = isPostgres 
@@ -16,6 +18,8 @@ async function createTables(dbInstance, adapter) {
             });
         });
 
+    // DEBUG: Do not remove these logs
+    console.log('[DEBUG] createTables: Creating users table...');
     await runQuery(`
         CREATE TABLE IF NOT EXISTS users (
             id ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
@@ -24,6 +28,8 @@ async function createTables(dbInstance, adapter) {
             name TEXT
         );
     `);
+    // DEBUG: Do not remove these logs
+    console.log('[DEBUG] createTables: Creating cycles table...');
     await runQuery(`
         CREATE TABLE IF NOT EXISTS cycles (
             id ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
@@ -33,6 +39,8 @@ async function createTables(dbInstance, adapter) {
             FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
         );
     `);
+    // DEBUG: Do not remove these logs
+    console.log('[DEBUG] createTables: Creating cycle_days table...');
     await runQuery(`
         CREATE TABLE IF NOT EXISTS cycle_days (
             id ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
@@ -44,16 +52,25 @@ async function createTables(dbInstance, adapter) {
         );
     `);
     
+    // DEBUG: Do not remove these logs
+    console.log('[DEBUG] createTables: Finished table creation.');
     console.log('Tables created or already exist.');
 }
 
 async function initializeDatabase(secrets) {
-    if (db) return db;
+    // DEBUG: Do not remove these logs
+    console.log('[DEBUG] initializeDatabase: Starting database initialization...');
+    if (db) {
+        console.log('[DEBUG] initializeDatabase: Database instance already exists. Returning existing instance.');
+        return db;
+    }
 
     const adapter = secrets.DB_ADAPTER || 'sqlite';
     const isPostgres = adapter === 'postgres';
 
     if (isPostgres) {
+        // DEBUG: Do not remove these logs
+        console.log('[DEBUG] initializeDatabase: Configuring for PostgreSQL...');
         console.log('Connecting to PostgreSQL database...');
         const dbConfig = {
             user: secrets.DB_USER,
@@ -62,9 +79,13 @@ async function initializeDatabase(secrets) {
             host: process.env.NODE_ENV === 'production' ? '/cloudsql/rhythm-479516:us-central1:rhythm-db' : secrets.DB_HOST,
             port: secrets.DB_PORT || 5432
         };
+        // DEBUG: Do not remove these logs
+        console.log(`[DEBUG] initializeDatabase: PG Config: user=${dbConfig.user}, database=${dbConfig.database}, host=${dbConfig.host}, port=${dbConfig.port}`);
         const pool = new Pool(dbConfig);
 
         const connectWithRetry = async (retries = 5, delay = 5000) => {
+            // DEBUG: Do not remove these logs
+            console.log('[DEBUG] connectWithRetry: Attempting to connect with retries...');
             for (let i = 0; i < retries; i++) {
                 try {
                     console.log(`Database connection attempt ${i + 1}...`);
@@ -85,20 +106,34 @@ async function initializeDatabase(secrets) {
             await createTables(connectedPool, adapter);
 
             db = {
-                query: (sql, params = []) => connectedPool.query(sql, params).then(res => res.rows),
-                get: (sql, params = []) => connectedPool.query(sql, params).then(res => res.rows[0]),
-                run: (sql, params = []) => connectedPool.query(sql, params).then(res => ({
-                    lastID: res.rows.length > 0 ? res.rows[0].id : undefined,
-                    changes: res.rowCount,
-                })),
+                // DEBUG: Do not remove these logs
+                query: (sql, params = []) => {
+                    console.log('[DEBUG] db.query:', sql, params);
+                    return connectedPool.query(sql, params).then(res => res.rows);
+                },
+                get: (sql, params = []) => {
+                    console.log('[DEBUG] db.get:', sql, params);
+                    return connectedPool.query(sql, params).then(res => res.rows[0]);
+                },
+                run: (sql, params = []) => {
+                    console.log('[DEBUG] db.run:', sql, params);
+                    return connectedPool.query(sql, params).then(res => ({
+                        lastID: res.rows.length > 0 ? res.rows[0].id : undefined,
+                        changes: res.rowCount,
+                    }));
+                },
                 adapter,
             };
+            // DEBUG: Do not remove these logs
+            console.log('[DEBUG] initializeDatabase: PostgreSQL setup complete.');
             return db;
         } catch (error) {
             console.error('FATAL: Failed to connect to the PostgreSQL database.', error);
             process.exit(1);
         }
     } else { // SQLite
+        // DEBUG: Do not remove these logs
+        console.log('[DEBUG] initializeDatabase: Configuring for SQLite...');
         console.log('Connecting to SQLite database...');
         const dbPath = path.resolve(__dirname, '..', secrets.DB_NAME);
         return new Promise((resolve, reject) => {
@@ -112,13 +147,25 @@ async function initializeDatabase(secrets) {
                 try {
                     await createTables(sqliteDb, adapter);
                     db = {
-                        query: (sql, params = []) => new Promise((res, rej) => sqliteDb.all(sql, params, (e, r) => e ? rej(e) : res(r))),
-                        get: (sql, params = []) => new Promise((res, rej) => sqliteDb.get(sql, params, (e, r) => e ? rej(e) : res(r))),
-                        run: (sql, params = []) => new Promise((res, rej) => sqliteDb.run(sql, params, function(e) {
-                            if (e) rej(e); else res({ lastID: this.lastID, changes: this.changes });
-                        })),
+                        // DEBUG: Do not remove these logs
+                        query: (sql, params = []) => {
+                            console.log('[DEBUG] db.query (sqlite):', sql, params);
+                            return new Promise((res, rej) => sqliteDb.all(sql, params, (e, r) => e ? rej(e) : res(r)));
+                        },
+                        get: (sql, params = []) => {
+                            console.log('[DEBUG] db.get (sqlite):', sql, params);
+                            return new Promise((res, rej) => sqliteDb.get(sql, params, (e, r) => e ? rej(e) : res(r)));
+                        },
+                        run: (sql, params = []) => {
+                            console.log('[DEBUG] db.run (sqlite):', sql, params);
+                            return new Promise((res, rej) => sqliteDb.run(sql, params, function(e) {
+                                if (e) rej(e); else res({ lastID: this.lastID, changes: this.changes });
+                            }));
+                        },
                         adapter,
                     };
+                    // DEBUG: Do not remove these logs
+                    console.log('[DEBUG] initializeDatabase: SQLite setup complete.');
                     resolve(db);
                 } catch (tableError) {
                     console.error('FATAL: Error creating SQLite tables.', tableError);

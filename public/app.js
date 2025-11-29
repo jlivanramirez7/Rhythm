@@ -1,4 +1,11 @@
+// DEBUG: Do not remove these logs
+const log = (level, message, ...args) => {
+    console.log(`[${level.toUpperCase()}] [UI] ${message}`, ...args);
+};
+
 document.addEventListener('DOMContentLoaded', () => {
+    // DEBUG: Do not remove these logs
+    log('info', 'DOM fully loaded and parsed.');
     const menuToggle = document.getElementById('menu-toggle');
     const menuContent = document.getElementById('menu-content');
 
@@ -37,23 +44,30 @@ document.addEventListener('DOMContentLoaded', () => {
         periodStartDateInput.value = new Date().toISOString().split('T')[0];
 
         const fetchAndRenderData = async () => {
+            // DEBUG: Do not remove these logs
+            log('info', 'fetchAndRenderData: Starting to fetch cycles and analytics.');
             try {
                 const cacheBust = `?t=${new Date().getTime()}`;
                 const cyclesRes = await fetch(`/api/cycles${cacheBust}`);
                 const cycles = await cyclesRes.json();
+                log('debug', 'fetchAndRenderData: Cycles data fetched.', cycles);
                 renderCycles(cycles);
 
                 const analyticsRes = await fetch(`/api/analytics${cacheBust}`);
                 const analytics = await analyticsRes.json();
+                log('debug', 'fetchAndRenderData: Analytics data fetched.', analytics);
                 renderAnalytics(analytics, cycles);
             } catch (error) {
-                console.error('Error fetching data:', error);
+                log('error', 'Error fetching data:', error);
             }
         };
 
         const renderCycles = (cycles) => {
+            // DEBUG: Do not remove these logs
+            log('info', 'renderCycles: Starting to render cycles.');
             cyclesContainer.innerHTML = '';
             if (!cycles || cycles.length === 0) {
+                log('info', 'renderCycles: No cycles to render.');
                 cyclesContainer.innerHTML = '<p>No cycle data yet. Start a new cycle to begin tracking.</p>';
                 return;
             }
@@ -186,6 +200,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const renderAnalytics = (analytics, cycles) => {
+            // DEBUG: Do not remove these logs
+            log('info', 'renderAnalytics: Starting to render analytics.');
             avgCycleLengthSpan.textContent = analytics.averageCycleLength || '--';
             avgDaysToPeakSpan.textContent = analytics.averageDaysToPeak || '--';
 
@@ -256,12 +272,17 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         const logOrUpdateReading = async (payload) => {
+            // DEBUG: Do not remove these logs
+            log('info', 'logOrUpdateReading: Preparing to log or update reading.');
+            log('debug', 'Payload:', payload);
             const { id, ...body } = payload;
             const isUpdate = id !== undefined && id !== null;
             const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
             const method = isUpdate ? 'PUT' : 'POST';
 
             try {
+                // DEBUG: Do not remove these logs
+                log('debug', `Sending ${method} request to ${url}`);
                 const response = await fetch(url, {
                     method: method,
                     headers: { 'Content-Type': 'application/json' },
@@ -273,13 +294,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 fetchAndRenderData();
             } catch (error) {
-                console.error(`Error ${isUpdate ? 'updating' : 'logging'} reading:`, error);
+                log('error', `Error ${isUpdate ? 'updating' : 'logging'} reading:`, error);
                 alert('An unknown error occurred. Please check the console.');
             }
         };
 
         const toggleEditMode = (cycleDiv, cycleId) => {
+            // DEBUG: Do not remove these logs
+            log('info', `toggleEditMode: Toggling edit mode for cycle ${cycleId}.`);
             const isEditing = cycleDiv.classList.toggle('edit-mode');
+            log('debug', `Is editing: ${isEditing}`);
             const dayDivs = cycleDiv.querySelectorAll('.day');
             dayDivs.forEach(dayDiv => {
                 const readingDiv = dayDiv.querySelector('.reading');
@@ -340,6 +364,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         readingForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            // DEBUG: Do not remove these logs
+            log('info', 'readingForm submit: Form submitted.');
             const hormone_reading = document.getElementById('reading').value;
             const intercourse = document.getElementById('intercourse-checkbox').checked;
             const date = document.getElementById('date').value;
@@ -352,6 +378,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 : { date, hormone_reading, intercourse };
 
             try {
+                // DEBUG: Do not remove these logs
+                log('debug', `Submitting reading to ${url} with body:`, body);
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -364,19 +392,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 fetchAndRenderData();
             } catch (error) {
-                console.error('Error logging reading:', error);
+                log('error', 'Error logging reading:', error);
                 alert('An error occurred while logging the reading. Please check the console for details.');
             }
         });
 
         periodButton.addEventListener('click', async () => {
+            // DEBUG: Do not remove these logs
+            log('info', 'periodButton click: "Start New Cycle" button clicked.');
             const startDate = periodStartDateInput.value;
             if (!startDate) {
-                console.log('Please select a start date for your period.');
+                log('warn', 'periodButton click: No start date selected.');
                 return;
             }
 
             try {
+                // DEBUG: Do not remove these logs
+                log('debug', `Sending request to start new cycle with date: ${startDate}`);
                 const response = await fetch('/api/cycles', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -388,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 fetchAndRenderData();
             } catch (error) {
-                console.error('Error starting new cycle:', error);
+                log('error', 'Error starting new cycle:', error);
                 const errorData = await response.json();
                 alert(`Error starting new cycle: ${errorData.error}\nDetails: ${errorData.details}`);
             }
@@ -396,7 +428,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         const deleteCycle = async (id) => {
+            // DEBUG: Do not remove these logs
+            log('info', `deleteCycle: Attempting to delete cycle ${id}.`);
             if (!confirm('Are you sure you want to delete this entire cycle and all its readings? This action cannot be undone.')) {
+                log('info', 'deleteCycle: Deletion cancelled by user.');
                 return;
             }
             try {
@@ -409,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 fetchAndRenderData();
             } catch (error) {
-                console.error('Error deleting cycle:', error);
+                log('error', `Error deleting cycle ${id}:`, error);
                 alert(`Error deleting cycle: ${error.message}`);
             }
         };
@@ -417,9 +452,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const deleteReading = async (id) => {
             // If the day card is a placeholder, it won't have an ID. Do nothing.
             if (!id) {
+                // DEBUG: Do not remove these logs
+                log('info', 'deleteReading: Attempted to delete a placeholder reading. No action taken.');
                 return;
             }
+            // DEBUG: Do not remove these logs
+            log('info', `deleteReading: Attempting to delete reading ${id}.`);
             if (!confirm('Are you sure you want to delete this reading?')) {
+                log('info', `deleteReading: Deletion of reading ${id} cancelled by user.`);
                 return;
             }
             try {
@@ -432,12 +472,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 fetchAndRenderData();
             } catch (error) {
-                console.error('Error deleting reading:', error);
+                log('error', `Error deleting reading ${id}:`, error);
                 alert(`Error deleting reading: ${error.message}`);
             }
         };
 
         const openEditModal = (dayData) => {
+            // DEBUG: Do not remove these logs
+            log('info', 'openEditModal: Opening edit modal.');
+            log('debug', 'Day data:', dayData);
             const formattedDayDate = dayData.date.split('T')[0];
 
             let modal = document.getElementById('edit-modal');
@@ -471,6 +514,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const saveEditButton = document.getElementById('save-edit');
             saveEditButton.onclick = async () => {
                 const newHormoneReading = document.getElementById('edit-hormone-reading').value;
+                // DEBUG: Do not remove these logs
+                log('info', 'openEditModal: Save button clicked.');
+                log('debug', `New hormone reading: ${newHormoneReading}`);
                 
                 // Determine if it's an update or a new reading
                 const method = dayData.id.toString().startsWith('placeholder') ? 'POST' : 'PUT';
@@ -478,6 +524,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const body = { date: formattedDayDate, hormone_reading: newHormoneReading };
 
                 try {
+                    // DEBUG: Do not remove these logs
+                    log('debug', `Sending ${method} request to ${url} with body:`, body);
                     const response = await fetch(url, {
                         method: method,
                         headers: { 'Content-Type': 'application/json' },
