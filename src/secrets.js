@@ -37,23 +37,28 @@ async function loadSecrets() {
 
     console.log('Loading secrets from Google Cloud Secret Manager...');
     try {
-        const secretNames = [
-            'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'DB_HOST',
-            'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET',
-            'AUTHORIZED_USERS', 'SESSION_SECRET'
-        ];
-
-        const secretPromises = secretNames.map(name => accessSecretVersion(name));
-        const secretValues = await Promise.all(secretPromises);
-
-        const secrets = secretNames.reduce((acc, name, index) => {
-            acc[name] = secretValues[index];
-            return acc;
-        }, {});
-        
-        secrets.DB_ADAPTER = 'postgres';
+        const [dbUser, dbPassword, dbName, dbHost, googleClientId, googleClientSecret, authorizedUsers, sessionSecret] = await Promise.all([
+            accessSecretVersion('DB_USER'),
+            accessSecretVersion('DB_PASSWORD'),
+            accessSecretVersion('DB_NAME'),
+            accessSecretVersion('DB_HOST'),
+            accessSecretVersion('GOOGLE_CLIENT_ID'),
+            accessSecretVersion('GOOGLE_CLIENT_SECRET'),
+            accessSecretVersion('AUTHORIZED_USERS'),
+            accessSecretVersion('SESSION_SECRET')
+        ]);
         console.log('Secrets loaded successfully.');
-        return secrets;
+        return {
+            DB_USER: dbUser,
+            DB_PASSWORD: dbPassword,
+            DB_NAME: dbName,
+            DB_HOST: dbHost,
+            GOOGLE_CLIENT_ID: googleClientId,
+            GOOGLE_CLIENT_SECRET: googleClientSecret,
+            AUTHORIZED_USERS: authorizedUsers,
+            SESSION_SECRET: sessionSecret,
+            DB_ADAPTER: 'postgres'
+        };
     } catch (error) {
         console.error('Failed to load secrets:', error);
         process.exit(1);
