@@ -40,12 +40,15 @@ const getFilledCycle = async (cycleId, db) => {
     // Explicitly sort days in JS to guarantee order, regardless of DB transaction state.
     days.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    const daysMap = new Map(days.map(d => [new Date(d.date).toISOString().split('T')[0], d]));
+        const daysMap = new Map(days.map(d => {
+        const dayDate = moment.utc(d.date).format('YYYY-MM-DD');
+        return [dayDate, d];
+    }));
     
     const filledDays = [];
-    const startDate = new Date(cycle.start_date + 'T00:00:00Z');
+    const startDate = moment.utc(cycle.start_date);
 
-    let lastDate = new Date(startDate);
+    let lastDate = startDate.clone();
     if (days.length > 0) {
         const lastReadingDate = new Date(days[days.length - 1].date);
         if (lastReadingDate > lastDate) {
@@ -53,11 +56,11 @@ const getFilledCycle = async (cycleId, db) => {
         }
     }
     
-    let currentDate = new Date(startDate.getTime());
-    while (currentDate <= lastDate) {
-        const dateStr = currentDate.toISOString().split('T')[0];
+    let currentDate = startDate.clone();
+    while (currentDate.isSameOrBefore(lastDate)) {
+        const dateStr = currentDate.format('YYYY-MM-DD');
         const existingDay = daysMap.get(dateStr);
-        
+
         if (existingDay) {
             // DEBUG: Do not remove these logs
             log('debug', `getFilledCycle: Found existing day in map for ${dateStr}. Pushing data:`, existingDay);
@@ -72,7 +75,7 @@ const getFilledCycle = async (cycleId, db) => {
                 intercourse: 0,
             });
         }
-        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+        currentDate.add(1, 'days');
     }
 
     if (filledDays.length === 0) {
@@ -223,7 +226,7 @@ const apiRouter = (db) => {
             return res.status(400).send('date and either hormone_reading or intercourse are required');
         }
 
-        date = new Date(date + 'T00:00:00Z').toISOString().split('T')[0];
+        date = moment.utc(date).format('YYYY-MM-DD');
 
         try {
             const findCycleSql = sql(`
