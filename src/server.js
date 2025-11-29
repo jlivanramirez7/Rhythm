@@ -6,6 +6,7 @@ const passport = require('passport');
 const { initializeDatabase } = require('./database');
 const { loadSecrets } = require('./secrets');
 const apiRouter = require('./api');
+const adminApiRouter = require('./adminApi');
 
 const app = express();
 const port = process.env.PORT;
@@ -16,6 +17,14 @@ const ensureAuthenticated = (req, res, next) => {
         return next();
     }
     res.redirect('/');
+};
+
+// Middleware to protect admin routes
+const ensureAdmin = (req, res, next) => {
+    if (req.isAuthenticated() && req.user.is_admin) {
+        return next();
+    }
+    res.status(403).send('Forbidden');
 };
 
 async function main() {
@@ -67,6 +76,11 @@ async function main() {
     });
 
     app.use('/api', ensureAuthenticated, apiRouter(db));
+    app.use('/api/admin', ensureAdmin, adminApiRouter(db));
+
+    app.get('/admin', ensureAdmin, (req, res) => {
+        res.sendFile(path.join(__dirname, '../public/admin.html'));
+    });
 
     app.get('/app', ensureAuthenticated, (req, res) => {
         res.sendFile(path.join(__dirname, '../public/app.html'));

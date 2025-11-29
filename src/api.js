@@ -2,30 +2,11 @@ const express = require('express');
 const router = express.Router();
 const isProduction = process.env.NODE_ENV === 'production';
 const moment = require('moment-timezone');
+const { sql } = require('./utils');
 
 // DEBUG: Do not remove these logs
 const log = (level, message, ...args) => {
     console.log(`[${level.toUpperCase()}] [API] ${message}`, ...args);
-};
-
-/**
- * A helper function to adapt SQL queries for different database dialects.
- * It replaces '?' placeholders with '$1', '$2', etc. for PostgreSQL and
- * adds a 'RETURNING id' clause for INSERT statements.
- * @param {string} query - The SQL query to adapt.
- * @param {boolean} isPostgres - True if the target database is PostgreSQL.
- * @returns {string} The adapted SQL query.
- */
-const sql = (query, isPostgres) => {
-    let finalQuery = query;
-    if (isPostgres) {
-        let positional = 0;
-        finalQuery = finalQuery.replace(/\?/g, () => `$${++positional}`);
-    }
-    if (isPostgres && finalQuery.toUpperCase().startsWith('INSERT')) {
-        finalQuery += ' RETURNING id';
-    }
-    return finalQuery;
 };
 
 /**
@@ -151,6 +132,14 @@ const upsertReading = async (db, data) => {
 
 const apiRouter = (db) => {
     const isPostgres = db.adapter === 'postgres';
+
+    /**
+     * @route GET /api/me
+     * @description Fetches the currently logged-in user's profile.
+     */
+    router.get('/me', (req, res) => {
+        res.json(req.user);
+    });
 
     /**
      * @route POST /api/cycles

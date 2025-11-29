@@ -68,16 +68,33 @@ function initializeEventListeners(elements) {
  * @param {object} elements - An object containing references to the main DOM elements.
  */
 async function fetchAndRenderData(elements) {
+    // DEBUG: Do not remove these logs
     log('info', 'fetchAndRenderData: Starting to fetch cycles and analytics.');
     try {
         const cacheBust = `?t=${new Date().getTime()}`;
-        const cyclesRes = await fetch(`/api/cycles${cacheBust}`);
-        const cycles = await cyclesRes.json();
-        log('debug', 'fetchAndRenderData: Cycles data fetched.', cycles);
+        
+        const [userRes, cyclesRes, analyticsRes] = await Promise.all([
+            fetch(`/api/me${cacheBust}`),
+            fetch(`/api/cycles${cacheBust}`),
+            fetch(`/api/analytics${cacheBust}`)
+        ]);
 
-        const analyticsRes = await fetch(`/api/analytics${cacheBust}`);
+        const user = await userRes.json();
+        const cycles = await cyclesRes.json();
         const analytics = await analyticsRes.json();
+
+        log('debug', 'fetchAndRenderData: User data fetched.', user);
+        log('debug', 'fetchAndRenderData: Cycles data fetched.', cycles);
         log('debug', 'fetchAndRenderData: Analytics data fetched.', analytics);
+
+        if (user.is_admin) {
+            const navLinks = document.getElementById('nav-links');
+            const adminLink = document.createElement('a');
+            adminLink.href = '/admin';
+            adminLink.textContent = 'Admin';
+            adminLink.className = 'logout-link';
+            navLinks.prepend(adminLink);
+        }
 
         renderAnalytics(analytics, cycles, elements);
     } catch (error) {

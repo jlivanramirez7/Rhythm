@@ -30,7 +30,8 @@ async function createTables(dbInstance, adapter) {
             id ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
             google_id TEXT UNIQUE NOT NULL,
             email TEXT UNIQUE NOT NULL,
-            name TEXT
+            name TEXT,
+            is_admin BOOLEAN DEFAULT false
         );
     `);
     // DEBUG: Do not remove these logs
