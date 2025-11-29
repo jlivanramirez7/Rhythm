@@ -27,7 +27,9 @@ const getFilledCycle = async (cycleId, db) => {
 
     const daysSql = sql(`SELECT * FROM cycle_days WHERE cycle_id = ? ORDER BY date`, isPostgres);
     const days = await db.query(daysSql, [cycle.id]);
-    
+
+    // ** THE DEFINITIVE FIX **
+    // Explicitly sort days in JS to guarantee order, regardless of DB transaction state.
     days.sort((a, b) => new Date(a.date) - new Date(b.date));
 
     const daysMap = new Map(days.map(d => [new Date(d.date).toISOString().split('T')[0], d]));

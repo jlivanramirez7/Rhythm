@@ -37,30 +37,22 @@ document.addEventListener('DOMContentLoaded', () => {
         periodStartDateInput.value = new Date().toISOString().split('T')[0];
 
         const fetchAndRenderData = async () => {
-            console.log('Fetching and rendering data...');
             try {
                 const cacheBust = `?t=${new Date().getTime()}`;
-                // Fetch cycles
                 const cyclesRes = await fetch(`/api/cycles${cacheBust}`);
                 const cycles = await cyclesRes.json();
-                console.log('Fetched cycles:', JSON.stringify(cycles, null, 2));
                 renderCycles(cycles);
 
-                // Fetch analytics
                 const analyticsRes = await fetch(`/api/analytics${cacheBust}`);
                 const analytics = await analyticsRes.json();
                 renderAnalytics(analytics, cycles);
             } catch (error) {
                 console.error('Error fetching data:', error);
-                alert('An error occurred while fetching data. Please check the console for details.');
             }
         };
 
         const renderCycles = (cycles) => {
-            console.log('Rendering cycles...');
             cyclesContainer.innerHTML = '';
-            // The backend sends cycles sorted newest first. To display them in that order,
-            // and still get correct chronological numbering, we iterate normally and calculate the number.
             if (!cycles || cycles.length === 0) {
                 cyclesContainer.innerHTML = '<p>No cycle data yet. Start a new cycle to begin tracking.</p>';
                 return;
@@ -70,7 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 cycleDiv.className = 'cycle';
                 cycleDiv.dataset.cycleId = cycle.id;
 
-                // Treat date strings from backend as UTC to prevent timezone shifts
                 const startDate = new Date(cycle.start_date);
                 
                 let endDate;
@@ -265,7 +256,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         const logOrUpdateReading = async (payload) => {
-            console.log('Logging or updating reading:', payload);
             const { id, ...body } = payload;
             const isUpdate = id !== undefined && id !== null;
             const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
@@ -289,7 +279,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const toggleEditMode = (cycleDiv, cycleId) => {
-            console.log('Toggling edit mode for cycle:', cycleId);
             const isEditing = cycleDiv.classList.toggle('edit-mode');
             const dayDivs = cycleDiv.querySelectorAll('.day');
             dayDivs.forEach(dayDiv => {
@@ -350,7 +339,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         readingForm.addEventListener('submit', async (e) => {
-            console.log('Reading form submitted');
             e.preventDefault();
             const hormone_reading = document.getElementById('reading').value;
             const intercourse = document.getElementById('intercourse-checkbox').checked;
