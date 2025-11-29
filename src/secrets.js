@@ -40,7 +40,7 @@ async function loadSecrets() {
         const secretNames = [
             'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'DB_HOST',
             'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET',
-            'AUTHORIZED_USERS', 'SESSION_SECRET'
+            'AUTHORIZED_USERS', 'SESSION_SECRET', 'INSTANCE_CONNECTION_NAME'
         ];
 
         const secretPromises = secretNames.map(name => accessSecretVersion(name));

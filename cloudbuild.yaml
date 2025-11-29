@@ -20,7 +20,7 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--add-cloudsql-instances=rhythm-479516:us-central1:rhythm-db'
-      - '--update-secrets=DB_USER=DB_USER:latest,DB_PASSWORD=DB_PASSWORD:latest,DB_NAME=DB_NAME:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,SESSION_SECRET=SESSION_SECRET:latest,AUTHORIZED_USERS=AUTHORIZED_USERS:latest'
+      - '--update-secrets=DB_USER=DB_USER:latest,DB_PASSWORD=DB_PASSWORD:latest,DB_NAME=DB_NAME:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,SESSION_SECRET=SESSION_SECRET:latest,AUTHORIZED_USERS=AUTHORIZED_USERS:latest,INSTANCE_CONNECTION_NAME=INSTANCE_CONNECTION_NAME:latest'
       - '--set-env-vars=NODE_ENV=production'
 images:
   - 'gcr.io/rhythm-479516/rhythm'
