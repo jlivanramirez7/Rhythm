@@ -42,27 +42,32 @@ module.exports = (db, secrets) => {
     },
   async (req, accessToken, refreshToken, profile, cb) => {
     try {
-        const isRegistering = req.path.includes('/register');
-        
-        let user = await db.get(`SELECT * FROM users WHERE google_id = ${db.adapter === 'postgres' ? '$1' : '?'}`, [profile.id]);
+        const isPostgres = db.adapter === 'postgres';
+        const email = profile.emails[0].value;
+        const googleId = profile.id;
 
-        if (user) {
-            // If user exists, just return them. The callback will handle approval check.
-            return cb(null, user);
+        // Find user by email first
+        const userByEmail = await db.get(sql('SELECT * FROM users WHERE email = ?', isPostgres), [email]);
+
+        if (userByEmail) {
+            if (!userByEmail.approved) {
+                return cb(null, false, { message: 'Account not approved.' });
+            }
+
+            // If user is approved and this is their first Google login, update their google_id
+            if (userByEmail.google_id.startsWith('pending-')) {
+                await db.run(sql('UPDATE users SET google_id = ? WHERE id = ?', isPostgres), [googleId, userByEmail.id]);
+                const updatedUser = await db.get(sql('SELECT * FROM users WHERE id = ?', isPostgres), [userByEmail.id]);
+                return cb(null, updatedUser);
+            }
+
+            // If google_id already matches, this is a normal login
+            if (userByEmail.google_id === googleId) {
+                return cb(null, userByEmail);
+            }
         }
 
-        if (isRegistering) {
-            // If it's a registration, create a new, unapproved user.
-            user = await findOrCreateUser({
-                googleId: profile.id,
-                email: profile.emails[0].value,
-                name: profile.displayName,
-                approved: false // Explicitly set to false
-            });
-            return cb(null, user);
-        }
-        
-        // If it's a regular login and the user doesn't exist, deny access.
+        // If no user is found by email, deny access. Registration must happen first.
         return cb(null, false, { message: 'User not registered.' });
 
     } catch (err) {

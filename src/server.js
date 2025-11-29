@@ -5,6 +5,7 @@ const session = require('express-session');
 const passport = require('passport');
 const { initializeDatabase } = require('./database');
 const { loadSecrets } = require('./secrets');
+const publicApiRouter = require('./publicApi');
 const apiRouter = require('./api');
 const adminApiRouter = require('./adminApi');
 
@@ -55,7 +56,6 @@ async function main() {
     app.use(passport.session());
 
     app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-    app.get('/auth/google/register', passport.authenticate('google', { scope: ['profile', 'email'] }));
     
     app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/' }), (req, res) => {
         if (!req.user.approved) {
@@ -80,6 +80,7 @@ async function main() {
         next();
     });
 
+    app.use('/api', publicApiRouter(db)); // Public API for registration
     app.use('/api', ensureAuthenticated, apiRouter(db));
     app.use('/api/admin', ensureAdmin, adminApiRouter(db));
 
