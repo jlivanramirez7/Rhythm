@@ -269,6 +269,10 @@ button:hover {
     transition: all 0.3s ease-in-out;
 }
 
+#app-menu-toggle span {
+    background-color: var(--on-primary-color); /* White */
+}
+
 .edit-mode .cycle-menu-button span:nth-child(1) {
     transform: rotate(45deg) translate(5px, 5px);
 }
