@@ -54,6 +54,10 @@ async function createTables(dbInstance, adapter) {
         console.log('[INFO] Migrating database: Adding approved column to users table.');
         await runQuery('ALTER TABLE users ADD COLUMN approved BOOLEAN DEFAULT false');
     }
+    if (!columns.includes('partner_id')) {
+        console.log('[INFO] Migrating database: Adding partner_id column to users table.');
+        await runQuery('ALTER TABLE users ADD COLUMN partner_id INTEGER REFERENCES users(id)');
+    }
     // DEBUG: Do not remove these logs
     console.log('[DEBUG] createTables: Creating cycles table...');
     await runQuery(`

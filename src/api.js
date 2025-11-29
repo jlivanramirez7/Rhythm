@@ -141,6 +141,37 @@ const apiRouter = (db) => {
         res.json(req.user);
     });
 
+    router.get('/shared-users', async (req, res) => {
+        const userId = req.user.id;
+        try {
+            const isPostgres = db.adapter === 'postgres';
+            const users = await db.query(sql('SELECT id, name, email FROM users WHERE partner_id = ? OR id = ?', isPostgres), [userId, userId]);
+            res.json(users);
+        } catch (err) {
+            console.error('Error fetching shared users:', err);
+            res.status(500).json({ error: 'Failed to fetch shared users' });
+        }
+    });
+
+    router.post('/partner', async (req, res) => {
+        const { email } = req.body;
+        const userId = req.user.id;
+        try {
+            const isPostgres = db.adapter === 'postgres';
+            const partner = await db.get(sql('SELECT id FROM users WHERE email = ?', isPostgres), [email]);
+
+            if (!partner) {
+                return res.status(404).json({ error: 'Partner not found. Please ensure they have registered.' });
+            }
+
+            await db.run(sql('UPDATE users SET partner_id = ? WHERE id = ?', isPostgres), [partner.id, userId]);
+            res.status(200).json({ message: 'Partner linked successfully.' });
+        } catch (err) {
+            console.error('Error linking partner:', err);
+            res.status(500).json({ error: 'Failed to link partner' });
+        }
+    });
+
     /**
      * @route POST /api/cycles
      * @description Creates a new cycle for the logged-in user. If an open-ended
@@ -305,10 +336,19 @@ const apiRouter = (db) => {
     router.get('/cycles', async (req, res) => {
         // DEBUG: Do not remove these logs
         log('info', `GET /api/cycles - Request received for user ${req.user.id}.`);
-        const userId = req.user.id;
+        const targetUserId = req.query.user_id || req.user.id;
+
+        // Security check: ensure the logged-in user is allowed to view the target user's data
+        const sharedUsers = await db.query(sql('SELECT id FROM users WHERE partner_id = ? OR id = ?', isPostgres), [req.user.id, req.user.id]);
+        const allowedIds = sharedUsers.map(u => u.id);
+
+        if (!allowedIds.includes(parseInt(targetUserId, 10))) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
         try {
             const cyclesSql = sql(`SELECT * FROM cycles WHERE user_id = ? ORDER BY start_date DESC`, isPostgres);
-            const cycles = await db.query(cyclesSql, [userId]);
+            const cycles = await db.query(cyclesSql, [targetUserId]);
 
             const filledCycles = [];
             for (const cycle of cycles) {

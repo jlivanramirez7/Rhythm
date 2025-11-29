@@ -61,22 +61,29 @@ function initializeEventListeners(elements) {
 
     elements.readingForm.addEventListener('submit', (e) => handleReadingSubmit(e, elements));
     elements.periodButton.addEventListener('click', () => handleNewCycleSubmit(elements));
+
+    const shareForm = document.getElementById('share-form');
+    if (shareForm) {
+        shareForm.addEventListener('submit', (e) => handleShareSubmit(e, elements));
+    }
 }
 
 /**
  * Fetches initial cycle and analytics data from the API and triggers the first render.
  * @param {object} elements - An object containing references to the main DOM elements.
+ * @param {number} [viewAsUserId=null] - The ID of the user to view data for.
  */
-async function fetchAndRenderData(elements) {
+async function fetchAndRenderData(elements, viewAsUserId = null) {
     // DEBUG: Do not remove these logs
-    log('info', 'fetchAndRenderData: Starting to fetch cycles and analytics.');
+    log('info', `fetchAndRenderData: Starting to fetch cycles and analytics for user: ${viewAsUserId || 'self'}.`);
     try {
         const cacheBust = `?t=${new Date().getTime()}`;
+        const userQuery = viewAsUserId ? `?user_id=${viewAsUserId}` : '';
         
         const [userRes, cyclesRes, analyticsRes] = await Promise.all([
             fetch(`/api/me${cacheBust}`),
-            fetch(`/api/cycles${cacheBust}`),
-            fetch(`/api/analytics${cacheBust}`)
+            fetch(`/api/cycles${userQuery}${userQuery ? '&' : '?'}t=${cacheBust}`),
+            fetch(`/api/analytics${userQuery}${userQuery ? '&' : '?'}t=${cacheBust}`)
         ]);
 
         const user = await userRes.json();
@@ -89,12 +96,18 @@ async function fetchAndRenderData(elements) {
 
         if (user.is_admin) {
             const navLinks = document.getElementById('nav-links');
-            const adminLink = document.createElement('a');
-            adminLink.href = '/admin';
-            adminLink.textContent = 'Admin';
-            adminLink.className = 'logout-link';
-            navLinks.prepend(adminLink);
+            if (!navLinks.querySelector('.admin-link')) {
+                const adminLink = document.createElement('a');
+                adminLink.href = '/admin';
+                adminLink.textContent = 'Admin';
+                adminLink.className = 'logout-link admin-link';
+                navLinks.prepend(adminLink);
+            }
         }
+
+        const sharedUsersRes = await fetch('/api/shared-users');
+        const sharedUsers = await sharedUsersRes.json();
+        renderAccountSwitcher(sharedUsers, elements);
 
         renderAnalytics(analytics, cycles, elements);
     } catch (error) {
@@ -227,6 +240,38 @@ function calculateFertileWindows(cycles) {
 
     const averageFertileWindow = fertileCyclesCount > 0 ? Math.round(totalFertileDays / fertileCyclesCount) : 0;
     return { fertileWindows, averageFertileWindow };
+}
+
+/**
+ * Renders the account switcher dropdown menu.
+ * @param {Array<object>} users - The list of users the current user can view.
+ * @param {object} elements - An object containing references to the main DOM elements.
+ */
+function renderAccountSwitcher(users, elements) {
+    const navLinks = document.getElementById('nav-links');
+    let switcher = document.getElementById('account-switcher');
+    if (!switcher) {
+        switcher = document.createElement('select');
+        switcher.id = 'account-switcher';
+        navLinks.prepend(switcher);
+
+        switcher.addEventListener('change', (e) => {
+            const selectedUserId = e.target.value;
+            fetchAndRenderData(elements, selectedUserId);
+        });
+    }
+
+    const currentSelection = switcher.value;
+    switcher.innerHTML = '';
+    users.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user.id;
+        option.textContent = user.name;
+        if (user.id == currentSelection) {
+            option.selected = true;
+        }
+        switcher.appendChild(option);
+    });
 }
 
 /**
@@ -556,5 +601,34 @@ async function deleteReading(id, elements) {
     } catch (error) {
         log('error', `Error deleting reading ${id}:`, error);
         alert(`Error deleting reading: ${error.message}`);
+    }
+}
+
+/**
+ * Handles the submission of the "Share Your Data" form.
+ * @param {Event} e - The form submission event.
+ */
+async function handleShareSubmit(e) {
+    e.preventDefault();
+    const messageElement = document.getElementById('share-message');
+    const email = document.getElementById('partner-email').value;
+
+    try {
+        const response = await fetch('/api/partner', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+        });
+        const result = await response.json();
+        if (response.ok) {
+            messageElement.textContent = result.message;
+            messageElement.style.color = 'green';
+            document.getElementById('share-form').reset();
+        } else {
+            throw new Error(result.error || 'Failed to share data.');
+        }
+    } catch (error) {
+        messageElement.textContent = error.message;
+        messageElement.style.color = 'red';
     }
 }
