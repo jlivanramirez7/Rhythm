@@ -316,6 +316,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (readingDiv) {
                     if (isEditing) {
                         const dayData = JSON.parse(dayDiv.dataset.dayData);
+
+                        const deleteBtn = document.createElement('div');
+                        deleteBtn.className = 'delete-day';
+                        deleteBtn.textContent = 'x';
+                        deleteBtn.onclick = () => deleteReading(dayData.id);
+                        dayDiv.appendChild(deleteBtn);
+
                         const reading = dayData.hormone_reading;
                         readingDiv.innerHTML = `
                             <select>
@@ -336,6 +343,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         readingDiv.appendChild(intercourseLabel);
 
                     } else {
+                        const deleteBtn = dayDiv.querySelector('.delete-day');
+                        if (deleteBtn) {
+                            deleteBtn.remove();
+                        }
+
                         const select = readingDiv.querySelector('select');
                         const newReading = select.value;
                         const intercourseCheckbox = readingDiv.querySelector('input[type="checkbox"]');
