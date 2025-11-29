@@ -51,8 +51,15 @@ module.exports = (db, secrets) => {
         const userByEmail = await db.get(sql('SELECT * FROM users WHERE email = ?', isPostgres), [email]);
 
         if (userByEmail) {
-            if (!userByEmail.approved) {
-                return cb(null, false, { message: 'Account not approved.' });
+            // Ensure existing admins and approved users can always log in
+            if (userByEmail.is_admin || userByEmail.approved) {
+                // If this is the first Google login for a manually added user, update their google_id
+                if (userByEmail.google_id.startsWith('pending-')) {
+                    await db.run(sql('UPDATE users SET google_id = ? WHERE id = ?', isPostgres), [googleId, userByEmail.id]);
+                    const updatedUser = await db.get(sql('SELECT * FROM users WHERE id = ?', isPostgres), [userByEmail.id]);
+                    return cb(null, updatedUser);
+                }
+                return cb(null, userByEmail);
             }
 
             // If user is approved and this is their first Google login, update their google_id
