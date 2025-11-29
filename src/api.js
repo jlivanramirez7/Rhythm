@@ -162,6 +162,11 @@ const apiRouter = (db) => {
         const startDate = new Date(start_date);
         const endDate = new Date(end_date);
 
+        if (startDate > endDate) {
+            log('warn', 'POST /api/cycles/days/range - Bad request: start_date is after end_date.');
+            return res.status(400).send('start_date cannot be after end_date');
+        }
+
         try {
             for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
                 const date = d.toISOString().split('T')[0];
