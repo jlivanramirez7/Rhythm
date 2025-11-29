@@ -1,5 +1,6 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const { sql } = require('./utils');
 
 /**
  * Configures Passport.js for Google OAuth 2.0 authentication.

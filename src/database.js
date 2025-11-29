@@ -30,11 +30,30 @@ async function createTables(dbInstance, adapter) {
             id ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
             google_id TEXT UNIQUE NOT NULL,
             email TEXT UNIQUE NOT NULL,
-            name TEXT,
-            is_admin BOOLEAN DEFAULT false,
-            approved BOOLEAN DEFAULT false
+            name TEXT
         );
     `);
+
+    // --- Idempotent Migration ---
+    // Add columns if they don't exist to prevent errors on existing databases.
+    const columns = isPostgres 
+        ? await dbInstance.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'")
+            .then(res => res.rows.map(r => r.column_name))
+        : await new Promise((resolve, reject) => {
+            dbInstance.all("PRAGMA table_info(users)", (err, rows) => {
+                if (err) return reject(err);
+                resolve(rows.map(r => r.name));
+            });
+        });
+
+    if (!columns.includes('is_admin')) {
+        console.log('[INFO] Migrating database: Adding is_admin column to users table.');
+        await runQuery('ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT false');
+    }
+    if (!columns.includes('approved')) {
+        console.log('[INFO] Migrating database: Adding approved column to users table.');
+        await runQuery('ALTER TABLE users ADD COLUMN approved BOOLEAN DEFAULT false');
+    }
     // DEBUG: Do not remove these logs
     console.log('[DEBUG] createTables: Creating cycles table...');
     await runQuery(`
