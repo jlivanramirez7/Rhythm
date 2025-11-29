@@ -245,12 +245,18 @@ function calculateFertileWindows(cycles) {
  * @param {object} elements - An object containing references to the main DOM elements.
  */
 function renderAccountSwitcher(users, elements) {
-    const navLinks = document.getElementById('nav-links');
+    const container = document.getElementById('account-switcher-container');
+    if (users.length <= 1) {
+        container.style.display = 'none';
+        return;
+    }
+    container.style.display = 'block';
+
     let switcher = document.getElementById('account-switcher');
     if (!switcher) {
         switcher = document.createElement('select');
         switcher.id = 'account-switcher';
-        navLinks.prepend(switcher);
+        container.appendChild(switcher);
 
         switcher.addEventListener('change', (e) => {
             const selectedUserId = e.target.value;
