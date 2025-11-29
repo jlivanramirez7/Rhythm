@@ -1,160 +1,154 @@
-# Rhythm: Ovulation Cycle Tracker
+# Rhythm: A Web-Based Ovulation Cycle Tracker
 
-## 1. Introduction
+Rhythm is a secure, private web application designed to help users track their ovulation cycle. It provides a clear, day-by-day visualization of hormonal readings, stores historical data in a secure cloud database, and offers predictive analytics to help users understand their personal patterns.
 
-Rhythm is a web application designed to help users track their ovulation cycle by manually inputting hormonal readings from an external device. The application provides a clear visualization of the user's cycle, stores historical data, and offers basic analytics to help users understand their patterns.
+![Rhythm Application Screenshot](public/logo.png)
 
-## 2. Features
+## 1. Core Features
 
-*   **Google Authentication:** Secure login using Google OAuth 2.0, restricted to a list of authorized users.
-*   **Hormonal Reading and Intercourse Input:** Users can input daily hormonal readings ("Low", "High", or "Peak") and log intercourse independently.
-*   **Bulk Data Entry:** Users can log a reading for a continuous date range, simplifying data entry.
-*   **Period Tracking:** Users can mark the first day of their period to signify the start of a new cycle.
-*   **Cycle Visualization:** Each cycle is displayed day-by-day, showing the cycle day number, the date in `MM/DD` format, the hormonal reading, and a heart icon for intercourse.
-*   **Fertile Window Highlighting:** The estimated fertile window for each cycle is highlighted in light red.
-*   **Data Storage:** All cycle data is persistently stored in a Cloud SQL for PostgreSQL database.
-*   **Data Management:** Users can edit or delete individual readings, delete entire cycles, or clear all application data via an intuitive UI.
-*   **Advanced Analytics:** The application calculates and displays:
-    *   Average cycle length.
-    *   Average number of days to the "Peak" hormonal reading.
-    *   Average length of the fertile window.
-    *   Estimated start date of the next period.
-    *   Estimated start and end dates of the next fertile window.
+-   **Secure Authentication:** User login is handled via Google OAuth 2.0 and restricted to an explicit allow-list of authorized email addresses, ensuring complete privacy.
+-   **Daily Reading Input:** Log daily hormonal readings (`Low`, `High`, `Peak`) and intercourse.
+-   **Bulk Data Entry:** Use the date-range feature to log the same reading over multiple days.
+-   **Cycle Management:** Mark the first day of a new period to automatically conclude the previous cycle and start a new one.
+-   **Interactive Cycle Visualization:** Each cycle is rendered as a card with a grid of day-by-day readings. The estimated fertile window is highlighted for quick reference.
+-   **Data Management:** Edit or delete individual readings, delete entire cycles, or clear all of your data through an intuitive UI.
+-   **Predictive Analytics:** The application calculates and displays:
+    -   Average cycle length.
+    -   Average number of days to peak fertility.
+    -   Average fertile window length.
+    -   Estimated start date of the next period.
+    -   Estimated start and end dates of the next fertile window.
 
-## 3. Technology Stack
+## 2. Technology Stack
 
-*   **Frontend:** HTML, CSS, and vanilla JavaScript, with a Material Design-inspired aesthetic.
-*   **Backend:** Node.js with the Express.js framework.
-*   **Date Handling:** `moment-timezone` is used for all server-side date and time manipulation to ensure timezone consistency and prevent common off-by-one errors. **This is a critical dependency.**
-*   **Database:** Cloud SQL for PostgreSQL.
-*   **Authentication:** Passport.js with the Google OAuth 2.0 strategy.
-*   **Deployment:** Google Cloud Run with automated builds and deployments via Cloud Build.
-*   **Secrets Management:** Google Cloud Secret Manager.
-*   **Testing:** Jest, Supertest for API endpoint testing, and Jest with jsdom for UI testing.
-*   **Data Seeding:** `chance.js` for generating realistic dummy data.
+-   **Frontend:** Vanilla JavaScript (ES6+), HTML5, CSS3.
+-   **Backend:** Node.js with the Express.js framework.
+-   **Database:** Cloud SQL for PostgreSQL for production, with support for local PostgreSQL or SQLite for development.
+-   **Authentication:** Passport.js with the `passport-google-oauth20` strategy.
+-   **Deployment:** Fully automated via Google Cloud Build and deployed to Google Cloud Run.
+-   **Secrets Management:** All sensitive configuration is managed by Google Cloud Secret Manager.
+-   **Date Handling:** `moment-timezone` is used for all server-side date and time manipulation to ensure timezone consistency. **This is a critical dependency.**
 
-## 4. Testing
+---
 
-The project includes a comprehensive test suite covering the API, UI, and application configuration.
+## 3. Getting Started
 
-To run all tests, use the following command:
+### Prerequisites
 
-```bash
-npm test
-```
+-   Node.js (v18 or later)
+-   `gcloud` CLI (Google Cloud SDK)
+-   Access to a Google Cloud Platform (GCP) project.
 
-## 5. Setup and Running the Application
+### Local Development Setup
 
-### Local Development
+1.  **Clone the Repository:**
+    ```bash
+    git clone https://github.com/your-username/Rhythm.git
+    cd Rhythm
+    ```
 
-1.  **Create a `.env` file:** Copy the `.env.example` file to a new file named `.env` and fill in the required values for your local PostgreSQL database and Google OAuth credentials.
 2.  **Install Dependencies:**
     ```bash
     npm install
     ```
-3.  **Run the Application:**
+
+3.  **Configure Environment Variables:**
+    -   Copy the `.env.example` file to a new file named `.env`.
+    -   Fill in the values for your local database and Google OAuth credentials. See the **Configuration** section below for details.
+
+4.  **Run the Application:**
     ```bash
     npm start
     ```
-    The application will be available at `http://localhost:3000`.
+    The application will be available at `http://localhost:8080`.
 
-### Cloud Deployment
+---
 
-The application is configured for automated deployment to Google Cloud Run using Cloud Build. The `cloudbuild.yaml` file defines the build, test, and deployment steps.
+## 4. Configuration
 
-**Note:** The Cloud Build service account must have the **Cloud SQL Client** role to connect to the database.
+The application uses environment variables for configuration, which are loaded from a `.env` file in development and from Google Cloud Secret Manager in production.
+
+| Variable                 | Description                                                                                             | Example                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------- | ----------------------------------------|
+| `DB_ADAPTER`             | The database adapter to use (`postgres` or `sqlite`).                                                   | `postgres`                              |
+| `DB_HOST`                | (Local Dev) The hostname of your local database server.                                                 | `localhost`                             |
+| `DB_PORT`                | (Local Dev) The port your database is running on.                                                       | `5432`                                  |
+| `DB_USER`                | The username for the database.                                                                          | `myuser`                                |
+| `DB_PASSWORD`            | The password for the database user.                                                                     | `mypassword`                            |
+| `DB_NAME`                | The name of the database.                                                                               | `rhythm_db`                             |
+| `GOOGLE_CLIENT_ID`       | Your Google OAuth 2.0 Client ID.                                                                        | `your-client-id.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET`   | Your Google OAuth 2.0 Client Secret.                                                                    | `your-client-secret`                    |
+| `SESSION_SECRET`         | A secret key for signing the session ID cookie.                                                         | `a-long-random-string`                  |
+| `AUTHORIZED_USERS`       | A comma-separated list of Google email addresses authorized to use the application.                     | `user1@example.com,user2@example.com`   |
+| `INSTANCE_CONNECTION_NAME` | (Production Only) The Cloud SQL instance connection name.                                             | `my-project:us-central1:my-instance`    |
+
+---
+
+## 5. Deployment
+
+Deployment is fully automated using Google Cloud Build and Cloud Run. The process is defined in `cloudbuild.yaml`.
+
+### Triggering a Deployment
+
+Pushing to the `main` branch will automatically trigger a new build and deployment on Google Cloud.
+
+### Key Deployment Steps
+
+1.  **Enable APIs:** The build process ensures the Secret Manager and SQL Admin APIs are enabled.
+2.  **Build Image:** A Docker container image is built using the project's `Dockerfile`.
+3.  **Push Image:** The image is pushed to Google Container Registry (GCR).
+4.  **Deploy to Cloud Run:** A new revision is deployed to Cloud Run with the following critical configurations:
+    -   Connection to the Cloud SQL instance.
+    -   Secure injection of all required secrets from Secret Manager.
+    -   `NODE_ENV` set to `production`.
+
+### Required IAM Permissions
+
+The service account used by Cloud Build must have the following IAM roles for the deployment to succeed:
+-   **Cloud Build Service Account**
+-   **Cloud Run Admin**
+-   **Cloud SQL Client**
+-   **Secret Manager Secret Accessor**
+-   **Service Account User**
+
+---
 
 ## 6. Common Debugging Issues
 
-This project has a few recurring issues that can cause confusing behavior, such as data appearing to not save correctly. If you encounter problems, check these two things first:
+If you encounter unexpected behavior, check these common issues first.
 
-1.  **Missing `moment-timezone` Dependency**:
-    *   **Symptom**: The application fails to build on Cloud Run, with an error log showing `Error: Cannot find module 'moment-timezone'`. The app may also crash locally if the dependency is missing.
-    *   **Cause**: The `moment-timezone` library is used for all server-side date handling to ensure timezone consistency. If it's used in the code but not listed in `package.json`, the build will fail.
-    *   **Fix**: Run `npm install moment-timezone` to add it to your project dependencies, then commit the updated `package.json` and `package-lock.json` files.
+### 1. Build Fails with `Cannot find module 'moment-timezone'`
 
-2.  **Incorrect Database Query Scoping**:
-    *   **Symptom**: A user adds a new reading, the network request succeeds, but the UI does not update. The reading seems to disappear.
-    *   **Cause**: This happens when a database query (especially an `UPDATE` or `SELECT` for a single item) does not include a `WHERE c.user_id = ?` clause. The query either fails to find the correct record or, worse, updates the wrong user's data. This is particularly problematic in the `POST /api/cycles/days` endpoint.
-    *   **Fix**: Ensure that any query that reads or writes user-specific data is correctly joined with the `cycles` table and filtered by the logged-in `user_id`.
+-   **Symptom**: The application fails to build on Cloud Run, and the logs show `Error: Cannot find module 'moment-timezone'`.
+-   **Cause**: The `moment-timezone` library is a critical dependency for server-side date handling. It has been used in the code but is missing from `package.json`.
+-   **Fix**: Run `npm install moment-timezone`, then commit and push the updated `package.json` and `package-lock.json` files.
 
-## 7. Database Configuration
+### 2. Data Not Saving After Form Submission
 
-The application is configured to work with two database setups: a local PostgreSQL instance for development and a managed Cloud SQL for PostgreSQL instance for production.
+-   **Symptom**: A user adds a new reading, the UI gives no error, but the data does not appear. The reading seems to have vanished.
+-   **Cause**: This almost always indicates that a database query is not correctly scoped to the logged-in user. An `UPDATE` or `SELECT` query is missing a `WHERE c.user_id = ?` clause, causing it to fail silently.
+-   **Fix**: Inspect the API endpoint responsible for the update (e.g., `POST /api/cycles/days`). Ensure that any query modifying or fetching a specific record is correctly filtered by the `req.user.id`.
 
-### Local Development
+### 3. Invalid Date Range Fails Silently
 
-For local development, the application connects to a standard PostgreSQL database using the credentials defined in your `.env` file. Ensure the following variables are set correctly:
+-   **Symptom**: When submitting a date range where the start date is after the end date, the UI does nothing and no error is shown.
+-   **Cause**: The backend API endpoint (`POST /api/cycles/days/range`) does not validate that the `start_date` is before the `end_date`. The loop to process the days never runs, and the server returns a success status.
+-   **Fix**: Add validation at the beginning of the endpoint to check if `startDate > endDate` and return a `400 Bad Request` if the condition is true.
 
--   `DB_HOST`: The hostname of your local database server (e.g., `localhost`).
--   `DB_PORT`: The port your database is running on (e.g., `5432`).
--   `DB_USER`: Your PostgreSQL username.
--   `DB_PASSWORD`: Your PostgreSQL password.
--   `DB_NAME`: The name of the database to use.
--   `DB_ADAPTER`: Should be set to `postgres`.
+---
 
-### Production (Cloud Run & Cloud SQL)
+## 7. API Endpoints
 
-In the production environment (`NODE_ENV=production`), the application connects to Cloud SQL via a **Unix socket** for a secure and low-latency connection.
+All API endpoints are prefixed with `/api` and require authentication.
 
-The connection logic in `src/database.js` is hardcoded to use the following socket path:
-
-```javascript
-host: '/cloudsql/rhythm-479516:us-central1:rhythm-db'
-```
-
-For this to work, the following conditions must be met:
-
-1.  **Cloud SQL Instance**: Your Cloud Run service must be connected to the Cloud SQL instance (`rhythm-479516:us-central1:rhythm-db`). This is configured during deployment.
-2.  **Service Account Permissions**: The service account running the Cloud Run instance (and Cloud Build) must have the **"Cloud SQL Client"** IAM role.
-3.  **Secrets**: The following secrets must be available in Google Cloud Secret Manager:
-    -   `DB_USER`: The username for the Cloud SQL database.
-    -   `DB_PASSWORD`: The password for the Cloud SQL user.
-    -   `DB_NAME`: The name of the database in your Cloud SQL instance.
-
-**Note:** In production, the `DB_HOST` and `DB_PORT` secrets are ignored in favor of the hardcoded socket path.
-
-## 8. Seeding the Database
-
-The project includes a script to populate the database with 10 cycles of realistic dummy data.
-
-To run the seed script for your local database:
-```bash
-npm run seed:cloud
-```
-
-## 9. Database Schema
-
-The database consists of two main tables:
-
-### `cycles`
-
-| Column      | Type      | Description                                  |
-|-------------|-----------|----------------------------------------------|
-| `id`        | SERIAL   | Primary Key                                  |
-| `start_date`| DATE      | The start date of the cycle (first day of period). |
-| `end_date`  | DATE      | The end date of the cycle (day before next period). |
-
-### `cycle_days`
-
-| Column          | Type    | Description                                                     |
-|-----------------|---------|-----------------------------------------------------------------|
-| `id`            | SERIAL | Primary Key                                                     |
-| `cycle_id`      | INTEGER | Foreign Key referencing the `cycles` table.                     |
-| `date`          | DATE    | The specific date of the reading.                               |
-| `hormone_reading`| TEXT    | The hormonal reading for the day ('Low', 'High', 'Peak').      |
-| `intercourse`   | BOOLEAN | A boolean indicating if intercourse occurred.          |
-
-## 10. API Endpoints
-
-The backend exposes the following API endpoints, which are consumed by the frontend client:
-
-*   `POST /api/cycles`: Creates a new cycle.
-*   `GET /api/cycles`: Retrieves all cycles and their associated daily readings.
-*   `DELETE /api/cycles/:id`: Deletes a specific cycle and all its readings.
-*   `POST /api/cycles/days`: Adds or updates a single day's reading.
-*   `POST /api/cycles/days/range`: Adds or updates readings for a continuous range of dates.
-*   `PUT /api/cycles/days/:id`: Updates a specific daily reading.
-*   `DELETE /api/cycles/days/:id`: Deletes a specific daily reading.
-*   `GET /api/analytics`: Retrieves the calculated analytics.
-*   `DELETE /api/data`: Clears all cycle and reading data from the database.
+| Method   | Endpoint                  | Description                               |
+|----------|---------------------------|-------------------------------------------|
+| `POST`   | `/cycles`                 | Creates a new cycle.                      |
+| `GET`    | `/cycles`                 | Retrieves all cycles for the user.        |
+| `DELETE` | `/cycles/:id`             | Deletes a specific cycle.                 |
+| `POST`   | `/cycles/days`            | Adds or updates a single day's reading.   |
+| `POST`   | `/cycles/days/range`      | Adds or updates readings for a date range.|
+| `PUT`    | `/cycles/days/:id`        | Updates a specific daily reading.         |
+| `DELETE` | `/cycles/days/:id`        | Deletes a specific daily reading.         |
+| `GET`    | `/analytics`              | Retrieves calculated analytics.           |
+| `DELETE` | `/data`                   | Clears all data for the user.             |
