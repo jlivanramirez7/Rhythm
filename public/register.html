@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rhythm - Register</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
+</head>
+<body>
+    <div class="login-container">
+        <img src="/logo.png" alt="Rhythm Logo" class="logo">
+        <h1>Register for Rhythm</h1>
+        <p>Please enter your information. You will be redirected to Google to authenticate.</p>
+        <form action="/auth/google/register" method="get" style="display: flex; flex-direction: column; gap: 15px; width: 80%; max-width: 300px;">
+            <input type="text" name="first_name" placeholder="First Name" required style="padding: 10px; border-radius: 5px; border: 1px solid #ddd;">
+            <input type="text" name="last_name" placeholder="Last Name" required style="padding: 10px; border-radius: 5px; border: 1px solid #ddd;">
+            <input type="email" name="email" placeholder="Gmail Address" required style="padding: 10px; border-radius: 5px; border: 1px solid #ddd;">
+            <button type="submit" class="google-btn">Register with Google</button>
+        </form>
+    </div>
+</body>
+</html>

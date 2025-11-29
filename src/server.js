@@ -83,6 +83,10 @@ async function main() {
     app.use('/api', ensureAuthenticated, apiRouter(db));
     app.use('/api/admin', ensureAdmin, adminApiRouter(db));
 
+    app.get('/register', (req, res) => {
+        res.sendFile(path.join(__dirname, '../public/register.html'));
+    });
+
     app.get('/admin', ensureAdmin, (req, res) => {
         res.sendFile(path.join(__dirname, '../public/admin.html'));
     });
