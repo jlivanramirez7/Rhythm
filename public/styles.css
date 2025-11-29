@@ -223,7 +223,7 @@ button:hover {
     background-color: #f2dede; /* Light red */
 }
 
-.delete-day-button {
+.delete-day {
     position: absolute;
     top: -5px;
     right: -5px;
@@ -241,7 +241,7 @@ button:hover {
     display: none; /* Hidden by default */
 }
 
-.edit-mode .delete-day-button {
+.edit-mode .delete-day {
     display: block; /* Shown in edit mode */
 }
 
