@@ -224,11 +224,11 @@ const apiRouter = (db) => {
         try {
             const findCycleSql = sql(`
                 SELECT id FROM cycles 
-                WHERE ? >= start_date AND (end_date IS NULL OR ? <= end_date)
+                WHERE user_id = ? AND ? >= start_date AND (end_date IS NULL OR ? <= end_date)
                 ORDER BY start_date DESC 
                 LIMIT 1
             `, isPostgres);
-            const cycle = await db.get(findCycleSql, [date, date]);
+            const cycle = await db.get(findCycleSql, [req.user.id, date, date]);
 
             if (!cycle) {
                 return res.status(404).send('No cycle found for the selected date.');
