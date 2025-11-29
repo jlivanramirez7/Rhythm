@@ -30,21 +30,19 @@ async function loadSecrets() {
             DB_PORT: process.env.DB_PORT,
             GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
             GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-            AUTHORIZED_USERS: process.env.AUTHORIZED_USERS,
             SESSION_SECRET: process.env.SESSION_SECRET
         };
     }
 
     console.log('Loading secrets from Google Cloud Secret Manager...');
     try {
-        const [dbUser, dbPassword, dbName, dbHost, googleClientId, googleClientSecret, authorizedUsers, sessionSecret] = await Promise.all([
+        const [dbUser, dbPassword, dbName, dbHost, googleClientId, googleClientSecret, sessionSecret] = await Promise.all([
             accessSecretVersion('DB_USER'),
             accessSecretVersion('DB_PASSWORD'),
             accessSecretVersion('DB_NAME'),
             accessSecretVersion('DB_HOST'),
             accessSecretVersion('GOOGLE_CLIENT_ID'),
             accessSecretVersion('GOOGLE_CLIENT_SECRET'),
-            accessSecretVersion('AUTHORIZED_USERS'),
             accessSecretVersion('SESSION_SECRET')
         ]);
         console.log('Secrets loaded successfully.');
@@ -55,7 +53,6 @@ async function loadSecrets() {
             DB_HOST: dbHost,
             GOOGLE_CLIENT_ID: googleClientId,
             GOOGLE_CLIENT_SECRET: googleClientSecret,
-            AUTHORIZED_USERS: authorizedUsers,
             SESSION_SECRET: sessionSecret,
             DB_ADAPTER: 'postgres'
         };

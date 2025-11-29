@@ -8,8 +8,6 @@ const { sql } = require('./utils');
  * @param {object} secrets - An object containing application secrets.
  */
 module.exports = (db, secrets) => {
-    const authorizedUsers = secrets.AUTHORIZED_USERS ? secrets.AUTHORIZED_USERS.split(',') : [];
-
     /**
      * Finds a user by their Google ID or creates a new one if they don't exist.
      * @param {string} googleId - The user's Google profile ID.
