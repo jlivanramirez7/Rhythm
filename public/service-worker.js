@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rhythm-cache-v5';
+const CACHE_NAME = 'rhythm-cache-v6';
 // Only cache the core app shell files that don't have external dependencies.
 // HTML files will be cached on their first visit via the fetch handler.
 const urlsToCache = [
