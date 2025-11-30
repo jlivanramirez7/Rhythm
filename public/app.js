@@ -85,16 +85,20 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeInstructionalOverlay() {
+    log('debug', 'Initializing instructional overlay...');
     const overlay = document.getElementById('instructional-overlay');
     if (!overlay) {
+        log('debug', 'Instructional overlay element not found on this page. Aborting.');
         return; // Do nothing if the overlay is not on this page
     }
+    log('debug', 'Overlay element found.');
 
     const closeBtn = document.getElementById('close-instructions');
     const nextBtn = document.getElementById('next-instruction');
     const prevBtn = document.getElementById('prev-instruction');
 
     const closeOverlay = () => {
+        log('debug', 'Closing overlay and setting hasSeenInstructions flag.');
         overlay.classList.remove('active');
         localStorage.setItem('hasSeenInstructions', 'true');
     };
@@ -117,13 +121,20 @@ function initializeInstructionalOverlay() {
         }
     });
 
-    if (!localStorage.getItem('hasSeenInstructions')) {
+    const hasSeenInstructions = localStorage.getItem('hasSeenInstructions');
+    log('debug', `localStorage 'hasSeenInstructions' is: ${hasSeenInstructions}`);
+
+    if (!hasSeenInstructions) {
+        log('info', 'User has not seen instructions. Activating overlay.');
         overlay.classList.add('active');
         renderInstruction();
+    } else {
+        log('info', 'User has already seen instructions. Overlay will not be shown.');
     }
 }
 
 function renderInstruction() {
+    log('debug', `Rendering instruction page: ${currentInstruction + 1}`);
     const instruction = instructions[currentInstruction];
     document.getElementById('instruction-title').textContent = instruction.title;
     document.getElementById('instruction-content').innerHTML = instruction.content;
