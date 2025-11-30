@@ -367,19 +367,28 @@ const apiRouter = (db) => {
 
     // Get analytics
     router.get('/analytics', async (req, res) => {
-        // DEBUG: Do not remove these logs
-        log('info', `GET /api/analytics - Request received for user ${req.user.id}.`);
+        const targetUserId = req.query.user_id || req.user.id;
+        log('info', `GET /api/analytics - Request received for user ${targetUserId}.`);
+
+        // Security check: ensure the logged-in user is allowed to view the target user's data
+        const sharedUsers = await db.query(sql('SELECT id FROM users WHERE partner_id = ? OR id = ?', isPostgres), [req.user.id, req.user.id]);
+        const allowedIds = sharedUsers.map(u => u.id);
+
+        if (!allowedIds.includes(parseInt(targetUserId, 10))) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
         try {
             const analytics = {};
             
-            let cycleLengthSql;
-            if(isProduction) {
-                cycleLengthSql = `SELECT (end_date - start_date + 1) as length FROM cycles WHERE user_id = ${req.user.id} AND end_date IS NOT NULL`;
-            } else {
-                cycleLengthSql = `SELECT CAST(julianday(end_date) - julianday(start_date) + 1 AS INTEGER) as length FROM cycles WHERE user_id = ${req.user.id} AND end_date IS NOT NULL`;
-            }
+            const cycleLengthSql = sql(`
+                SELECT 
+                    ${isPostgres ? '(end_date - start_date + 1)' : 'CAST(julianday(end_date) - julianday(start_date) + 1 AS INTEGER)'} as length 
+                FROM cycles 
+                WHERE user_id = ? AND end_date IS NOT NULL
+            `, isPostgres);
 
-            const cycleLengths = await db.query(cycleLengthSql);
+            const cycleLengths = await db.query(cycleLengthSql, [targetUserId]);
 
             if (cycleLengths.length > 0) {
                 const totalDays = cycleLengths.reduce((acc, row) => acc + row.length, 0);
@@ -388,28 +397,16 @@ const apiRouter = (db) => {
                 analytics.averageCycleLength = 0;
             }
 
-            let peakDaySql;
-            if (isProduction) {
-                peakDaySql = `
-                    SELECT c.start_date, MIN(cd.date) as peak_date
-                    FROM cycles c
-                    JOIN cycle_days cd ON c.id = cd.cycle_id
-                    WHERE cd.hormone_reading = 'Peak'
-                    GROUP BY c.id, c.start_date
-                    HAVING MIN(cd.date) IS NOT NULL
-                `;
-            } else {
-                peakDaySql = `
-                    SELECT c.start_date, MIN(cd.date) as peak_date
-                    FROM cycles c
-                    JOIN cycle_days cd ON c.id = cd.cycle_id
-                    WHERE cd.hormone_reading = 'Peak'
-                    GROUP BY c.id
-                    HAVING peak_date IS NOT NULL
-                `;
-            }
+            const peakDaySql = sql(`
+                SELECT c.start_date, MIN(cd.date) as peak_date
+                FROM cycles c
+                JOIN cycle_days cd ON c.id = cd.cycle_id
+                WHERE c.user_id = ? AND cd.hormone_reading = 'Peak'
+                GROUP BY c.id, c.start_date
+                HAVING MIN(cd.date) IS NOT NULL
+            `, isPostgres);
 
-            const peakRows = await db.query(peakDaySql);
+            const peakRows = await db.query(peakDaySql, [targetUserId]);
 
             if (peakRows.length > 0) {
                 const daysToPeak = peakRows.map(row => {
