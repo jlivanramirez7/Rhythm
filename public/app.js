@@ -121,16 +121,7 @@ function initializeInstructionalOverlay() {
         }
     });
 
-    const hasSeenInstructions = localStorage.getItem('hasSeenInstructions');
-    log('debug', `localStorage 'hasSeenInstructions' is: ${hasSeenInstructions}`);
-
-    if (!hasSeenInstructions) {
-        log('info', 'User has not seen instructions. Activating overlay.');
-        overlay.classList.add('active');
-        renderInstruction();
-    } else {
-        log('info', 'User has already seen instructions. Overlay will not be shown.');
-    }
+    // This logic will now be handled in fetchAndRenderData
 }
 
 function renderInstruction() {
@@ -201,6 +192,15 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
         const [user, cycles, analytics] = await Promise.all(responses.map(res => res.json()));
 
         log('debug', 'fetchAndRenderData: User data fetched.', user);
+
+        if (user.show_instructions) {
+            const overlay = document.getElementById('instructional-overlay');
+            if (overlay) {
+                log('info', 'User has show_instructions set to true. Activating overlay.');
+                overlay.classList.add('active');
+                renderInstruction();
+            }
+        }
         log('debug', 'fetchAndRenderData: Cycles data fetched.', cycles);
         log('debug', 'fetchAndRenderData: Analytics data fetched.', analytics);
 

@@ -6,6 +6,7 @@
     <title>Rhythm - My Account</title>
     <link rel="stylesheet" href="/styles.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
+    <link rel="manifest" href="/manifest.json">
 </head>
 <body>
     <header>
@@ -20,6 +21,13 @@
     </header>
 
     <main class="main-grid">
+        <section>
+            <h2>Settings</h2>
+            <div class="form-input-group">
+                <label for="show-instructions-checkbox">Show instructions on login:</label>
+                <input type="checkbox" id="show-instructions-checkbox">
+            </div>
+        </section>
         <section id="sharing-section">
             <h2>Share Your Data</h2>
             <form id="share-form">
@@ -31,7 +39,12 @@
             </form>
             <p id="share-message"></p>
         </section>
+        <section>
+            <h2>Delete Your Data</h2>
+            <p>This action is irreversible. All of your cycle data will be permanently deleted.</p>
+            <button id="delete-data-button" style="background-color: #d9534f;">Delete All My Data</button>
+        </section>
     </main>
-    <script src="/app.js"></script>
+    <script src="/account.js"></script>
 </body>
 </html>

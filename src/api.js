@@ -141,6 +141,23 @@ const apiRouter = (db) => {
         res.json(req.user);
     });
 
+    router.put('/settings', async (req, res) => {
+        const { show_instructions } = req.body;
+        const userId = req.user.id;
+
+        if (typeof show_instructions !== 'boolean') {
+            return res.status(400).json({ error: 'Invalid value for show_instructions' });
+        }
+
+        try {
+            await db.run(sql('UPDATE users SET show_instructions = ? WHERE id = ?', isPostgres), [show_instructions, userId]);
+            res.status(200).json({ message: 'Settings updated successfully.' });
+        } catch (err) {
+            console.error('Error updating settings:', err);
+            res.status(500).json({ error: 'Failed to update settings' });
+        }
+    });
+
     router.get('/shared-users', async (req, res) => {
         const userId = req.user.id;
         try {
