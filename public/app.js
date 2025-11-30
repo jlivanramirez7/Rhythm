@@ -1,3 +1,13 @@
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').then(registration => {
+      console.log('ServiceWorker registration successful with scope: ', registration.scope);
+    }, err => {
+      console.log('ServiceWorker registration failed: ', err);
+    });
+  });
+}
+
 // DEBUG: Do not remove these logs
 const log = (level, message, ...args) => {
     console.log(`[${level.toUpperCase()}] [UI] ${message}`, ...args);
