@@ -116,5 +116,28 @@
     </main>
 
     <script src="/app.js"></script>
+
+    <!-- Instructional Overlay -->
+    <div id="instructional-overlay" class="overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div id="progress-bar-container">
+                    <div id="progress-bar"></div>
+                </div>
+                <button id="close-instructions" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h2 id="instruction-title"></h2>
+                <div id="instruction-content"></div>
+            </div>
+            <div class="modal-footer">
+                <span id="page-indicator"></span>
+                <div class="nav-buttons">
+                    <button id="prev-instruction">Previous</button>
+                    <button id="next-instruction">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

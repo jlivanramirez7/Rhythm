@@ -13,14 +13,36 @@ const log = (level, message, ...args) => {
     console.log(`[${level.toUpperCase()}] [UI] ${message}`, ...args);
 };
 
+const instructions = [
+    {
+        title: 'Page 1: The Marquette Method',
+        content: `<h3>Objective. Digital. Effective.</h3><p>This method removes human error by using the Clearblue Fertility Monitor to track two specific urinary hormones: Estrogen and LH.</p><p>Instead of guessing based on how you "feel," you get a concrete data point every morning. It’s about 98% effective with perfect use, largely because it doesn't rely on you analyzing your own mucus before you've had your coffee.</p>`
+    },
+    {
+        title: 'Page 2: The Daily Routine',
+        content: `<h3>The 6-Hour Window</h3><p>You must set a 6-hour testing window on your monitor (e.g., 6:00 AM – 12:00 PM). You can only test during this time.</p><h3>The Workflow:</h3><ul><li>Cycle Day 1-5: No testing.</li><li>Cycle Day 6: Begin testing.</li></ul><h3>The Action:</h3><p>Collect a urine sample, dip the test stick, and insert it into the monitor.</p><h3>The Wait:</h3><p>It takes 5 minutes to read.</p><p><em>Note: You will test every day until the fertile window closes.</em></p>`
+    },
+    {
+        title: 'Page 3: The Three Readings',
+        content: `<h3>Interpreting Your Data</h3><ol><li><strong>LOW (Infertile)</strong><br>Status: No hormone rise.<br>Action: Intercourse is available.</li><li><strong>HIGH (Fertile)</strong><br>Status: Estrogen is rising. The fertile window is OPEN.<br>Why: Sperm can survive up to 5 days waiting for the egg.<br>Action: Abstinence begins immediately.</li><li><strong>PEAK (Maximum Fertility)</strong><br>Status: LH Surge detected. Ovulation is imminent (24-36 hours).<br>Action: Continue abstinence. The monitor will automatically show "Peak" for two days.</li></ol>`
+    },
+    {
+        title: 'Page 4: Closing the Window',
+        content: `<h3>The "PPHLL" Rule</h3><p>You remain in the fertile window (abstinence) starting from the very first "High" reading. To exit, you must trigger the countdown starting on your first Peak day.</p><h3>The Countdown:</h3><ul><li>Peak (Day 1)</li><li>Peak (Day 2 - Automatic)</li><li>High (Wait Day 1)</li><li>Low (Wait Day 2)</li></ul><p>The Rule: On the evening of that 4th day (the second "Wait" day), the window is officially closed. You are safe to resume normal relations until the end of the cycle.</p>`
+    }
+];
+
+let currentInstruction = 0;
+
 /**
  * Main entry point for the application's frontend logic.
- * Initializes event listeners and fetches initial data once the DOM is fully loaded.
  */
 document.addEventListener('DOMContentLoaded', () => {
     log('info', 'DOM fully loaded and parsed.');
+    initializeInstructionalOverlay();
 
     // --- Main App Menu ---
+    // ... (rest of the DOMContentLoaded logic)
     const appMenuToggle = document.getElementById('app-menu-toggle');
     const appMenuContent = document.getElementById('app-menu-content');
 
@@ -62,6 +84,53 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+function initializeInstructionalOverlay() {
+    const overlay = document.getElementById('instructional-overlay');
+    const closeBtn = document.getElementById('close-instructions');
+    const nextBtn = document.getElementById('next-instruction');
+    const prevBtn = document.getElementById('prev-instruction');
+
+    closeBtn.addEventListener('click', () => {
+        overlay.classList.remove('active');
+        localStorage.setItem('hasSeenInstructions', 'true');
+    });
+
+    nextBtn.addEventListener('click', () => {
+        currentInstruction = (currentInstruction + 1) % instructions.length;
+        renderInstruction();
+    });
+
+    prevBtn.addEventListener('click', () => {
+        currentInstruction = (currentInstruction - 1 + instructions.length) % instructions.length;
+        renderInstruction();
+    });
+
+    if (!localStorage.getItem('hasSeenInstructions')) {
+        overlay.classList.add('active');
+        renderInstruction();
+    }
+}
+
+function renderInstruction() {
+    const instruction = instructions[currentInstruction];
+    document.getElementById('instruction-title').textContent = instruction.title;
+    document.getElementById('instruction-content').innerHTML = instruction.content;
+
+    const pageIndicator = document.getElementById('page-indicator');
+    pageIndicator.textContent = `Page ${currentInstruction + 1} of ${instructions.length}`;
+
+    const progressBar = document.getElementById('progress-bar');
+    const progress = ((currentInstruction + 1) / instructions.length) * 100;
+    progressBar.style.width = `${progress}%`;
+
+    const nextBtn = document.getElementById('next-instruction');
+    if (currentInstruction === instructions.length - 1) {
+        nextBtn.textContent = 'Finish';
+    } else {
+        nextBtn.textContent = 'Next';
+    }
+}
+
 /**
  * Initializes all the main event listeners for the application.
  * @param {object} elements - An object containing references to the main DOM elements.
@@ -75,6 +144,7 @@ function initializeEventListeners(elements) {
     elements.periodButton.addEventListener('click', () => handleNewCycleSubmit(elements));
 }
 
+// ... (The rest of the file remains the same)
 /**
  * Fetches initial cycle and analytics data from the API and triggers the first render.
  * @param {object} elements - An object containing references to the main DOM elements.
