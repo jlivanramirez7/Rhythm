@@ -189,8 +189,10 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
             }
         }
 
+        log('info', 'About to fetch shared users.');
         const sharedUsersRes = await fetch('/api/shared-users');
         const sharedUsers = await sharedUsersRes.json();
+        log('info', 'Received shared users data:', JSON.stringify(sharedUsers));
         renderAccountSwitcher(sharedUsers, elements);
 
         renderAnalytics(analytics, cycles, elements);
@@ -208,20 +210,25 @@ function calculateFertileWindows(cycles) {
 }
 
 function renderAccountSwitcher(users, elements) {
+    log('info', '--- renderAccountSwitcher START ---');
+    log('info', 'Users parameter:', JSON.stringify(users));
+
     const container = document.getElementById('account-switcher-container');
     if (!container) {
-        log('warn', 'Account switcher container not found.');
+        log('warn', 'Account switcher container not found. --- renderAccountSwitcher END ---');
         return;
     }
     container.innerHTML = ''; // Clear previous content
+    container.style.display = 'block'; // Always ensure the container is visible
 
     if (!users || users.length === 0) {
-        log('info', 'No shared users to display in switcher.');
-        container.style.display = 'none';
+        log('info', 'Condition met: No shared users. Displaying message.');
+        container.textContent = 'No other user data to display.';
+        log('info', '--- renderAccountSwitcher END ---');
         return;
     }
 
-    container.style.display = 'block';
+    log('info', 'Condition not met: Users found. Building dropdown.');
     const select = document.createElement('select');
     select.id = 'user-switcher';
 
@@ -244,6 +251,7 @@ function renderAccountSwitcher(users, elements) {
     });
 
     container.appendChild(select);
+    log('info', 'Dropdown appended to container. --- renderAccountSwitcher END ---');
 }
 
 function renderAnalytics(analytics, cycles, elements) {
