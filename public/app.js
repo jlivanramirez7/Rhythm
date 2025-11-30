@@ -86,23 +86,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initializeInstructionalOverlay() {
     const overlay = document.getElementById('instructional-overlay');
+    if (!overlay) {
+        return; // Do nothing if the overlay is not on this page
+    }
+
     const closeBtn = document.getElementById('close-instructions');
     const nextBtn = document.getElementById('next-instruction');
     const prevBtn = document.getElementById('prev-instruction');
 
-    closeBtn.addEventListener('click', () => {
+    const closeOverlay = () => {
         overlay.classList.remove('active');
         localStorage.setItem('hasSeenInstructions', 'true');
-    });
+    };
+
+    closeBtn.addEventListener('click', closeOverlay);
 
     nextBtn.addEventListener('click', () => {
-        currentInstruction = (currentInstruction + 1) % instructions.length;
-        renderInstruction();
+        if (currentInstruction < instructions.length - 1) {
+            currentInstruction++;
+            renderInstruction();
+        } else {
+            closeOverlay(); // 'Finish' button functionality
+        }
     });
 
     prevBtn.addEventListener('click', () => {
-        currentInstruction = (currentInstruction - 1 + instructions.length) % instructions.length;
-        renderInstruction();
+        if (currentInstruction > 0) {
+            currentInstruction--;
+            renderInstruction();
+        }
     });
 
     if (!localStorage.getItem('hasSeenInstructions')) {
@@ -122,6 +134,9 @@ function renderInstruction() {
     const progressBar = document.getElementById('progress-bar');
     const progress = ((currentInstruction + 1) / instructions.length) * 100;
     progressBar.style.width = `${progress}%`;
+
+    const prevBtn = document.getElementById('prev-instruction');
+    prevBtn.style.display = currentInstruction === 0 ? 'none' : 'inline-block';
 
     const nextBtn = document.getElementById('next-instruction');
     if (currentInstruction === instructions.length - 1) {
