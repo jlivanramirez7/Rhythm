@@ -141,6 +141,18 @@ const apiRouter = (db) => {
         res.json(req.user);
     });
 
+    router.post('/instructions-viewed', async (req, res) => {
+        const userId = req.user.id;
+        log('info', `POST /api/instructions-viewed - User ${userId} has viewed instructions.`);
+        try {
+            await db.run(sql('UPDATE users SET show_instructions = false WHERE id = ?', isPostgres), [userId]);
+            res.status(200).json({ message: 'Instructions status updated.' });
+        } catch (err) {
+            console.error('Error updating instructions status:', err);
+            res.status(500).json({ error: 'Failed to update instructions status' });
+        }
+    });
+
     router.put('/settings', async (req, res) => {
         const { show_instructions } = req.body;
         const userId = req.user.id;

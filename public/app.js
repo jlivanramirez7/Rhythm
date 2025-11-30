@@ -95,6 +95,15 @@ function initializeInstructionalOverlay() {
 
     const closeOverlay = () => {
         overlay.classList.remove('active');
+        // Make an API call to permanently mark instructions as viewed
+        fetch('/api/instructions-viewed', { method: 'POST' })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to update instructions status');
+                }
+                log('info', 'Successfully updated instructions status on the server.');
+            })
+            .catch(error => console.error('Error updating instructions status:', error));
     };
 
     closeBtn.addEventListener('click', closeOverlay);
@@ -179,12 +188,13 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
 
         log('debug', 'User data fetched:', user);
 
-        if (user.show_instructions) {
+        if (user.show_instructions && !sessionStorage.getItem('instructions_shown')) {
             const overlay = document.getElementById('instructional-overlay');
             if (overlay) {
                 log('info', 'User preference set to show instructions. Activating overlay.');
                 overlay.classList.add('active');
                 renderInstruction();
+                sessionStorage.setItem('instructions_shown', 'true');
             }
         }
 
