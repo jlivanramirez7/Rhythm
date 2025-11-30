@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rhythm-cache-v3';
+const CACHE_NAME = 'rhythm-cache-v4';
 const urlsToCache = [
   '/',
   '/styles.css',
@@ -38,6 +38,11 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
+
+  // If the request is for a different origin, do not handle it.
+  if (url.origin !== self.location.origin) {
+    return;
+  }
 
   // Let the browser handle non-GET requests and auth routes
   if (request.method !== 'GET' || url.pathname.startsWith('/auth/') || url.pathname === '/logout') {
