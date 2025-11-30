@@ -16,10 +16,12 @@ Rhythm is a secure, private web application designed to help users track their o
 -   **Interactive Cycle Visualization:** Each cycle is rendered as a card with a grid of day-by-day readings.
 -   **Data Management:** Edit or delete individual readings, delete entire cycles, or clear all of your data.
 -   **Predictive Analytics:** The application calculates and displays key metrics like average cycle length, average days to peak fertility, and estimated future cycle dates.
+-   **Progressive Web App (PWA):** The application can be "installed" on a user's device for a more native-like experience and is capable of functioning offline.
+-   **Instructional Onboarding:** A multi-page overlay introduces new users to the application's methodology and features, ensuring a smooth start.
 
 ## 2. Technology Stack
 
--   **Frontend:** Vanilla JavaScript (ES6+), HTML5, CSS3.
+-   **Frontend:** Vanilla JavaScript (ES6+), HTML5, CSS3, Progressive Web App (PWA) with a Service Worker.
 -   **Backend:** Node.js with the Express.js framework.
 -   **Database:** Cloud SQL for PostgreSQL for production, with support for local SQLite for development.
 -   **Authentication:** Passport.js with the `passport-google-oauth20` strategy.
