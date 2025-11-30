@@ -81,8 +81,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeInstructionalOverlay() {
+    log('info', '--- initializeInstructionalOverlay START ---');
+    log('info', 'Instructions array content:', JSON.stringify(instructions));
     const overlay = document.getElementById('instructional-overlay');
     if (!overlay) {
+        log('warn', 'Instructional overlay element not found. --- initializeInstructionalOverlay END ---');
         return;
     }
 
@@ -114,7 +117,13 @@ function initializeInstructionalOverlay() {
 }
 
 function renderInstruction() {
+    log('info', `--- renderInstruction START (Current Index: ${currentInstruction}) ---`);
+    if (currentInstruction >= instructions.length) {
+        log('error', `Invalid instruction index: ${currentInstruction}. Instructions length: ${instructions.length}`);
+        return;
+    }
     const instruction = instructions[currentInstruction];
+    log('info', 'Rendering instruction:', JSON.stringify(instruction));
     document.getElementById('instruction-title').textContent = instruction.title;
     document.getElementById('instruction-content').innerHTML = instruction.content;
 
@@ -134,6 +143,7 @@ function renderInstruction() {
     } else {
         nextBtn.textContent = 'Next';
     }
+    log('info', '--- renderInstruction END ---');
 }
 
 function initializeEventListeners(elements) {
