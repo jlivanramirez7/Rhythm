@@ -1,4 +1,22 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    const appMenuToggle = document.getElementById('app-menu-toggle');
+    const appMenuContent = document.getElementById('app-menu-content');
+
+    if (appMenuToggle && appMenuContent) {
+        appMenuToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            appMenuToggle.classList.toggle('active');
+            appMenuContent.classList.toggle('active');
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!appMenuContent.contains(event.target) && !appMenuToggle.contains(event.target)) {
+                appMenuToggle.classList.remove('active');
+                appMenuContent.classList.remove('active');
+            }
+        });
+    }
+
     const showInstructionsCheckbox = document.getElementById('show-instructions-checkbox');
     const shareForm = document.getElementById('share-form');
     const deleteDataButton = document.getElementById('delete-data-button');
