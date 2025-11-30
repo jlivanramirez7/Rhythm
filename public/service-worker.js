@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rhythm-cache-v2';
+const CACHE_NAME = 'rhythm-cache-v3';
 const urlsToCache = [
   '/',
   '/styles.css',
