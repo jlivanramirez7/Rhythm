@@ -6,3 +6,6 @@
 
 # Databases
 database/*.db
+
+# macOS
+.DS_Store
