@@ -28,6 +28,10 @@ const instructions = [
     {
         title: 'Closing the Window',
         content: `<h3>The "PPHLL" Rule</h3><p>You remain in the fertile window (abstinence) starting from the very first "High" reading. To exit, you must trigger the countdown starting on your first Peak day.</p><h3>The Countdown:</h3><ul><li>Peak (Day 1)</li><li>Peak (Day 2 - Automatic)</li><li>High (Wait Day 1)</li><li>Low (Wait Day 2)</li></ul><p>The Rule: On the evening of that 4th day (the second "Wait" day), the window is officially closed. You are safe to resume normal relations until the end of the cycle.</p>`
+    },
+    {
+        title: 'The Logic',
+        content: `<h3>Calculating Your Window</h3><img src="/LHandEstrogen.png" alt="LH and Estrogen Chart" style="width:100%; max-width:400px; display:block; margin:auto;"><p><b>The Equation: Ovulation Timing + Sperm Survival = Your Window</b></p><p>To stay safe, we combine real-time data with biological facts:</p><ul><li><b>The Event:</b> The Monitor identifies your Peak (when the egg actually releases).</li><li><b>The Risk:</b> Sperm can survive inside the body for 5 days waiting for that egg.</li><li><b>The Result:</b> The "High" readings track Estrogen to warn you before ovulation, covering the sperm survival time. The "Peak" tracks the actual event. Together, they define the fertile window you see in the chart above.</li></ul>`
     }
 ];
 
