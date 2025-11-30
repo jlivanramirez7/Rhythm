@@ -208,7 +208,42 @@ function calculateFertileWindows(cycles) {
 }
 
 function renderAccountSwitcher(users, elements) {
-    // ... function implementation
+    const container = document.getElementById('account-switcher-container');
+    if (!container) {
+        log('warn', 'Account switcher container not found.');
+        return;
+    }
+    container.innerHTML = ''; // Clear previous content
+
+    if (!users || users.length === 0) {
+        log('info', 'No shared users to display in switcher.');
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    const select = document.createElement('select');
+    select.id = 'user-switcher';
+
+    const myDataOption = document.createElement('option');
+    myDataOption.value = '';
+    myDataOption.textContent = 'My Data';
+    select.appendChild(myDataOption);
+
+    users.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user.id;
+        option.textContent = user.name || user.email;
+        select.appendChild(option);
+    });
+
+    select.addEventListener('change', (e) => {
+        const userId = e.target.value;
+        log('info', `Switching view to user ID: ${userId || 'self'}`);
+        fetchAndRenderData(elements, userId || null);
+    });
+
+    container.appendChild(select);
 }
 
 function renderAnalytics(analytics, cycles, elements) {
