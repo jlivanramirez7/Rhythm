@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rhythm-cache-v1';
+const CACHE_NAME = 'rhythm-cache-v2';
 const urlsToCache = [
   '/',
   '/styles.css',
@@ -20,9 +20,29 @@ self.addEventListener('install', event => {
   );
 });
 
+self.addEventListener('activate', event => {
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
+
+  // Let the browser handle non-GET requests and auth routes
+  if (request.method !== 'GET' || url.pathname.startsWith('/auth/') || url.pathname === '/logout') {
+    return;
+  }
 
   // For API calls, use a network-first strategy.
   if (url.pathname.startsWith('/api/')) {
