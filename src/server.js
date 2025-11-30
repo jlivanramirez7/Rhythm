@@ -17,7 +17,8 @@ const ensureAuthenticated = (req, res, next) => {
     if (req.isAuthenticated()) {
         return next();
     }
-    res.redirect('/');
+    // For API requests, send a 401 Unauthorized status instead of a redirect.
+    res.status(401).json({ error: 'User not authenticated' });
 };
 
 // Middleware to protect admin routes

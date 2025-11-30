@@ -183,15 +183,22 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
         const cacheBust = `?t=${new Date().getTime()}`;
         const userQuery = viewAsUserId ? `?user_id=${viewAsUserId}` : '';
         
-        const [userRes, cyclesRes, analyticsRes] = await Promise.all([
+        const responses = await Promise.all([
             fetch(`/api/me${cacheBust}`),
             fetch(`/api/cycles${userQuery}${userQuery ? '&' : '?'}t=${cacheBust}`),
             fetch(`/api/analytics${userQuery}${userQuery ? '&' : '?'}t=${cacheBust}`)
         ]);
 
-        const user = await userRes.json();
-        const cycles = await cyclesRes.json();
-        const analytics = await analyticsRes.json();
+        // Check for unauthorized responses and redirect to login
+        for (const response of responses) {
+            if (response.status === 401) {
+                log('info', 'User not authenticated, redirecting to login page.');
+                window.location.href = '/';
+                return;
+            }
+        }
+
+        const [user, cycles, analytics] = await Promise.all(responses.map(res => res.json()));
 
         log('debug', 'fetchAndRenderData: User data fetched.', user);
         log('debug', 'fetchAndRenderData: Cycles data fetched.', cycles);
