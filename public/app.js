@@ -256,9 +256,14 @@ function renderCycles(cycles, elements, fertileWindows = []) {
 
         cycleDiv.innerHTML = `
             <div class="cycle-header">
-                <h3>Cycle: ${startDate} - ${endDate} (${cycleLength} days)</h3>
+                <div class="cycle-title">
+                    <h4>Cycle: ${startDate} - ${endDate}</h4>
+                    <span>(${cycleLength} days)</span>
+                </div>
                 <div class="cycle-menu-container">
-                    <button class="cycle-menu-button" data-cycle-id="${cycle.id}">☰</button>
+                    <button class="cycle-menu-button" data-cycle-id="${cycle.id}">
+                        <span></span><span></span><span></span>
+                    </button>
                     <div class="cycle-menu-content">
                         <a href="#" class="edit-cycle-btn" data-cycle-id="${cycle.id}">Edit</a>
                         <a href="#" class="delete-cycle-btn" data-id="${cycle.id}">Delete</a>
@@ -309,7 +314,50 @@ function renderCycles(cycles, elements, fertileWindows = []) {
 }
 
 function calculateFertileWindows(cycles) {
-    // ... function implementation
+    if (!cycles) return [];
+
+    return cycles.map(cycle => {
+        let fertileStart = null;
+        let peakDetected = false;
+        let postPeakDays = 0; // Tracks days P, P, H, L
+
+        // Sort days just in case they are not perfectly ordered
+        const sortedDays = cycle.days.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        for (const day of sortedDays) {
+            const reading = day.hormone_reading;
+
+            // Fertile window opens on the first 'High' reading
+            if (reading === 'High' && !fertileStart) {
+                fertileStart = day.date;
+            }
+
+            // Once 'Peak' is detected, the window is definitely open
+            if (reading === 'Peak' && !peakDetected) {
+                peakDetected = true;
+                if (!fertileStart) {
+                    fertileStart = day.date; // Window opens on Peak if no High preceded it
+                }
+            }
+
+            // If we are in the post-peak countdown
+            if (peakDetected) {
+                postPeakDays++;
+                // The window closes at the END of the 4th day (P, P, H, L)
+                if (postPeakDays > 4) {
+                    const fertileEnd = new Date(day.date);
+                    return { cycleId: cycle.id, start: fertileStart, end: fertileEnd.toISOString().split('T')[0] };
+                }
+            }
+        }
+
+        // If the loop finishes and the window is still open (e.g., in progress)
+        if (fertileStart) {
+            return { cycleId: cycle.id, start: fertileStart, end: null };
+        }
+
+        return { cycleId: cycle.id, start: null, end: null };
+    });
 }
 
 function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId) {
@@ -373,12 +421,20 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
     dayDiv.dataset.dayId = dayData.id;
     dayDiv.dataset.date = dayData.date;
 
-    // Fix: Simplify date parsing to prevent Invalid Date errors
     const dayDate = new Date(dayData.date);
     const cycleStartDate = new Date(cycle.start_date);
 
     // Calculate day number safely
     const dayNumber = dayDate && cycleStartDate ? Math.round((dayDate - cycleStartDate) / (1000 * 60 * 60 * 24)) + 1 : 'N/A';
+
+    // Apply fertile window shading
+    if (fertileWindow && fertileWindow.start) {
+        const startDate = new Date(fertileWindow.start);
+        const endDate = fertileWindow.end ? new Date(fertileWindow.end) : null;
+        if (dayDate >= startDate && (!endDate || dayDate <= endDate)) {
+            dayDiv.classList.add('fertile-window');
+        }
+    }
 
     const reading = dayData.hormone_reading || '--';
     const readingClass = dayData.hormone_reading || '';

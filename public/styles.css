@@ -222,9 +222,9 @@ button:hover {
     color: #666;
 }
 
-.day .reading.Low { color: #3498db; }
-.day .reading.High { color: #e74c3c; }
-.day .reading.Peak { color: #c0392b; }
+.day .reading-display.Low, .day .reading-edit .Low { color: #3498db; }
+.day .reading-display.High, .day .reading-edit .High { color: #e74c3c; }
+.day .reading-display.Peak, .day .reading-edit .Peak { color: #c0392b; }
 
 .day.fertile-window {
     background-color: #f2dede; /* Light red */
@@ -252,12 +252,43 @@ button:hover {
     display: block; /* Shown in edit mode */
 }
 
-.day .reading select {
+.reading-edit {
+    display: none;
+}
+
+.reading-edit select {
     width: 100%;
-    padding: 5px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
+}
+
+.intercourse-edit {
+    margin-top: 5px;
+}
+
+.edit-mode .reading-display, .edit-mode .intercourse-display {
+    display: none;
+}
+
+.edit-mode .reading-edit {
+    display: block;
+}
+
+.cycle-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.cycle-title h4, .cycle-title span {
+    margin: 0;
+    padding: 0;
+    display: inline;
+}
+
+.cycle-title span {
+    margin-left: 10px;
+    font-size: 0.9em;
+    color: #666;
 }
 
 .cycle-menu-button {
@@ -265,11 +296,14 @@ button:hover {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    background: transparent;
+    border: none;
+    padding: 0;
 }
 
 .cycle-menu-button span {
     display: block;
-    width: 25px;
+    width: 22px;
     height: 3px;
     background-color: var(--primary-color);
     border-radius: 3px;
@@ -309,15 +343,15 @@ button:hover {
     background-color: #f1f1f1;
 }
 
-.edit-mode .cycle-menu-button span:nth-child(1) {
+.cycle.edit-mode .cycle-menu-button span:nth-child(1) {
     transform: rotate(45deg) translate(5px, 5px);
 }
 
-.edit-mode .cycle-menu-button span:nth-child(2) {
+.cycle.edit-mode .cycle-menu-button span:nth-child(2) {
     opacity: 0;
 }
 
-.edit-mode .cycle-menu-button span:nth-child(3) {
+.cycle.edit-mode .cycle-menu-button span:nth-child(3) {
     transform: rotate(-45deg) translate(5px, -5px);
 }
 
