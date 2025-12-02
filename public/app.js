@@ -257,12 +257,32 @@ function renderCycles(cycles, elements, fertileWindows = []) {
         cycleDiv.innerHTML = `
             <div class="cycle-header">
                 <h3>Cycle: ${startDate} - ${endDate} (${cycleLength} days)</h3>
-                <button class="delete-cycle-btn" data-id="${cycle.id}">Delete</button>
+                <div class="cycle-menu-container">
+                    <button class="cycle-menu-button" data-cycle-id="${cycle.id}">☰</button>
+                    <div class="cycle-menu-content">
+                        <a href="#" class="edit-cycle-btn" data-cycle-id="${cycle.id}">Edit</a>
+                        <a href="#" class="delete-cycle-btn" data-id="${cycle.id}">Delete</a>
+                    </div>
+                </div>
             </div>
             <div class="day-grid"></div>
         `;
 
         const daysGrid = cycleDiv.querySelector('.day-grid');
+        const menuButton = cycleDiv.querySelector('.cycle-menu-button');
+        const menuContent = cycleDiv.querySelector('.cycle-menu-content');
+        const editButton = cycleDiv.querySelector('.edit-cycle-btn');
+
+        menuButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menuContent.classList.toggle('active');
+        });
+
+        editButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            toggleEditMode(cycleDiv, cycle.id, elements);
+            menuContent.classList.remove('active'); // Close menu
+        });
         const fertileWindow = fertileWindows.find(fw => fw.cycleId === cycle.id);
 
         if (cycle.days) {
@@ -275,9 +295,10 @@ function renderCycles(cycles, elements, fertileWindows = []) {
         container.appendChild(cycleDiv);
     });
 
-    // Add event listeners for the new delete buttons
+    // Add event listeners for the new delete buttons within menus
     container.querySelectorAll('.delete-cycle-btn').forEach(button => {
         button.addEventListener('click', (e) => {
+            e.preventDefault();
             const cycleId = e.target.dataset.id;
             if (confirm('Are you sure you want to delete this entire cycle? This action cannot be undone.')) {
                 deleteCycle(cycleId, elements);
@@ -348,33 +369,103 @@ function renderAnalytics(analytics, cycles, elements) {
 
 function createDayDiv(dayData, cycle, fertileWindow, elements) {
     const dayDiv = document.createElement('div');
-    dayDiv.className = 'day'; // Match the CSS selector
-    // Ensure date parsing is robust, especially for 'YYYY-MM-DD' strings
-    const dayDate = new Date(dayData.date + 'T00:00:00'); // Assume UTC to prevent timezone shifts
-    const cycleStartDate = new Date(cycle.start_date + 'T00:00:00');
+    dayDiv.className = 'day';
+    dayDiv.dataset.dayId = dayData.id;
+    dayDiv.dataset.date = dayData.date;
 
-    // Calculate day number
+    const dayDate = new Date(dayData.date + 'T00:00:00');
+    const cycleStartDate = new Date(cycle.start_date + 'T00:00:00');
     const dayNumber = Math.round((dayDate - cycleStartDate) / (1000 * 60 * 60 * 24)) + 1;
 
     const reading = dayData.hormone_reading || '--';
-    const readingClass = dayData.hormone_reading ? dayData.hormone_reading : '';
+    const readingClass = dayData.hormone_reading || '';
 
     dayDiv.innerHTML = `
+        <button class="delete-day" data-id="${dayData.id}">&times;</button>
         <div class="day-number">Day ${dayNumber}</div>
         <div class="day-date">${dayDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })}</div>
-        <div class="reading ${readingClass}">${reading}</div>
-        ${dayData.intercourse ? '<div class="intercourse-indicator">❤️</div>' : ''}
+        <div class="reading-display ${readingClass}">${reading}</div>
+        <div class="reading-edit">
+            <select class="reading-select">
+                <option value="" ${!dayData.hormone_reading ? 'selected' : ''}>--</option>
+                <option value="Low" ${dayData.hormone_reading === 'Low' ? 'selected' : ''}>Low</option>
+                <option value="High" ${dayData.hormone_reading === 'High' ? 'selected' : ''}>High</option>
+                <option value="Peak" ${dayData.hormone_reading === 'Peak' ? 'selected' : ''}>Peak</option>
+            </select>
+            <div class="intercourse-edit">
+                <input type="checkbox" class="intercourse-checkbox" ${dayData.intercourse ? 'checked' : ''}> ❤️
+            </div>
+        </div>
+        <div class="intercourse-display">${dayData.intercourse ? '❤️' : ''}</div>
     `;
+
+    dayDiv.querySelector('.delete-day').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm('Are you sure you want to delete this reading?')) {
+            deleteReading(dayData.id, elements);
+        }
+    });
+
+    dayDiv.querySelector('.reading-select').addEventListener('change', (e) => {
+        const newReading = e.target.value;
+        logOrUpdateReading({
+            id: dayData.id,
+            date: dayData.date,
+            hormone_reading: newReading,
+            cycle_id: cycle.id
+        }, elements);
+    });
+
+    dayDiv.querySelector('.intercourse-checkbox').addEventListener('change', (e) => {
+        const newIntercourse = e.target.checked;
+        logOrUpdateReading({
+            id: dayData.id,
+            date: dayData.date,
+            intercourse: newIntercourse,
+            cycle_id: cycle.id
+        }, elements);
+    });
 
     return dayDiv;
 }
 
 async function logOrUpdateReading(payload, elements) {
-    // ... function implementation
+    const { id, date, hormone_reading, intercourse, cycle_id } = payload;
+    const isUpdate = id !== undefined;
+    const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
+    const method = isUpdate ? 'PUT' : 'POST';
+
+    const body = { date, cycle_id };
+    if (hormone_reading !== undefined) body.hormone_reading = hormone_reading;
+    if (intercourse !== undefined) body.intercourse = intercourse;
+
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) throw new Error('Failed to save reading');
+        fetchAndRenderData(elements); // Refresh data
+    } catch (error) {
+        console.error('Error saving reading:', error);
+    }
 }
 
 function toggleEditMode(cycleDiv, cycleId, elements) {
-    // ... function implementation
+    cycleDiv.classList.toggle('edit-mode');
+    const isEditing = cycleDiv.classList.contains('edit-mode');
+
+    const dayElements = cycleDiv.querySelectorAll('.day');
+    dayElements.forEach(day => {
+        const display = day.querySelector('.reading-display');
+        const edit = day.querySelector('.reading-edit');
+        const intercourseDisplay = day.querySelector('.intercourse-display');
+
+        display.style.display = isEditing ? 'none' : 'block';
+        edit.style.display = isEditing ? 'block' : 'none';
+        intercourseDisplay.style.display = isEditing ? 'none' : 'block';
+    });
 }
 
 async function handleReadingSubmit(e, elements) {
@@ -390,7 +481,14 @@ async function deleteCycle(id, elements) {
 }
 
 async function deleteReading(id, elements) {
-    // ... function implementation
+    if (!id) return; // Ignore if there's no ID (for unsaved days)
+    try {
+        const response = await fetch(`/api/cycles/days/${id}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Failed to delete reading');
+        fetchAndRenderData(elements); // Refresh data
+    } catch (error) {
+        console.error('Error deleting reading:', error);
+    }
 }
 
 async function handleShareSubmit(e) {
