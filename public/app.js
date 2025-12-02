@@ -230,7 +230,61 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
 }
 
 function renderCycles(cycles, elements, fertileWindows = []) {
-    // ... function implementation
+    log('info', `[RENDER] --- renderCycles START ---. Received ${cycles.length} cycles.`);
+    const container = elements.cyclesContainer;
+    if (!container) {
+        log('error', '[RENDER] Cycles container not found in DOM.');
+        return;
+    }
+    container.innerHTML = ''; // Clear previous cycles
+
+    if (!cycles || cycles.length === 0) {
+        log('info', '[RENDER] No cycles to display. Showing message.');
+        container.innerHTML = '<p>No cycles recorded yet. Start by logging your period start date.</p>';
+        return;
+    }
+
+    cycles.forEach((cycle, index) => {
+        log('info', `[RENDER] Processing cycle ${index + 1}/${cycles.length}, ID: ${cycle.id}`);
+        const cycleDiv = document.createElement('div');
+        cycleDiv.className = 'cycle-card';
+        cycleDiv.dataset.cycleId = cycle.id;
+
+        const startDate = new Date(cycle.start_date).toLocaleDateString();
+        const endDate = cycle.end_date ? new Date(cycle.end_date).toLocaleDateString() : 'Present';
+        const cycleLength = cycle.end_date ? Math.round((new Date(cycle.end_date) - new Date(cycle.start_date)) / (1000 * 60 * 60 * 24)) + 1 : 'Ongoing';
+
+        cycleDiv.innerHTML = `
+            <div class="cycle-header">
+                <h3>Cycle: ${startDate} - ${endDate} (${cycleLength} days)</h3>
+                <button class="delete-cycle-btn" data-id="${cycle.id}">Delete</button>
+            </div>
+            <div class="days-grid"></div>
+        `;
+
+        const daysGrid = cycleDiv.querySelector('.days-grid');
+        const fertileWindow = fertileWindows.find(fw => fw.cycleId === cycle.id);
+
+        if (cycle.days) {
+            cycle.days.forEach(day => {
+                const dayDiv = createDayDiv(day, cycle, fertileWindow, elements);
+                daysGrid.appendChild(dayDiv);
+            });
+        }
+
+        container.appendChild(cycleDiv);
+    });
+
+    // Add event listeners for the new delete buttons
+    container.querySelectorAll('.delete-cycle-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const cycleId = e.target.dataset.id;
+            if (confirm('Are you sure you want to delete this entire cycle? This action cannot be undone.')) {
+                deleteCycle(cycleId, elements);
+            }
+        });
+    });
+    log('info', `[RENDER] --- renderCycles END ---. Finished rendering cycles.`);
 }
 
 function calculateFertileWindows(cycles) {
@@ -293,7 +347,29 @@ function renderAnalytics(analytics, cycles, elements) {
 }
 
 function createDayDiv(dayData, cycle, fertileWindow, elements) {
-    // ... function implementation
+    const dayDiv = document.createElement('div');
+    dayDiv.className = 'day-card';
+    // Ensure date parsing is robust, especially for 'YYYY-MM-DD' strings
+    const dayDate = new Date(dayData.date + 'T00:00:00'); // Assume UTC to prevent timezone shifts
+    const cycleStartDate = new Date(cycle.start_date + 'T00:00:00');
+
+    // Calculate day number
+    const dayNumber = Math.round((dayDate - cycleStartDate) / (1000 * 60 * 60 * 24)) + 1;
+
+    let readingClass = '';
+    if (dayData.hormone_reading) {
+        readingClass = `day-${dayData.hormone_reading.toLowerCase()}`;
+        dayDiv.classList.add(readingClass);
+    }
+
+    dayDiv.innerHTML = `
+        <div class="day-number">Day ${dayNumber}</div>
+        <div class="day-date">${dayDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })}</div>
+        <div class="day-reading">${dayData.hormone_reading || '--'}</div>
+        ${dayData.intercourse ? '<div class="day-intercourse">❤️</div>' : ''}
+    `;
+
+    return dayDiv;
 }
 
 async function logOrUpdateReading(payload, elements) {
