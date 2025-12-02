@@ -165,28 +165,34 @@ function initializeEventListeners(elements) {
 }
 
 async function fetchAndRenderData(elements, viewAsUserId = null) {
-    log('info', `fetchAndRenderData: Starting to fetch data for user: ${viewAsUserId || 'self'}.`);
+    log('info', `[START] fetchAndRenderData: Fetching data for user: ${viewAsUserId || 'self'}.`);
     try {
         const cacheBust = `?t=${new Date().getTime()}`;
         const userQuery = viewAsUserId ? `?user_id=${viewAsUserId}` : '';
-        
+        log('info', `[FETCH] URLs being fetched: /api/me, /api/cycles${userQuery}, /api/analytics${userQuery}`);
+
         const responses = await Promise.all([
             fetch(`/api/me${cacheBust}`),
             fetch(`/api/cycles${userQuery}${userQuery ? '&' : '?'}t=${cacheBust}`),
             fetch(`/api/analytics${userQuery}${userQuery ? '&' : '?'}t=${cacheBust}`)
         ]);
 
+        log('info', '[FETCH] All fetch promises have resolved.');
+
         for (const response of responses) {
             if (response.status === 401) {
-                log('info', 'User not authenticated, redirecting to login page.');
+                log('error', '[AUTH] User not authenticated (401). Redirecting to login.');
                 window.location.href = '/';
                 return;
             }
         }
 
+        log('info', '[FETCH] All responses are OK. Parsing JSON...');
         const [user, cycles, analytics] = await Promise.all(responses.map(res => res.json()));
 
-        log('debug', 'User data fetched:', user);
+        log('info', `[DATA] Logged-in user: ${user.name} (ID: ${user.id}). Viewing as user: ${viewAsUserId || user.id}`);
+        log('info', `[DATA] Cycles received: ${cycles.length}`);
+        log('info', `[DATA] Analytics received:`, analytics);
 
         if (user.show_instructions && !sessionStorage.getItem('instructions_shown')) {
             const overlay = document.getElementById('instructional-overlay');
@@ -232,12 +238,12 @@ function calculateFertileWindows(cycles) {
 }
 
 function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId) {
-    log('info', '--- renderAccountSwitcher START ---');
-    log('info', `Users: ${JSON.stringify(users)}, Current User: ${currentUser.id}, Selected: ${currentlySelectedId}`);
+    log('info', `[RENDER] --- renderAccountSwitcher START ---`);
+    log('info', `[RENDER] Switcher Data: Total Users=${users.length}, Current User ID=${currentUser.id}, Selected User ID=${currentlySelectedId}`);
 
     const container = document.getElementById('account-switcher-container');
     if (!container) {
-        log('warn', 'Account switcher container not found.');
+        log('error', '[RENDER] Account switcher container not found in DOM.');
         return;
     }
     container.innerHTML = '';
@@ -245,12 +251,12 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
 
     // Only show the switcher if there's more than one user (the current user + at least one partner)
     if (!users || users.length <= 1) {
-        log('info', 'No other shared users. Hiding switcher.');
+        log('info', '[RENDER] No other shared users to display. Hiding switcher.');
         container.style.display = 'none';
         return;
     }
 
-    log('info', 'Building account switcher dropdown.');
+    log('info', '[RENDER] Building account switcher dropdown...');
     const select = document.createElement('select');
     select.id = 'user-switcher';
 
@@ -262,6 +268,7 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
 
         // Determine which option should be selected
         const isCurrentlySelected = currentlySelectedId ? (user.id == currentlySelectedId) : (user.id === currentUser.id);
+        log('info', `[RENDER] Option: ${user.name}, isSelected: ${isCurrentlySelected}`);
         if (isCurrentlySelected) {
             option.selected = true;
         }
@@ -271,7 +278,7 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
 
     select.addEventListener('change', (e) => {
         const selectedUserId = e.target.value;
-        log('info', `Switching view to user ID: ${selectedUserId}`);
+        log('info', `[ACTION] Dropdown changed. Selected User ID: ${selectedUserId}`);
         // If the selected ID matches the current user's ID, fetch with null to view self
         const viewAsId = (selectedUserId == currentUser.id) ? null : selectedUserId;
         fetchAndRenderData(elements, viewAsId);
