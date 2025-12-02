@@ -259,10 +259,10 @@ function renderCycles(cycles, elements, fertileWindows = []) {
                 <h3>Cycle: ${startDate} - ${endDate} (${cycleLength} days)</h3>
                 <button class="delete-cycle-btn" data-id="${cycle.id}">Delete</button>
             </div>
-            <div class="days-grid"></div>
+            <div class="day-grid"></div>
         `;
 
-        const daysGrid = cycleDiv.querySelector('.days-grid');
+        const daysGrid = cycleDiv.querySelector('.day-grid');
         const fertileWindow = fertileWindows.find(fw => fw.cycleId === cycle.id);
 
         if (cycle.days) {
@@ -348,7 +348,7 @@ function renderAnalytics(analytics, cycles, elements) {
 
 function createDayDiv(dayData, cycle, fertileWindow, elements) {
     const dayDiv = document.createElement('div');
-    dayDiv.className = 'day-card';
+    dayDiv.className = 'day'; // Match the CSS selector
     // Ensure date parsing is robust, especially for 'YYYY-MM-DD' strings
     const dayDate = new Date(dayData.date + 'T00:00:00'); // Assume UTC to prevent timezone shifts
     const cycleStartDate = new Date(cycle.start_date + 'T00:00:00');
@@ -356,17 +356,14 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
     // Calculate day number
     const dayNumber = Math.round((dayDate - cycleStartDate) / (1000 * 60 * 60 * 24)) + 1;
 
-    let readingClass = '';
-    if (dayData.hormone_reading) {
-        readingClass = `day-${dayData.hormone_reading.toLowerCase()}`;
-        dayDiv.classList.add(readingClass);
-    }
+    const reading = dayData.hormone_reading || '--';
+    const readingClass = dayData.hormone_reading ? dayData.hormone_reading : '';
 
     dayDiv.innerHTML = `
         <div class="day-number">Day ${dayNumber}</div>
         <div class="day-date">${dayDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })}</div>
-        <div class="day-reading">${dayData.hormone_reading || '--'}</div>
-        ${dayData.intercourse ? '<div class="day-intercourse">❤️</div>' : ''}
+        <div class="reading ${readingClass}">${reading}</div>
+        ${dayData.intercourse ? '<div class="intercourse-indicator">❤️</div>' : ''}
     `;
 
     return dayDiv;
