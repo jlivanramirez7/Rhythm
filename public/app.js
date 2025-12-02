@@ -247,7 +247,7 @@ function renderCycles(cycles, elements, fertileWindows = []) {
     cycles.forEach((cycle, index) => {
         log('info', `[RENDER] Processing cycle ${index + 1}/${cycles.length}, ID: ${cycle.id}`);
         const cycleDiv = document.createElement('div');
-        cycleDiv.className = 'cycle-card';
+        cycleDiv.className = 'cycle'; // Fix: Use .cycle to match CSS
         cycleDiv.dataset.cycleId = cycle.id;
 
         const startDate = new Date(cycle.start_date).toLocaleDateString();
@@ -373,9 +373,12 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
     dayDiv.dataset.dayId = dayData.id;
     dayDiv.dataset.date = dayData.date;
 
-    const dayDate = new Date(dayData.date + 'T00:00:00');
-    const cycleStartDate = new Date(cycle.start_date + 'T00:00:00');
-    const dayNumber = Math.round((dayDate - cycleStartDate) / (1000 * 60 * 60 * 24)) + 1;
+    // Fix: Simplify date parsing to prevent Invalid Date errors
+    const dayDate = new Date(dayData.date);
+    const cycleStartDate = new Date(cycle.start_date);
+
+    // Calculate day number safely
+    const dayNumber = dayDate && cycleStartDate ? Math.round((dayDate - cycleStartDate) / (1000 * 60 * 60 * 24)) + 1 : 'N/A';
 
     const reading = dayData.hormone_reading || '--';
     const readingClass = dayData.hormone_reading || '';
