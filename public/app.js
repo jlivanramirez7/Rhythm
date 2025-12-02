@@ -213,8 +213,10 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
         const sharedUsersRes = await fetch('/api/shared-users');
         const sharedUsers = await sharedUsersRes.json();
         log('info', 'Received shared users data:', JSON.stringify(sharedUsers));
-        renderAccountSwitcher(sharedUsers, elements);
+        // Pass the currently viewed user's ID to the switcher to maintain state
+        renderAccountSwitcher(sharedUsers, elements, user, viewAsUserId);
 
+        renderCycles(cycles, elements, calculateFertileWindows(cycles));
         renderAnalytics(analytics, cycles, elements);
     } catch (error) {
         log('error', 'Error fetching data:', error);
@@ -229,45 +231,50 @@ function calculateFertileWindows(cycles) {
     // ... function implementation
 }
 
-function renderAccountSwitcher(users, elements) {
+function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId) {
     log('info', '--- renderAccountSwitcher START ---');
-    log('info', 'Users parameter:', JSON.stringify(users));
+    log('info', `Users: ${JSON.stringify(users)}, Current User: ${currentUser.id}, Selected: ${currentlySelectedId}`);
 
     const container = document.getElementById('account-switcher-container');
     if (!container) {
-        log('warn', 'Account switcher container not found. --- renderAccountSwitcher END ---');
+        log('warn', 'Account switcher container not found.');
         return;
     }
-    container.innerHTML = ''; // Clear previous content
-    container.style.display = 'block'; // Always ensure the container is visible
+    container.innerHTML = '';
+    container.style.display = 'block';
 
-    if (!users || users.length === 0) {
-        log('info', 'Condition met: No shared users. Displaying message.');
-        container.textContent = 'No other user data to display.';
-        log('info', '--- renderAccountSwitcher END ---');
+    // Only show the switcher if there's more than one user (the current user + at least one partner)
+    if (!users || users.length <= 1) {
+        log('info', 'No other shared users. Hiding switcher.');
+        container.style.display = 'none';
         return;
     }
 
-    log('info', 'Condition not met: Users found. Building dropdown.');
+    log('info', 'Building account switcher dropdown.');
     const select = document.createElement('select');
     select.id = 'user-switcher';
-
-    const myDataOption = document.createElement('option');
-    myDataOption.value = '';
-    myDataOption.textContent = 'My Data';
-    select.appendChild(myDataOption);
 
     users.forEach(user => {
         const option = document.createElement('option');
         option.value = user.id;
-        option.textContent = user.name || user.email;
+        // Label the current user as "My Data" for clarity
+        option.textContent = (user.id === currentUser.id) ? 'My Data' : (user.name || user.email);
+
+        // Determine which option should be selected
+        const isCurrentlySelected = currentlySelectedId ? (user.id == currentlySelectedId) : (user.id === currentUser.id);
+        if (isCurrentlySelected) {
+            option.selected = true;
+        }
+
         select.appendChild(option);
     });
 
     select.addEventListener('change', (e) => {
-        const userId = e.target.value;
-        log('info', `Switching view to user ID: ${userId || 'self'}`);
-        fetchAndRenderData(elements, userId || null);
+        const selectedUserId = e.target.value;
+        log('info', `Switching view to user ID: ${selectedUserId}`);
+        // If the selected ID matches the current user's ID, fetch with null to view self
+        const viewAsId = (selectedUserId == currentUser.id) ? null : selectedUserId;
+        fetchAndRenderData(elements, viewAsId);
     });
 
     container.appendChild(select);
