@@ -408,7 +408,58 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
 }
 
 function renderAnalytics(analytics, cycles, elements) {
-    // ... function implementation
+    const avgCycleLengthSpan = document.getElementById('avg-cycle-length');
+    const avgDaysToPeakSpan = document.getElementById('avg-days-to-peak');
+    const avgFertileWindowSpan = document.getElementById('avg-fertile-window');
+    const estimatedNextPeriodSpan = document.getElementById('estimated-next-period');
+    const fertileWindowStartSpan = document.getElementById('fertile-window-start');
+    const fertileWindowEndSpan = document.getElementById('fertile-window-end');
+
+    // Use backend-calculated averages
+    avgCycleLengthSpan.textContent = analytics.averageCycleLength || '--';
+    avgDaysToPeakSpan.textContent = analytics.averageDaysToPeak || '--';
+
+    const fertileWindows = calculateFertileWindows(cycles);
+    const validWindows = fertileWindows.filter(fw => fw.start && fw.end);
+    
+    let avgFertileWindowLength = 0;
+    if (validWindows.length > 0) {
+        const totalFertileDays = validWindows.reduce((acc, fw) => {
+            const start = new Date(fw.start);
+            const end = new Date(fw.end);
+            return acc + (end - start) / (1000 * 60 * 60 * 24) + 1;
+        }, 0);
+        avgFertileWindowLength = Math.round(totalFertileDays / validWindows.length);
+        avgFertileWindowSpan.textContent = avgFertileWindowLength;
+    } else {
+        avgFertileWindowSpan.textContent = '--';
+    }
+
+    const mostRecentCycle = cycles && cycles.length > 0 ? cycles[0] : null;
+    if (mostRecentCycle && analytics.averageCycleLength > 0) {
+        const lastStartDate = new Date(mostRecentCycle.start_date);
+        const nextPeriodDate = new Date(lastStartDate.getTime());
+        nextPeriodDate.setDate(lastStartDate.getDate() + analytics.averageCycleLength);
+        estimatedNextPeriodSpan.textContent = nextPeriodDate.toLocaleDateString();
+
+        if (analytics.averageDaysToPeak > 0 && avgFertileWindowLength > 0) {
+            const nextFertileStartDate = new Date(nextPeriodDate.getTime());
+            nextFertileStartDate.setDate(nextPeriodDate.getDate() + analytics.averageDaysToPeak - (avgFertileWindowLength / 2));
+            
+            const nextFertileEndDate = new Date(nextFertileStartDate.getTime());
+            nextFertileEndDate.setDate(nextFertileStartDate.getDate() + avgFertileWindowLength);
+
+            fertileWindowStartSpan.textContent = nextFertileStartDate.toLocaleDateString();
+            fertileWindowEndSpan.textContent = nextFertileEndDate.toLocaleDateString();
+        } else {
+            fertileWindowStartSpan.textContent = '--';
+            fertileWindowEndSpan.textContent = '--';
+        }
+    } else {
+        estimatedNextPeriodSpan.textContent = '--';
+        fertileWindowStartSpan.textContent = '--';
+        fertileWindowEndSpan.textContent = '--';
+    }
 }
 
 function createDayDiv(dayData, cycle, fertileWindow, elements) {
