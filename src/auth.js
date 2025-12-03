@@ -49,27 +49,18 @@ module.exports = (db, secrets) => {
         const userByEmail = await db.get(sql('SELECT * FROM users WHERE email = ?', isPostgres), [email]);
 
         if (userByEmail) {
-            // Ensure existing admins and approved users can always log in
-            if (userByEmail.is_admin || userByEmail.approved) {
-                // If this is the first Google login for a manually added user, update their google_id
-                if (userByEmail.google_id.startsWith('pending-')) {
-                    await db.run(sql('UPDATE users SET google_id = ? WHERE id = ?', isPostgres), [googleId, userByEmail.id]);
-                    const updatedUser = await db.get(sql('SELECT * FROM users WHERE id = ?', isPostgres), [userByEmail.id]);
-                    return cb(null, updatedUser);
-                }
-                return cb(null, userByEmail);
-            }
-
-            // If user is approved and this is their first Google login, update their google_id
+            let userToAuthenticate = userByEmail;
+            // If this is the first Google login for a user who was manually registered
             if (userByEmail.google_id.startsWith('pending-')) {
                 await db.run(sql('UPDATE users SET google_id = ? WHERE id = ?', isPostgres), [googleId, userByEmail.id]);
-                const updatedUser = await db.get(sql('SELECT * FROM users WHERE id = ?', isPostgres), [userByEmail.id]);
-                return cb(null, updatedUser);
+                // Re-fetch the user to get the most up-to-date object after the update
+                userToAuthenticate = await db.get(sql('SELECT * FROM users WHERE id = ?', isPostgres), [userByEmail.id]);
             }
 
-            // If google_id already matches, this is a normal login
-            if (userByEmail.google_id === googleId) {
-                return cb(null, userByEmail);
+            // Ensure the user is approved before allowing login
+            if (userToAuthenticate.approved) {
+                // Always return the freshest user object to the callback
+                return cb(null, userToAuthenticate);
             }
         }
 
