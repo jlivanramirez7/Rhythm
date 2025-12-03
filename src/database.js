@@ -85,6 +85,27 @@ async function createTables(dbInstance, adapter) {
             FOREIGN KEY (cycle_id) REFERENCES cycles (id) ON DELETE CASCADE
         );
     `);
+
+    // DEBUG: Do not remove these logs
+    if (isPostgres) {
+        console.log('[DEBUG] createTables: Creating sessions table for connect-pg-simple...');
+        await runQuery(`
+            CREATE TABLE IF NOT EXISTS "sessions" (
+                "sid" varchar NOT NULL COLLATE "default",
+                "sess" json NOT NULL,
+                "expire" timestamp(6) NOT NULL
+            )
+            WITH (OIDS=FALSE);
+        `);
+        // Add primary key separately to avoid errors if the table already exists.
+        const constraintExists = await dbInstance.query(
+            "SELECT 1 FROM pg_constraint WHERE conname = 'sessions_pkey'"
+        ).then(res => res.rowCount > 0);
+
+        if (!constraintExists) {
+            await runQuery('ALTER TABLE "sessions" ADD CONSTRAINT "sessions_pkey" PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE;');
+        }
+    }
     
     // DEBUG: Do not remove these logs
     console.log('[DEBUG] createTables: Finished table creation.');
