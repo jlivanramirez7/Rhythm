@@ -222,9 +222,9 @@ button:hover {
     color: #666;
 }
 
-.day .reading-display.Low, .day .reading-edit .Low { color: #3498db; }
-.day .reading-display.High, .day .reading-edit .High { color: #e74c3c; }
-.day .reading-display.Peak, .day .reading-edit .Peak { color: #c0392b; }
+.day .reading.Low, .day .reading-edit .Low { color: #3498db; }
+.day .reading.High, .day .reading-edit .High { color: #e74c3c; }
+.day .reading.Peak, .day .reading-edit .Peak { color: #c0392b; }
 
 .day.fertile-window {
     background-color: #f2dede; /* Light red */
@@ -264,7 +264,7 @@ button:hover {
     margin-top: 5px;
 }
 
-.edit-mode .reading-display, .edit-mode .intercourse-display {
+.edit-mode .reading, .edit-mode .intercourse-display {
     display: none;
 }
 

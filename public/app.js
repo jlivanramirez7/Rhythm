@@ -511,15 +511,21 @@ function toggleEditMode(cycleDiv, cycleId, elements) {
     cycleDiv.classList.toggle('edit-mode');
     const isEditing = cycleDiv.classList.contains('edit-mode');
 
+    // Also ensure the menu content is hidden when toggling edit mode
+    const menuContent = cycleDiv.querySelector('.cycle-menu-content');
+    if (menuContent) {
+        menuContent.classList.remove('active');
+    }
+
     const dayElements = cycleDiv.querySelectorAll('.day');
     dayElements.forEach(day => {
-        const display = day.querySelector('.reading-display');
+        const display = day.querySelector('.reading');
         const edit = day.querySelector('.reading-edit');
         const intercourseDisplay = day.querySelector('.intercourse-display');
 
-        display.style.display = isEditing ? 'none' : 'block';
-        edit.style.display = isEditing ? 'block' : 'none';
-        intercourseDisplay.style.display = isEditing ? 'none' : 'block';
+        if(display) display.style.display = isEditing ? 'none' : 'block';
+        if(edit) edit.style.display = isEditing ? 'block' : 'none';
+        if(intercourseDisplay) intercourseDisplay.style.display = isEditing ? 'none' : 'block';
     });
 }
 
