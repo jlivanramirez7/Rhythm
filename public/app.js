@@ -280,7 +280,11 @@ function renderCycles(cycles, elements, fertileWindows = []) {
 
         menuButton.addEventListener('click', (e) => {
             e.stopPropagation();
-            menuContent.classList.toggle('active');
+            if (cycleDiv.classList.contains('edit-mode')) {
+                toggleEditMode(cycleDiv, cycle.id, elements);
+            } else {
+                menuContent.classList.toggle('active');
+            }
         });
 
         editButton.addEventListener('click', (e) => {
@@ -317,46 +321,38 @@ function calculateFertileWindows(cycles) {
     if (!cycles) return [];
 
     return cycles.map(cycle => {
-        let fertileStart = null;
-        let peakDetected = false;
-        let postPeakDays = 0; // Tracks days P, P, H, L
-
-        // Sort days just in case they are not perfectly ordered
         const sortedDays = cycle.days.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
 
-        for (const day of sortedDays) {
-            const reading = day.hormone_reading;
+        const firstHighOrPeak = sortedDays.find(d => d.hormone_reading === 'High' || d.hormone_reading === 'Peak');
+        const lastPeak = sortedDays.slice().reverse().find(d => d.hormone_reading === 'Peak');
 
-            // Fertile window opens on the first 'High' reading
-            if (reading === 'High' && !fertileStart) {
-                fertileStart = day.date;
-            }
-
-            // Once 'Peak' is detected, the window is definitely open
-            if (reading === 'Peak' && !peakDetected) {
-                peakDetected = true;
-                if (!fertileStart) {
-                    fertileStart = day.date; // Window opens on Peak if no High preceded it
-                }
-            }
-
-            // If we are in the post-peak countdown
-            if (peakDetected) {
-                postPeakDays++;
-                // The window closes at the END of the 4th day (P, P, H, L)
-                if (postPeakDays > 4) {
-                    const fertileEnd = new Date(day.date);
-                    return { cycleId: cycle.id, start: fertileStart, end: fertileEnd.toISOString().split('T')[0] };
-                }
-            }
+        let fertileStart = null;
+        if (firstHighOrPeak) {
+            const startDate = new Date(firstHighOrPeak.date);
+            startDate.setDate(startDate.getDate() - 3); // Window opens 3 days before the first high/peak
+            fertileStart = startDate.toISOString().split('T')[0];
         }
 
-        // If the loop finishes and the window is still open (e.g., in progress)
-        if (fertileStart) {
-            return { cycleId: cycle.id, start: fertileStart, end: null };
+        let fertileEnd = null;
+        if (lastPeak) {
+            const endDate = new Date(lastPeak.date);
+            endDate.setDate(endDate.getDate() + 4); // Window closes after Peak + 4 days
+            fertileEnd = endDate.toISOString().split('T')[0];
+        }
+        
+        // If the cycle is ongoing and a peak has been detected, the window might still be open
+        if (lastPeak && !cycle.end_date && !fertileEnd) {
+             const endDate = new Date(lastPeak.date);
+             endDate.setDate(endDate.getDate() + 4);
+             if (new Date() < endDate) {
+                fertileEnd = null; // Still in the window
+             } else {
+                fertileEnd = endDate.toISOString().split('T')[0];
+             }
         }
 
-        return { cycleId: cycle.id, start: null, end: null };
+
+        return { cycleId: cycle.id, start: fertileStart, end: fertileEnd };
     });
 }
 
@@ -443,7 +439,7 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
         <button class="delete-day" data-id="${dayData.id}">&times;</button>
         <div class="day-number">Day ${dayNumber}</div>
         <div class="day-date">${dayDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })}</div>
-        <div class="reading-display ${readingClass}">${reading}</div>
+        <div class="reading ${readingClass}">${reading}</div>
         <div class="reading-edit">
             <select class="reading-select">
                 <option value="" ${!dayData.hormone_reading ? 'selected' : ''}>--</option>
