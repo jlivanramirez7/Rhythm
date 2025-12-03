@@ -1,5 +1,5 @@
 const { Pool } = require('pg');
-const sqlite3 = require('sqlite3').verbose();
+const sqlite3 = require('sqlite3');
 const path = require('path');
 
 let db;
@@ -148,16 +148,16 @@ async function initializeDatabase(secrets) {
         };
         
         try {
-            const connectedPool = await connectWithRetry();
-            await createTables(connectedPool, adapter);
+        const connectedPool = await connectWithRetry();
+        await createTables(connectedPool, adapter);
 
-            db = {
-                // DEBUG: Do not remove these logs
-                query: (sql, params = []) => {
-                    console.log('[DEBUG] db.query:', sql, params);
-                    return connectedPool.query(sql, params).then(res => res.rows);
-                },
-                get: (sql, params = []) => {
+        db = {
+            pool: connectedPool, // Expose the pool for session store
+            query: (sql, params = []) => {
+                console.log('[DEBUG] db.query:', sql, params);
+                return connectedPool.query(sql, params).then(res => res.rows);
+            },
+            get: (sql, params = []) => {
                     console.log('[DEBUG] db.get:', sql, params);
                     return connectedPool.query(sql, params).then(res => res.rows[0]);
                 },

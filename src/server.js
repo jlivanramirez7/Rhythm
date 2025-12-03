@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const session = require('express-session');
 const passport = require('passport');
+const pgSession = require('connect-pg-simple')(session);
 const { initializeDatabase } = require('./database');
 const { loadSecrets } = require('./secrets');
 const publicApiRouter = require('./publicApi');
@@ -48,11 +49,20 @@ async function main() {
 
     app.use(express.json());
     app.use(express.static(path.join(__dirname, '../public'), { index: false }));
+    
+    // Configure session store
+    const sessionStore = db.adapter === 'postgres' 
+        ? new pgSession({ pool: db.pool, tableName: 'sessions' })
+        : null;
+
     app.use(session({
+        store: sessionStore,
         secret: secrets.SESSION_SECRET,
         resave: false,
-        saveUninitialized: true,
+        saveUninitialized: false, // Set to false as per connect-pg-simple recommendation
+        cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 } // 30 days
     }));
+
     app.use(passport.initialize());
     app.use(passport.session());
 
