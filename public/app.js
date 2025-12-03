@@ -219,6 +219,19 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
         const sharedUsersRes = await fetch('/api/shared-users');
         const sharedUsers = await sharedUsersRes.json();
         log('info', 'Received shared users data:', JSON.stringify(sharedUsers));
+
+        // --- INTELLIGENT DEFAULT ---
+        // If this is the initial load (no viewAsUserId), the current user has no cycles,
+        // and there's another user available, default to the other user's view.
+        if (!viewAsUserId && cycles.length === 0 && sharedUsers.length > 1) {
+            const otherUser = sharedUsers.find(u => u.id !== user.id);
+            if (otherUser) {
+                log('info', `[AUTO-SWITCH] Current user has no data. Defaulting to view user ${otherUser.id}.`);
+                fetchAndRenderData(elements, otherUser.id);
+                return; // Stop the current render pass
+            }
+        }
+        
         // Pass the currently viewed user's ID to the switcher to maintain state
         renderAccountSwitcher(sharedUsers, elements, user, viewAsUserId);
 
