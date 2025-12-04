@@ -194,13 +194,12 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
         log('info', `[DATA] Cycles received: ${cycles.length}`);
         log('info', `[DATA] Analytics received:`, analytics);
 
-        if (user.show_instructions && !sessionStorage.getItem('instructions_shown')) {
+        if (user.show_instructions) {
             const overlay = document.getElementById('instructional-overlay');
             if (overlay) {
                 log('info', 'User preference set to show instructions. Activating overlay.');
                 overlay.classList.add('active');
                 renderInstruction();
-                sessionStorage.setItem('instructions_shown', 'true');
             }
         }
 
