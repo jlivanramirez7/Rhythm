@@ -33,12 +33,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Update user settings when the checkbox is changed
     showInstructionsCheckbox.addEventListener('change', async () => {
         const show_instructions = showInstructionsCheckbox.checked;
+        console.log(`[ACCOUNT.JS] Checkbox changed. New value: ${show_instructions}. Sending to backend...`);
         try {
-            await fetch('/api/settings', {
+            const response = await fetch('/api/settings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ show_instructions }),
             });
+            if (response.ok) {
+                console.log('[ACCOUNT.JS] Backend successfully updated settings.');
+            } else {
+                console.error('[ACCOUNT.JS] Backend failed to update settings.');
+            }
         } catch (error) {
             console.error('Error updating user settings:', error);
         }

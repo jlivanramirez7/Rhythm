@@ -45,22 +45,30 @@ module.exports = (db, secrets) => {
         const email = profile.emails[0].value;
         const googleId = profile.id;
 
-        // Find user by email first
+        console.log(`[AUTH] Google Strategy: Processing login for email: ${email}`);
+
         const userByEmail = await db.get(sql('SELECT * FROM users WHERE email = ?', isPostgres), [email]);
 
         if (userByEmail) {
-            let userToAuthenticate = userByEmail;
-            // If this is the first Google login for a user who was manually registered
+            console.log(`[AUTH] Found user by email. ID: ${userByEmail.id}, show_instructions: ${userByEmail.show_instructions}`);
+            
+            // If this is the first Google login for a manually registered user, link their account
             if (userByEmail.google_id.startsWith('pending-')) {
+                console.log(`[AUTH] Linking pending account for user ID: ${userByEmail.id}`);
                 await db.run(sql('UPDATE users SET google_id = ? WHERE id = ?', isPostgres), [googleId, userByEmail.id]);
-                // Re-fetch the user to get the most up-to-date object after the update
-                userToAuthenticate = await db.get(sql('SELECT * FROM users WHERE id = ?', isPostgres), [userByEmail.id]);
             }
 
-            // Ensure the user is approved before allowing login
-            if (userToAuthenticate.approved) {
-                // Always return the freshest user object to the callback
-                return cb(null, userToAuthenticate);
+            // ** THE DEFINITIVE FIX **
+            // Always re-fetch the user from the database right before authentication
+            // to ensure we have the absolute freshest data.
+            const freshUser = await db.get(sql('SELECT * FROM users WHERE id = ?', isPostgres), [userByEmail.id]);
+            console.log(`[AUTH] Fetched fresh user object. ID: ${freshUser.id}, show_instructions: ${freshUser.show_instructions}`);
+
+            if (freshUser.approved) {
+                console.log(`[AUTH] User is approved. Calling callback with fresh user object.`);
+                return cb(null, freshUser);
+            } else {
+                 console.log(`[AUTH] User ${freshUser.id} is not approved. Denying login.`);
             }
         }
 
@@ -74,14 +82,21 @@ module.exports = (db, secrets) => {
     ));
 
     passport.serializeUser((user, done) => {
+        console.log(`[AUTH] Serializing user. ID: ${user.id}`);
         done(null, user.id);
     });
 
     passport.deserializeUser(async (id, done) => {
         try {
+            console.log(`[AUTH] Deserializing user. ID: ${id}`);
             const isPostgres = db.adapter === 'postgres';
             const sql = `SELECT * FROM users WHERE id = ${isPostgres ? '$1' : '?'}`;
             const user = await db.get(sql, [id]);
+            if (user) {
+                console.log(`[AUTH] Deserialized user found. show_instructions: ${user.show_instructions}`);
+            } else {
+                console.error(`[AUTH] Deserialized user NOT found for ID: ${id}`);
+            }
             done(null, user);
         } catch (err) {
             done(err);

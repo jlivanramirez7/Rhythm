@@ -157,12 +157,15 @@ const apiRouter = (db) => {
         const { show_instructions } = req.body;
         const userId = req.user.id;
 
+        console.log(`[API] Received PUT /api/settings for user ${userId}. show_instructions: ${show_instructions}`);
+
         if (typeof show_instructions !== 'boolean') {
             return res.status(400).json({ error: 'Invalid value for show_instructions' });
         }
 
         try {
-            await db.run(sql('UPDATE users SET show_instructions = ? WHERE id = ?', isPostgres), [show_instructions, userId]);
+            const result = await db.run(sql('UPDATE users SET show_instructions = ? WHERE id = ?', isPostgres), [show_instructions, userId]);
+            console.log(`[API] Database update result for user ${userId}:`, result);
             res.status(200).json({ message: 'Settings updated successfully.' });
         } catch (err) {
             console.error('Error updating settings:', err);
