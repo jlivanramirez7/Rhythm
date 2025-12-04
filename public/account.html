@@ -30,10 +30,14 @@
     <main class="main-grid">
         <section>
             <h2>Settings</h2>
-            <div class="form-input-group">
-                <label for="show-instructions-checkbox">Show instructions on login:</label>
-                <input type="checkbox" id="show-instructions-checkbox">
-            </div>
+            <form id="settings-form">
+                <div class="form-input-group">
+                    <label for="show-instructions-checkbox">Show instructions on login:</label>
+                    <input type="checkbox" id="show-instructions-checkbox">
+                </div>
+                <button type="submit">Save Settings</button>
+                <p id="settings-message" style="color: green; margin-top: 10px;"></p>
+            </form>
         </section>
         <section id="sharing-section">
             <h2>Share Your Data</h2>

@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    const settingsForm = document.getElementById('settings-form');
     const showInstructionsCheckbox = document.getElementById('show-instructions-checkbox');
     const shareForm = document.getElementById('share-form');
     const deleteDataButton = document.getElementById('delete-data-button');
@@ -30,23 +31,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Error fetching user settings:', error);
     }
 
-    // Update user settings when the checkbox is changed
-    showInstructionsCheckbox.addEventListener('change', async () => {
+    // Handle the settings form submission
+    settingsForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
         const show_instructions = showInstructionsCheckbox.checked;
-        console.log(`[ACCOUNT.JS] Checkbox changed. New value: ${show_instructions}. Sending to backend...`);
+        const messageElement = document.getElementById('settings-message');
+        
+        console.log(`[ACCOUNT.JS] "Save Settings" clicked. New value: ${show_instructions}. Sending to backend...`);
+        
         try {
             const response = await fetch('/api/settings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ show_instructions }),
             });
+
             if (response.ok) {
                 console.log('[ACCOUNT.JS] Backend successfully updated settings.');
+                messageElement.textContent = 'Settings saved!';
+                setTimeout(() => { messageElement.textContent = ''; }, 3000); // Clear message after 3 seconds
             } else {
-                console.error('[ACCOUNT.JS] Backend failed to update settings.');
+                throw new Error('Failed to save settings.');
             }
         } catch (error) {
             console.error('Error updating user settings:', error);
+            messageElement.textContent = 'Error saving settings.';
+            messageElement.style.color = 'red';
         }
     });
 
