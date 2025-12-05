@@ -597,7 +597,33 @@ async function handleReadingSubmit(e, elements) {
 }
 
 async function handleNewCycleSubmit(elements) {
-    // ... function implementation
+    const startDateInput = document.getElementById('period-start-date');
+    const start_date = startDateInput.value;
+
+    if (!start_date) {
+        alert('Please select a start date for the new cycle.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/cycles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ start_date }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to start new cycle.');
+        }
+
+        log('info', 'Successfully started new cycle. Refreshing data...');
+        startDateInput.value = new Date().toISOString().split('T')[0]; // Reset input
+        fetchAndRenderData(elements); // Refresh the UI
+    } catch (error) {
+        console.error('Error starting new cycle:', error);
+        alert(error.message);
+    }
 }
 
 async function deleteCycle(id, elements) {
