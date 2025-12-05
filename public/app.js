@@ -532,7 +532,8 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
             id: dayData.id,
             date: dayData.date,
             hormone_reading: newReading,
-            cycle_id: cycle.id
+            cycle_id: cycle.id,
+            userId: currentlyViewedUserId
         }, elements);
     });
 
@@ -542,7 +543,8 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
             id: dayData.id,
             date: dayData.date,
             intercourse: newIntercourse,
-            cycle_id: cycle.id
+            cycle_id: cycle.id,
+            userId: currentlyViewedUserId
         }, elements);
     });
 
@@ -599,20 +601,39 @@ async function handleReadingSubmit(e, elements) {
     const date = document.getElementById('date').value;
     const hormone_reading = document.getElementById('reading').value;
     const intercourse = document.getElementById('intercourse-checkbox').checked;
+    const isRange = document.getElementById('range-checkbox').checked;
+    const endDate = document.getElementById('end-date').value;
 
     if (!date) {
         alert('Please select a date.');
         return;
     }
-
-    const payload = {
-        date,
+    
+    const body = {
+        start_date: date,
+        end_date: isRange ? endDate : date,
         hormone_reading: hormone_reading || null,
         intercourse,
         userId: currentlyViewedUserId
     };
 
-    logOrUpdateReading(payload, elements);
+    const url = isRange ? '/api/cycles/days/range' : '/api/cycles/days';
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to log reading.');
+        }
+        fetchAndRenderData(elements, currentlyViewedUserId);
+    } catch (error) {
+        console.error('Error logging reading:', error);
+        alert(error.message);
+    }
 }
 
 async function handleNewCycleSubmit(elements) {

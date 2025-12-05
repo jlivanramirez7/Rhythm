@@ -279,10 +279,11 @@ const apiRouter = (db) => {
      * @param {object} req.body - { start_date: string, end_date: string, hormone_reading: string, intercourse: boolean }
      */
     router.post('/cycles/days/range', async (req, res) => {
-        // DEBUG: Do not remove these logs
         log('info', 'POST /api/cycles/days/range - Request received.');
         log('debug', 'Request body:', req.body);
-        const { start_date, end_date, hormone_reading, intercourse } = req.body;
+        const { start_date, end_date, hormone_reading, intercourse, userId: targetUserIdBody } = req.body;
+        const requestingUserId = req.user.id;
+        const targetUserId = targetUserIdBody || requestingUserId;
 
         if (!start_date || !end_date) {
             log('warn', 'POST /api/cycles/days/range - Bad request: start_date or end_date missing.');
@@ -304,19 +305,27 @@ const apiRouter = (db) => {
                 log('debug', `POST /api/cycles/days/range - Processing date: ${date}`);
                 const findCycleSql = sql(`
                     SELECT id FROM cycles 
-                    WHERE ? >= start_date AND (end_date IS NULL OR ? <= end_date)
+                    WHERE user_id = ? AND ? >= start_date AND (end_date IS NULL OR ? <= end_date)
                     ORDER BY start_date DESC 
                     LIMIT 1
                 `, isPostgres);
-                const cycle = await db.get(findCycleSql, [date, date]);
+                const cycle = await db.get(findCycleSql, [targetUserId, date, date]);
 
                 if (cycle) {
+                     // Security check inside the loop before every write
+                    if (targetUserId !== requestingUserId) {
+                        const owner = await db.get(sql('SELECT partner_id FROM users WHERE id = ?', isPostgres), [targetUserId]);
+                        if (!owner || owner.partner_id !== requestingUserId) {
+                            log('warn', `Forbidden attempt by user ${requestingUserId} to edit data for user ${targetUserId}.`);
+                            continue; // Skip this day if not authorized
+                        }
+                    }
                     await upsertReading(db, {
                         cycle_id: cycle.id,
                         date,
                         hormone_reading,
                         intercourse,
-                        requestingUserId: req.user.id
+                        userId: targetUserId
                     });
                 }
             }
@@ -336,7 +345,9 @@ const apiRouter = (db) => {
         // DEBUG: Do not remove these logs
         log('info', 'POST /api/cycles/days - Request received.');
         log('debug', 'Request body:', req.body);
-        let { date, hormone_reading, intercourse } = req.body;
+        let { date, hormone_reading, intercourse, userId: targetUserIdBody } = req.body;
+        const requestingUserId = req.user.id;
+        const targetUserId = targetUserIdBody || requestingUserId;
 
         if (hormone_reading === '') {
             hormone_reading = null;
@@ -350,13 +361,21 @@ const apiRouter = (db) => {
         date = moment.utc(date).format('YYYY-MM-DD');
 
         try {
+            // Security Check
+            if (targetUserId !== requestingUserId) {
+                const partnerCheck = await db.get(sql('SELECT id FROM users WHERE id = ? AND partner_id = ?', isPostgres), [targetUserId, requestingUserId]);
+                if (!partnerCheck) {
+                    return res.status(403).json({ error: 'Forbidden: You do not have permission to edit data for this user.' });
+                }
+            }
+
             const findCycleSql = sql(`
                 SELECT id FROM cycles 
                 WHERE user_id = ? AND ? >= start_date AND (end_date IS NULL OR ? <= end_date)
                 ORDER BY start_date DESC 
                 LIMIT 1
             `, isPostgres);
-            const cycle = await db.get(findCycleSql, [currentlyViewedUserId || req.user.id, date, date]);
+            const cycle = await db.get(findCycleSql, [targetUserId, date, date]);
 
             if (!cycle) {
                 return res.status(404).send('No cycle found for the selected date.');
@@ -367,7 +386,7 @@ const apiRouter = (db) => {
                 date,
                 hormone_reading,
                 intercourse,
-                requestingUserId: req.user.id
+                userId: targetUserId
             });
             
             res.status(200).json({ success: true });
