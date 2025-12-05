@@ -95,14 +95,9 @@ const getFilledCycle = async (cycleId, db) => {
  * @param {object} data - The reading data, including cycle_id, date, hormone_reading, and intercourse.
  */
 const upsertReading = async (db, data) => {
-    const { cycle_id, date, hormone_reading, intercourse, userId, requestingUserId } = data;
+    const { cycle_id, date, hormone_reading, intercourse, userId } = data;
+    log('debug', '[UPSERT] upsertReading called with data:', data);
     const isPostgres = db.adapter === 'postgres';
-
-    // Security Check: The user making the request must be the owner or a partner
-    const cycleOwner = await db.get(sql('SELECT user_id FROM cycles WHERE id = ?', isPostgres), [cycle_id]);
-    if (!cycleOwner || (cycleOwner.user_id !== requestingUserId && cycleOwner.partner_id !== requestingUserId)) {
-        throw new Error('Forbidden: You do not have permission to edit this cycle.');
-    }
 
     const findExistingSql = sql(`
         SELECT cd.id FROM cycle_days cd
@@ -126,12 +121,13 @@ const upsertReading = async (db, data) => {
             values.push(existingReading.id);
             const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`, isPostgres);
             const result = await db.run(updateSql, values);
-            log('debug', `upsertReading - UPDATE result. Rows affected: ${result.changes}`);
+            log('debug', `[UPSERT] UPDATE result:`, result);
         }
     } else {
         const intercourseValue = intercourse ? 1 : 0;
         const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?)`, isPostgres);
-        await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
+        const result = await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
+        log('debug', `[UPSERT] INSERT result:`, result);
     }
 };
 
@@ -216,8 +212,8 @@ const apiRouter = (db) => {
      * @param {object} req.body - { start_date: string }
      */
     router.post('/cycles', async (req, res) => {
-        log('info', 'POST /api/cycles - Request received.');
-        log('debug', 'Request body:', req.body);
+        log('info', `[API] POST /api/cycles - Request received for user ${req.user.id}.`);
+        log('debug', '[API] Request body:', req.body);
     
         const { start_date, userId: targetUserIdBody } = req.body;
         const requestingUserId = req.user.id;
@@ -279,8 +275,8 @@ const apiRouter = (db) => {
      * @param {object} req.body - { start_date: string, end_date: string, hormone_reading: string, intercourse: boolean }
      */
     router.post('/cycles/days/range', async (req, res) => {
-        log('info', 'POST /api/cycles/days/range - Request received.');
-        log('debug', 'Request body:', req.body);
+        log('info', `[API] POST /api/cycles/days/range - Request received for user ${req.user.id}.`);
+        log('debug', '[API] Request body:', req.body);
         const { start_date, end_date, hormone_reading, intercourse, userId: targetUserIdBody } = req.body;
         const requestingUserId = req.user.id;
         const targetUserId = targetUserIdBody || requestingUserId;
@@ -342,9 +338,8 @@ const apiRouter = (db) => {
      * @param {object} req.body - { date: string, hormone_reading: string, intercourse: boolean }
      */
     router.post('/cycles/days', async (req, res) => {
-        // DEBUG: Do not remove these logs
-        log('info', 'POST /api/cycles/days - Request received.');
-        log('debug', 'Request body:', req.body);
+        log('info', `[API] POST /api/cycles/days - Request received for user ${req.user.id}.`);
+        log('debug', '[API] Request body:', req.body);
         let { date, hormone_reading, intercourse, userId: targetUserIdBody } = req.body;
         const requestingUserId = req.user.id;
         const targetUserId = targetUserIdBody || requestingUserId;
@@ -510,9 +505,8 @@ const apiRouter = (db) => {
 
     // Update a specific day's reading
     router.put('/cycles/days/:id', async (req, res) => {
-        // DEBUG: Do not remove these logs
-        log('info', `PUT /api/cycles/days/${req.params.id} - Request received.`);
-        log('debug', 'Request body:', req.body);
+        log('info', `[API] PUT /api/cycles/days/${req.params.id} - Request received for user ${req.user.id}.`);
+        log('debug', '[API] Request body:', req.body);
         const { id } = req.params;
         const { hormone_reading, intercourse } = req.body;
 

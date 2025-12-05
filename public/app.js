@@ -528,6 +528,7 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
 
     dayDiv.querySelector('.reading-select').addEventListener('change', (e) => {
         const newReading = e.target.value;
+        log('info', `[EDIT_DAY] Reading changed for day ${dayData.date}. New value: ${newReading}`);
         logOrUpdateReading({
             id: dayData.id,
             date: dayData.date,
@@ -539,6 +540,7 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
 
     dayDiv.querySelector('.intercourse-checkbox').addEventListener('change', (e) => {
         const newIntercourse = e.target.checked;
+        log('info', `[EDIT_DAY] Intercourse changed for day ${dayData.date}. New value: ${newIntercourse}`);
         logOrUpdateReading({
             id: dayData.id,
             date: dayData.date,
@@ -553,6 +555,7 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
 
 async function logOrUpdateReading(payload, elements) {
     const { id, date, hormone_reading, intercourse, cycle_id, userId } = payload;
+    log('info', `[API_CALL] logOrUpdateReading called with payload:`, payload);
     const isUpdate = id !== undefined;
     const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
     const method = isUpdate ? 'PUT' : 'POST';
@@ -561,14 +564,20 @@ async function logOrUpdateReading(payload, elements) {
     if (hormone_reading !== undefined) body.hormone_reading = hormone_reading;
     if (intercourse !== undefined) body.intercourse = intercourse;
 
+    log('info', `[API_CALL] Sending ${method} to ${url} with body:`, body);
+
     try {
         const response = await fetch(url, {
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        if (!response.ok) throw new Error('Failed to save reading');
-        fetchAndRenderData(elements); // Refresh data
+        if (!response.ok) {
+            log('error', `[API_CALL] Failed to save reading. Server responded with ${response.status}`);
+            throw new Error('Failed to save reading');
+        }
+        log('info', '[API_CALL] Save successful. Refreshing data.');
+        fetchAndRenderData(elements, currentlyViewedUserId); // Refresh data
     } catch (error) {
         console.error('Error saving reading:', error);
     }
@@ -598,6 +607,7 @@ function toggleEditMode(cycleDiv, cycleId, elements) {
 
 async function handleReadingSubmit(e, elements) {
     e.preventDefault();
+    log('info', '[ADD_READING] "Log Reading" form submitted.');
     const date = document.getElementById('date').value;
     const hormone_reading = document.getElementById('reading').value;
     const intercourse = document.getElementById('intercourse-checkbox').checked;
@@ -657,9 +667,9 @@ async function handleNewCycleSubmit(elements) {
             throw new Error(errorData.error || 'Failed to start new cycle.');
         }
 
-        log('info', 'Successfully started new cycle. Refreshing data...');
-        startDateInput.value = new Date().toISOString().split('T')[0]; // Reset input
-        fetchAndRenderData(elements, currentlyViewedUserId); // Refresh the UI, preserving the view
+    log('info', '[NEW_CYCLE] Successfully started new cycle. Refreshing data...');
+    startDateInput.value = new Date().toISOString().split('T')[0]; // Reset input
+    fetchAndRenderData(elements, currentlyViewedUserId); // Refresh the UI, preserving the view
     } catch (error) {
         console.error('Error starting new cycle:', error);
         alert(error.message);
@@ -667,6 +677,7 @@ async function handleNewCycleSubmit(elements) {
 }
 
 async function deleteCycle(id, elements) {
+    log('info', `[DELETE_CYCLE] Attempting to delete cycle ID: ${id}`);
     try {
         const response = await fetch(`/api/cycles/${id}`, { method: 'DELETE' });
 
@@ -685,6 +696,7 @@ async function deleteCycle(id, elements) {
 
 async function deleteReading(id, elements) {
     if (!id) return; // Ignore if there's no ID (for unsaved days)
+    log('info', `[DELETE_DAY] Attempting to delete day reading ID: ${id}`);
     try {
         const response = await fetch(`/api/cycles/days/${id}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Failed to delete reading');
