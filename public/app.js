@@ -638,7 +638,7 @@ async function handleNewCycleSubmit(elements) {
 
         log('info', 'Successfully started new cycle. Refreshing data...');
         startDateInput.value = new Date().toISOString().split('T')[0]; // Reset input
-        fetchAndRenderData(elements); // Refresh the UI
+        fetchAndRenderData(elements, currentlyViewedUserId); // Refresh the UI, preserving the view
     } catch (error) {
         console.error('Error starting new cycle:', error);
         alert(error.message);
@@ -646,7 +646,20 @@ async function handleNewCycleSubmit(elements) {
 }
 
 async function deleteCycle(id, elements) {
-    // ... function implementation
+    try {
+        const response = await fetch(`/api/cycles/${id}`, { method: 'DELETE' });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to delete cycle.');
+        }
+
+        log('info', `Successfully deleted cycle ${id}. Refreshing data...`);
+        fetchAndRenderData(elements, currentlyViewedUserId); // Refresh the UI, preserving the view
+    } catch (error) {
+        console.error('Error deleting cycle:', error);
+        alert(error.message);
+    }
 }
 
 async function deleteReading(id, elements) {
