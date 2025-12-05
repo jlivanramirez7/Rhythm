@@ -95,15 +95,20 @@ const getFilledCycle = async (cycleId, db) => {
  * @param {object} data - The reading data, including cycle_id, date, hormone_reading, and intercourse.
  */
 const upsertReading = async (db, data) => {
-    const { cycle_id, date, hormone_reading, intercourse, userId } = data;
+    const { cycle_id, date, hormone_reading, intercourse, userId, requestingUserId } = data;
     const isPostgres = db.adapter === 'postgres';
+
+    // Security Check: The user making the request must be the owner or a partner
+    const cycleOwner = await db.get(sql('SELECT user_id FROM cycles WHERE id = ?', isPostgres), [cycle_id]);
+    if (!cycleOwner || (cycleOwner.user_id !== requestingUserId && cycleOwner.partner_id !== requestingUserId)) {
+        throw new Error('Forbidden: You do not have permission to edit this cycle.');
+    }
 
     const findExistingSql = sql(`
         SELECT cd.id FROM cycle_days cd
-        JOIN cycles c ON cd.cycle_id = c.id
-        WHERE cd.cycle_id = ? AND cd.date = ? AND c.user_id = ?
+        WHERE cd.cycle_id = ? AND cd.date = ?
     `, isPostgres);
-    const existingReading = await db.get(findExistingSql, [cycle_id, date, userId]);
+    const existingReading = await db.get(findExistingSql, [cycle_id, date]);
 
     if (existingReading) {
         const fieldsToUpdate = [];
@@ -211,28 +216,36 @@ const apiRouter = (db) => {
      * @param {object} req.body - { start_date: string }
      */
     router.post('/cycles', async (req, res) => {
-        // DEBUG: Do not remove these logs
         log('info', 'POST /api/cycles - Request received.');
         log('debug', 'Request body:', req.body);
-
-        const { start_date } = req.body;
-        const userId = req.user.id;
-
+    
+        const { start_date, userId: targetUserIdBody } = req.body;
+        const requestingUserId = req.user.id;
+        const targetUserId = targetUserIdBody || requestingUserId;
+    
+        // Security Check
+        if (targetUserId !== requestingUserId) {
+            const partnerCheck = await db.get(sql('SELECT id FROM users WHERE id = ? AND partner_id = ?', isPostgres), [targetUserId, requestingUserId]);
+            if (!partnerCheck) {
+                return res.status(403).json({ error: 'Forbidden: You do not have permission to create a cycle for this user.' });
+            }
+        }
+    
         if (!start_date) {
             log('warn', 'POST /api/cycles - Bad request: start_date is missing.');
             return res.status(400).json({ error: 'start_date is required' });
         }
 
         try {
-            log('debug', `POST /api/cycles - Finding previous cycle for user ${userId}.`);
+            log('debug', `POST /api/cycles - Finding previous cycle for user ${targetUserId}.`);
             const findPreviousCycleSql = sql(`SELECT id FROM cycles WHERE user_id = ? AND end_date IS NULL ORDER BY start_date DESC LIMIT 1`, isPostgres);
-            const previousCycle = await db.get(findPreviousCycleSql, [userId]);
+            const previousCycle = await db.get(findPreviousCycleSql, [targetUserId]);
 
             const formattedStartDate = start_date;
 
             const insertNewCycle = async () => {
                 const insertCycleSql = sql(`INSERT INTO cycles (user_id, start_date) VALUES (?, ?)`, isPostgres);
-                const result = await db.run(insertCycleSql, [userId, formattedStartDate]);
+                const result = await db.run(insertCycleSql, [targetUserId, formattedStartDate]);
                 const newCycleId = result.lastID;
 
                 const insertDay1Sql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, NULL, false)`, isPostgres);
@@ -303,7 +316,7 @@ const apiRouter = (db) => {
                         date,
                         hormone_reading,
                         intercourse,
-                        userId: req.user.id
+                        requestingUserId: req.user.id
                     });
                 }
             }
@@ -343,7 +356,7 @@ const apiRouter = (db) => {
                 ORDER BY start_date DESC 
                 LIMIT 1
             `, isPostgres);
-            const cycle = await db.get(findCycleSql, [req.user.id, date, date]);
+            const cycle = await db.get(findCycleSql, [currentlyViewedUserId || req.user.id, date, date]);
 
             if (!cycle) {
                 return res.status(404).send('No cycle found for the selected date.');
@@ -354,7 +367,7 @@ const apiRouter = (db) => {
                 date,
                 hormone_reading,
                 intercourse,
-                userId: req.user.id
+                requestingUserId: req.user.id
             });
             
             res.status(200).json({ success: true });

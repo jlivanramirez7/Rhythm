@@ -36,6 +36,7 @@ const instructions = [
 ];
 
 let currentInstruction = 0;
+let currentlyViewedUserId = null; // Track the user whose data is being viewed
 
 document.addEventListener('DOMContentLoaded', () => {
     log('info', 'DOM fully loaded and parsed.');
@@ -165,6 +166,7 @@ function initializeEventListeners(elements) {
 }
 
 async function fetchAndRenderData(elements, viewAsUserId = null) {
+    currentlyViewedUserId = viewAsUserId; // Update the global tracker
     log('info', `[START] fetchAndRenderData: Fetching data for user: ${viewAsUserId || 'self'}.`);
     try {
         const cacheBust = `?t=${new Date().getTime()}`;
@@ -548,12 +550,12 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
 }
 
 async function logOrUpdateReading(payload, elements) {
-    const { id, date, hormone_reading, intercourse, cycle_id } = payload;
+    const { id, date, hormone_reading, intercourse, cycle_id, userId } = payload;
     const isUpdate = id !== undefined;
     const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
     const method = isUpdate ? 'PUT' : 'POST';
 
-    const body = { date, cycle_id };
+    const body = { date, cycle_id, userId };
     if (hormone_reading !== undefined) body.hormone_reading = hormone_reading;
     if (intercourse !== undefined) body.intercourse = intercourse;
 
@@ -593,7 +595,24 @@ function toggleEditMode(cycleDiv, cycleId, elements) {
 }
 
 async function handleReadingSubmit(e, elements) {
-    // ... function implementation
+    e.preventDefault();
+    const date = document.getElementById('date').value;
+    const hormone_reading = document.getElementById('reading').value;
+    const intercourse = document.getElementById('intercourse-checkbox').checked;
+
+    if (!date) {
+        alert('Please select a date.');
+        return;
+    }
+
+    const payload = {
+        date,
+        hormone_reading: hormone_reading || null,
+        intercourse,
+        userId: currentlyViewedUserId
+    };
+
+    logOrUpdateReading(payload, elements);
 }
 
 async function handleNewCycleSubmit(elements) {
@@ -609,7 +628,7 @@ async function handleNewCycleSubmit(elements) {
         const response = await fetch('/api/cycles', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ start_date }),
+            body: JSON.stringify({ start_date, userId: currentlyViewedUserId }),
         });
 
         if (!response.ok) {
