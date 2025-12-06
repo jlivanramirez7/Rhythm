@@ -44,18 +44,20 @@ const getFilledCycle = async (cycleId, db) => {
     const startDate = moment.utc(cycle.start_date);
 
     let lastDate;
+    log('debug', `[GET_FILLED] Raw cycle object received:`, cycle);
     if (cycle.end_date) {
         lastDate = moment(cycle.end_date).endOf('day');
-        log('debug', `[GET_FILLED] Using explicit end_date for lastDate: ${lastDate.format('YYYY-MM-DD')}`);
+        log('debug', `[GET_FILLED] LOGIC PATH 1: Using explicit end_date. Calculated lastDate: ${lastDate.format()}`);
     } else if (days.length > 0) {
         lastDate = moment(days[days.length - 1].date).endOf('day');
-        log('debug', `[GET_FILLED] Using last reading date for lastDate: ${lastDate.format('YYYY-MM-DD')}`);
+        log('debug', `[GET_FILLED] LOGIC PATH 2: Using last reading date. Calculated lastDate: ${lastDate.format()}`);
     } else {
         lastDate = startDate.clone().endOf('day');
-        log('debug', `[GET_FILLED] No readings and no end_date. Using start_date for lastDate: ${lastDate.format('YYYY-MM-DD')}`);
+        log('debug', `[GET_FILLED] LOGIC PATH 3: Defaulting to start_date. Calculated lastDate: ${lastDate.format()}`);
     }
     
     let currentDate = startDate.clone();
+    log('debug', `[GET_FILLED] Loop will run from ${currentDate.format()} until ${lastDate.format()}`);
     while (currentDate.isSameOrBefore(lastDate)) {
         const dateStr = currentDate.format('YYYY-MM-DD');
         const existingDay = daysMap.get(dateStr);
@@ -236,14 +238,22 @@ const apiRouter = (db) => {
         }
 
         try {
+            log('info', `[NEW_CYCLE_LOGIC] --- START ---`);
             const findPreviousCycleSql = sql(`SELECT id FROM cycles WHERE user_id = ? AND end_date IS NULL ORDER BY start_date DESC LIMIT 1`, isPostgres);
+            log('info', `[NEW_CYCLE_LOGIC] Find Previous SQL: ${findPreviousCycleSql} | Params: [${targetUserId}]`);
             const previousCycle = await db.get(findPreviousCycleSql, [targetUserId]);
 
             if (previousCycle) {
                 const previousCycleEndDate = moment.utc(start_date).subtract(1, 'days').format('YYYY-MM-DD');
+                log('info', `[NEW_CYCLE_LOGIC] Previous cycle ${previousCycle.id} found. Calculated end date: ${previousCycleEndDate}.`);
                 
                 const updatePreviousCycleSql = sql(`UPDATE cycles SET end_date = ? WHERE id = ?`, isPostgres);
-                await db.run(updatePreviousCycleSql, [previousCycleEndDate, previousCycle.id]);
+                log('info', `[NEW_CYCLE_LOGIC] Update Previous SQL: ${updatePreviousCycleSql} | Params: [${previousCycleEndDate}, ${previousCycle.id}]`);
+                const updateResult = await db.run(updatePreviousCycleSql, [previousCycleEndDate, previousCycle.id]);
+                log('info', `[NEW_CYCLE_LOGIC] DB update result:`, updateResult);
+
+            } else {
+                log('info', `[NEW_CYCLE_LOGIC] No previous open cycle found for user ${targetUserId}.`);
             }
 
             const insertCycleSql = sql(`INSERT INTO cycles (user_id, start_date) VALUES (?, ?)`, isPostgres);
