@@ -1,3 +1,4 @@
+# Forcing a clean build to deploy all recent fixes.
 steps:
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'

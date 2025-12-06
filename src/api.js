@@ -248,9 +248,10 @@ const apiRouter = (db) => {
 
         try {
             log('info', `[NEW_CYCLE_LOGIC] --- START ---`);
-            const findPreviousCycleSql = sql(`SELECT id FROM cycles WHERE user_id = ? AND end_date IS NULL ORDER BY start_date DESC LIMIT 1`, isPostgres);
-            log('info', `[NEW_CYCLE_LOGIC] Find Previous SQL: ${findPreviousCycleSql} | Params: [${targetUserId}]`);
-            const previousCycle = await db.get(findPreviousCycleSql, [targetUserId]);
+            const findPreviousCycleSql = sql(`SELECT id FROM cycles WHERE user_id = ? AND start_date < ? ORDER BY start_date DESC LIMIT 1`, isPostgres);
+            log('info', `[NEW_CYCLE_LOGIC] Find Previous SQL: ${findPreviousCycleSql} | Params: [${targetUserId}, ${start_date}]`);
+            const previousCycle = await db.get(findPreviousCycleSql, [targetUserId, start_date]);
+            log('info', `[NEW_CYCLE_LOGIC] DB result for previous cycle:`, previousCycle);
 
             if (previousCycle) {
                 const previousCycleEndDate = moment.utc(start_date).subtract(1, 'days').format('YYYY-MM-DD');
