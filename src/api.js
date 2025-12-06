@@ -44,12 +44,13 @@ const getFilledCycle = async (cycleId, db) => {
     const filledDays = [];
     const startDate = moment.utc(cycle.start_date);
 
-    let lastDate = startDate.clone();
-    if (days.length > 0) {
-        const lastReadingDate = new Date(days[days.length - 1].date);
-        if (lastReadingDate > lastDate) {
-            lastDate = lastReadingDate;
-        }
+    let lastDate;
+    if (cycle.end_date) {
+        lastDate = moment.utc(cycle.end_date);
+    } else if (days.length > 0) {
+        lastDate = moment.utc(days[days.length - 1].date);
+    } else {
+        lastDate = startDate.clone();
     }
     
     let currentDate = startDate.clone();
@@ -233,36 +234,25 @@ const apiRouter = (db) => {
         }
 
         try {
-            log('debug', `POST /api/cycles - Finding previous cycle for user ${targetUserId}.`);
             const findPreviousCycleSql = sql(`SELECT id FROM cycles WHERE user_id = ? AND end_date IS NULL ORDER BY start_date DESC LIMIT 1`, isPostgres);
             const previousCycle = await db.get(findPreviousCycleSql, [targetUserId]);
 
-            const formattedStartDate = start_date;
-
-            const insertNewCycle = async () => {
-                const insertCycleSql = sql(`INSERT INTO cycles (user_id, start_date) VALUES (?, ?)`, isPostgres);
-                const result = await db.run(insertCycleSql, [targetUserId, formattedStartDate]);
-                const newCycleId = result.lastID;
-
-                const insertDay1Sql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, NULL, false)`, isPostgres);
-                await db.run(insertDay1Sql, [newCycleId, formattedStartDate]);
-
-                res.status(201).json({ id: newCycleId, start_date: formattedStartDate });
-            };
-
             if (previousCycle) {
-                log('debug', `POST /api/cycles - Previous cycle found (ID: ${previousCycle.id}). Updating its end_date.`);
-                const previousCycleEndDate = new Date(formattedStartDate);
-                previousCycleEndDate.setDate(previousCycleEndDate.getDate() - 1);
-                const formattedPreviousCycleEndDate = previousCycleEndDate.toISOString().split('T')[0];
-
+                log('debug', `[API] Previous open cycle found (ID: ${previousCycle.id}). Updating its end_date.`);
+                const previousCycleEndDate = moment.utc(start_date).subtract(1, 'days').format('YYYY-MM-DD');
+                
                 const updatePreviousCycleSql = sql(`UPDATE cycles SET end_date = ? WHERE id = ?`, isPostgres);
-                await db.run(updatePreviousCycleSql, [formattedPreviousCycleEndDate, previousCycle.id]);
-                await insertNewCycle();
-            } else {
-                log('debug', 'POST /api/cycles - No previous cycle found. Creating first cycle.');
-                await insertNewCycle();
+                await db.run(updatePreviousCycleSql, [previousCycleEndDate, previousCycle.id]);
             }
+
+            const insertCycleSql = sql(`INSERT INTO cycles (user_id, start_date) VALUES (?, ?)`, isPostgres);
+            const result = await db.run(insertCycleSql, [targetUserId, start_date]);
+            const newCycleId = result.lastID;
+
+            const insertDay1Sql = sql(`INSERT INTO cycle_days (cycle_id, date) VALUES (?, ?)`, isPostgres);
+            await db.run(insertDay1Sql, [newCycleId, start_date]);
+            
+            res.status(201).json({ id: newCycleId, start_date: start_date });
         } catch (err) {
             log('error', 'Error in POST /api/cycles:', err);
             res.status(500).json({ error: 'Failed to create a new cycle', details: err.message });
