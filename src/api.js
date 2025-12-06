@@ -236,30 +236,22 @@ const apiRouter = (db) => {
         }
 
         try {
-            log('info', `[NEW_CYCLE] Checking for previous open cycle for user ${targetUserId}.`);
             const findPreviousCycleSql = sql(`SELECT id FROM cycles WHERE user_id = ? AND end_date IS NULL ORDER BY start_date DESC LIMIT 1`, isPostgres);
             const previousCycle = await db.get(findPreviousCycleSql, [targetUserId]);
 
             if (previousCycle) {
                 const previousCycleEndDate = moment.utc(start_date).subtract(1, 'days').format('YYYY-MM-DD');
-                log('info', `[NEW_CYCLE] Previous cycle ${previousCycle.id} found. Setting its end_date to ${previousCycleEndDate}.`);
                 
                 const updatePreviousCycleSql = sql(`UPDATE cycles SET end_date = ? WHERE id = ?`, isPostgres);
-                const updateResult = await db.run(updatePreviousCycleSql, [previousCycleEndDate, previousCycle.id]);
-                log('info', `[NEW_CYCLE] Previous cycle update result:`, updateResult);
-            } else {
-                log('info', '[NEW_CYCLE] No previous open cycle found.');
+                await db.run(updatePreviousCycleSql, [previousCycleEndDate, previousCycle.id]);
             }
 
-            log('info', `[NEW_CYCLE] Inserting new cycle for user ${targetUserId} with start_date ${start_date}.`);
             const insertCycleSql = sql(`INSERT INTO cycles (user_id, start_date) VALUES (?, ?)`, isPostgres);
             const result = await db.run(insertCycleSql, [targetUserId, start_date]);
             const newCycleId = result.lastID;
-            log('info', `[NEW_CYCLE] New cycle inserted with ID: ${newCycleId}.`);
 
             const insertDay1Sql = sql(`INSERT INTO cycle_days (cycle_id, date) VALUES (?, ?)`, isPostgres);
             await db.run(insertDay1Sql, [newCycleId, start_date]);
-            log('info', `[NEW_CYCLE] Inserted day 1 for new cycle ${newCycleId}.`);
             
             res.status(201).json({ id: newCycleId, start_date: start_date });
         } catch (err) {
