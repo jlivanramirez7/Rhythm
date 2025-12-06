@@ -488,15 +488,28 @@ const apiRouter = (db) => {
 
     // Delete a cycle and all its readings
     router.delete('/cycles/:id', async (req, res) => {
-        // DEBUG: Do not remove these logs
-        log('info', `DELETE /api/cycles/${req.params.id} - Request received.`);
+        log('info', `[API] DELETE /api/cycles/${req.params.id} - Request received from user ${req.user.id}.`);
         const { id } = req.params;
-        const userId = req.user.id;
+        const requestingUserId = req.user.id;
+
         try {
+            // Security Check: Verify ownership before deleting
+            const cycle = await db.get(sql('SELECT user_id FROM cycles WHERE id = ?', isPostgres), [id]);
+            if (!cycle) {
+                return res.status(404).json({ error: 'Cycle not found.' });
+            }
+
+            const owner = await db.get(sql('SELECT id, partner_id FROM users WHERE id = ?', isPostgres), [cycle.user_id]);
+            if (!owner || (owner.id !== requestingUserId && owner.partner_id !== requestingUserId)) {
+                log('warn', `[API] Forbidden attempt by user ${requestingUserId} to delete cycle ${id} owned by user ${cycle.user_id}.`);
+                return res.status(403).json({ error: 'Forbidden: You do not have permission to delete this cycle.' });
+            }
+
+            log('info', `[API] User ${requestingUserId} authorized to delete cycle ${id}. Proceeding with deletion.`);
             await db.run(sql(`DELETE FROM cycle_days WHERE cycle_id = ?`, isPostgres), [id]);
-            const result = await db.run(sql(`DELETE FROM cycles WHERE id = ? AND user_id = ?`, isPostgres), [id, userId]);
+            await db.run(sql(`DELETE FROM cycles WHERE id = ?`, isPostgres), [id]);
             
-            res.status(200).send('Cycle deleted successfully.');
+            res.status(200).json({ message: 'Cycle deleted successfully.' });
         } catch (err) {
             log('error', `Error in DELETE /api/cycles/${id}:`, err);
             res.status(500).json({ error: 'Failed to delete cycle', details: err.message });
