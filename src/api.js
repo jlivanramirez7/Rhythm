@@ -43,18 +43,27 @@ const getFilledCycle = async (cycleId, db) => {
     const filledDays = [];
     const startDate = moment.utc(cycle.start_date);
 
-    let lastDate;
+    let lastDate = startDate.clone();
     log('debug', `[GET_FILLED] Raw cycle object received:`, cycle);
+
     if (cycle.end_date) {
-        lastDate = moment(cycle.end_date).endOf('day');
-        log('debug', `[GET_FILLED] LOGIC PATH 1: Using explicit end_date. Calculated lastDate: ${lastDate.format()}`);
-    } else if (days.length > 0) {
-        lastDate = moment(days[days.length - 1].date).endOf('day');
-        log('debug', `[GET_FILLED] LOGIC PATH 2: Using last reading date. Calculated lastDate: ${lastDate.format()}`);
-    } else {
-        lastDate = startDate.clone().endOf('day');
-        log('debug', `[GET_FILLED] LOGIC PATH 3: Defaulting to start_date. Calculated lastDate: ${lastDate.format()}`);
+        const cycleEndDate = moment(cycle.end_date);
+        if (cycleEndDate.isAfter(lastDate)) {
+            lastDate = cycleEndDate;
+            log('debug', `[GET_FILLED] Updated lastDate based on cycle.end_date: ${lastDate.format()}`);
+        }
     }
+    
+    if (days.length > 0) {
+        const lastReadingDate = moment(days[days.length - 1].date);
+        if (lastReadingDate.isAfter(lastDate)) {
+            lastDate = lastReadingDate;
+            log('debug', `[GET_FILLED] Updated lastDate based on last reading: ${lastDate.format()}`);
+        }
+    }
+
+    lastDate.endOf('day');
+    log('debug', `[GET_FILLED] Final lastDate for loop: ${lastDate.format()}`);
     
     let currentDate = startDate.clone();
     log('debug', `[GET_FILLED] Loop will run from ${currentDate.format()} until ${lastDate.format()}`);
