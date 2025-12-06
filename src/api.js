@@ -45,13 +45,13 @@ const getFilledCycle = async (cycleId, db) => {
 
     let lastDate;
     if (cycle.end_date) {
-        lastDate = moment.utc(cycle.end_date);
+        lastDate = moment(cycle.end_date).endOf('day');
         log('debug', `[GET_FILLED] Using explicit end_date for lastDate: ${lastDate.format('YYYY-MM-DD')}`);
     } else if (days.length > 0) {
-        lastDate = moment.utc(days[days.length - 1].date);
+        lastDate = moment(days[days.length - 1].date).endOf('day');
         log('debug', `[GET_FILLED] Using last reading date for lastDate: ${lastDate.format('YYYY-MM-DD')}`);
     } else {
-        lastDate = startDate.clone();
+        lastDate = startDate.clone().endOf('day');
         log('debug', `[GET_FILLED] No readings and no end_date. Using start_date for lastDate: ${lastDate.format('YYYY-MM-DD')}`);
     }
     
