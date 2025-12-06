@@ -573,8 +573,17 @@ async function logOrUpdateReading(payload, elements) {
             body: JSON.stringify(body)
         });
         if (!response.ok) {
-            log('error', `[API_CALL] Failed to save reading. Server responded with ${response.status}`);
-            throw new Error('Failed to save reading');
+            let errorMsg = 'Failed to save reading.';
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.error || errorMsg;
+            } catch (e) {
+                // If the response is not JSON, use its text content
+                const textError = await response.text();
+                errorMsg = textError || errorMsg;
+            }
+            log('error', `[API_CALL] Failed to save reading. Server responded with ${response.status}. Message: ${errorMsg}`);
+            throw new Error(errorMsg);
         }
         log('info', '[API_CALL] Save successful. Refreshing data.');
         fetchAndRenderData(elements, currentlyViewedUserId); // Refresh data
@@ -611,37 +620,23 @@ async function handleReadingSubmit(e, elements) {
     const date = document.getElementById('date').value;
     const hormone_reading = document.getElementById('reading').value;
     const intercourse = document.getElementById('intercourse-checkbox').checked;
-    const isRange = document.getElementById('range-checkbox').checked;
-    const endDate = document.getElementById('end-date').value;
 
     if (!date) {
         alert('Please select a date.');
         return;
     }
-    
-    const body = {
-        start_date: date,
-        end_date: isRange ? endDate : date,
+
+    const payload = {
+        date,
         hormone_reading: hormone_reading || null,
         intercourse,
-        userId: currentlyViewedUserId
+        userId: currentlyViewedUserId,
     };
 
-    const url = isRange ? '/api/cycles/days/range' : '/api/cycles/days';
-
     try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to log reading.');
-        }
-        fetchAndRenderData(elements, currentlyViewedUserId);
+        await logOrUpdateReading(payload, elements);
     } catch (error) {
-        console.error('Error logging reading:', error);
+        console.error('Error from submit:', error);
         alert(error.message);
     }
 }
@@ -663,11 +658,18 @@ async function handleNewCycleSubmit(elements) {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to start new cycle.');
+            let errorMsg = 'Failed to start new cycle.';
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.error || errorMsg;
+            } catch (e) {
+                const textError = await response.text();
+                errorMsg = textError || errorMsg;
+            }
+            throw new Error(errorMsg);
         }
 
-    log('info', '[NEW_CYCLE] Successfully started new cycle. Refreshing data...');
+        log('info', '[NEW_CYCLE] Successfully started new cycle. Refreshing data...');
     startDateInput.value = new Date().toISOString().split('T')[0]; // Reset input
     fetchAndRenderData(elements, currentlyViewedUserId); // Refresh the UI, preserving the view
     } catch (error) {
