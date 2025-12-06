@@ -18,8 +18,7 @@ const log = (level, message, ...args) => {
  * @returns {Promise<object|null>} A promise that resolves with the filled cycle object, or null if not found.
  */
 const getFilledCycle = async (cycleId, db) => {
-    // DEBUG: Do not remove these logs
-    log('debug', `getFilledCycle: Filling cycle for ID: ${cycleId}`);
+    log('debug', `[GET_FILLED] --- START: Filling cycle for ID: ${cycleId} ---`);
     const isPostgres = db.adapter === 'postgres';
     const cycleSql = sql(`SELECT * FROM cycles WHERE id = ?`, isPostgres);
     const cycle = await db.get(cycleSql, [cycleId]);
@@ -47,10 +46,13 @@ const getFilledCycle = async (cycleId, db) => {
     let lastDate;
     if (cycle.end_date) {
         lastDate = moment.utc(cycle.end_date);
+        log('debug', `[GET_FILLED] Using explicit end_date for lastDate: ${lastDate.format('YYYY-MM-DD')}`);
     } else if (days.length > 0) {
         lastDate = moment.utc(days[days.length - 1].date);
+        log('debug', `[GET_FILLED] Using last reading date for lastDate: ${lastDate.format('YYYY-MM-DD')}`);
     } else {
         lastDate = startDate.clone();
+        log('debug', `[GET_FILLED] No readings and no end_date. Using start_date for lastDate: ${lastDate.format('YYYY-MM-DD')}`);
     }
     
     let currentDate = startDate.clone();
@@ -234,23 +236,30 @@ const apiRouter = (db) => {
         }
 
         try {
+            log('info', `[NEW_CYCLE] Checking for previous open cycle for user ${targetUserId}.`);
             const findPreviousCycleSql = sql(`SELECT id FROM cycles WHERE user_id = ? AND end_date IS NULL ORDER BY start_date DESC LIMIT 1`, isPostgres);
             const previousCycle = await db.get(findPreviousCycleSql, [targetUserId]);
 
             if (previousCycle) {
-                log('debug', `[API] Previous open cycle found (ID: ${previousCycle.id}). Updating its end_date.`);
                 const previousCycleEndDate = moment.utc(start_date).subtract(1, 'days').format('YYYY-MM-DD');
+                log('info', `[NEW_CYCLE] Previous cycle ${previousCycle.id} found. Setting its end_date to ${previousCycleEndDate}.`);
                 
                 const updatePreviousCycleSql = sql(`UPDATE cycles SET end_date = ? WHERE id = ?`, isPostgres);
-                await db.run(updatePreviousCycleSql, [previousCycleEndDate, previousCycle.id]);
+                const updateResult = await db.run(updatePreviousCycleSql, [previousCycleEndDate, previousCycle.id]);
+                log('info', `[NEW_CYCLE] Previous cycle update result:`, updateResult);
+            } else {
+                log('info', '[NEW_CYCLE] No previous open cycle found.');
             }
 
+            log('info', `[NEW_CYCLE] Inserting new cycle for user ${targetUserId} with start_date ${start_date}.`);
             const insertCycleSql = sql(`INSERT INTO cycles (user_id, start_date) VALUES (?, ?)`, isPostgres);
             const result = await db.run(insertCycleSql, [targetUserId, start_date]);
             const newCycleId = result.lastID;
+            log('info', `[NEW_CYCLE] New cycle inserted with ID: ${newCycleId}.`);
 
             const insertDay1Sql = sql(`INSERT INTO cycle_days (cycle_id, date) VALUES (?, ?)`, isPostgres);
             await db.run(insertDay1Sql, [newCycleId, start_date]);
+            log('info', `[NEW_CYCLE] Inserted day 1 for new cycle ${newCycleId}.`);
             
             res.status(201).json({ id: newCycleId, start_date: start_date });
         } catch (err) {
