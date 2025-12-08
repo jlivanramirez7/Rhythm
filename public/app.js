@@ -526,29 +526,24 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
         }
     });
 
-    dayDiv.querySelector('.reading-select').addEventListener('change', (e) => {
-        const newReading = e.target.value;
-        log('info', `[EDIT_DAY] Reading changed for day ${dayData.date}. New value: ${newReading}`);
+    const handleDayUpdate = () => {
+        const newReading = dayDiv.querySelector('.reading-select').value;
+        const newIntercourse = dayDiv.querySelector('.intercourse-checkbox').checked;
+
+        log('info', `[EDIT_DAY] Day updated for ${dayData.date}. New reading: ${newReading}, New intercourse: ${newIntercourse}`);
+        
         logOrUpdateReading({
             id: dayData.id,
             date: dayData.date,
             hormone_reading: newReading,
-            cycle_id: cycle.id,
-            userId: currentlyViewedUserId
-        }, elements);
-    });
-
-    dayDiv.querySelector('.intercourse-checkbox').addEventListener('change', (e) => {
-        const newIntercourse = e.target.checked;
-        log('info', `[EDIT_DAY] Intercourse changed for day ${dayData.date}. New value: ${newIntercourse}`);
-        logOrUpdateReading({
-            id: dayData.id,
-            date: dayData.date,
             intercourse: newIntercourse,
             cycle_id: cycle.id,
             userId: currentlyViewedUserId
         }, elements);
-    });
+    };
+
+    dayDiv.querySelector('.reading-select').addEventListener('change', handleDayUpdate);
+    dayDiv.querySelector('.intercourse-checkbox').addEventListener('change', handleDayUpdate);
 
     return dayDiv;
 }
