@@ -109,23 +109,25 @@ const getFilledCycle = async (cycleId, db) => {
  * @param {object} data - The reading data, including cycle_id, date, hormone_reading, and intercourse.
  */
 const upsertReading = async (db, data) => {
-    const { cycle_id, date, hormone_reading, intercourse, userId } = data;
+    const { cycle_id, date, hormone_reading, intercourse } = data;
     log('debug', '[UPSERT] upsertReading called with data:', data);
     const isPostgres = db.adapter === 'postgres';
 
-    const findExistingSql = sql(`
-        SELECT cd.id FROM cycle_days cd
-        WHERE cd.cycle_id = ? AND cd.date = ?
-    `, isPostgres);
+    const findExistingSql = sql(`SELECT * FROM cycle_days WHERE cycle_id = ? AND date = ?`, isPostgres);
     const existingReading = await db.get(findExistingSql, [cycle_id, date]);
 
     if (existingReading) {
         const fieldsToUpdate = [];
         const values = [];
-        if (hormone_reading !== undefined) {
+
+        // Only add hormone_reading to the update if it's a non-empty string.
+        // This prevents overwriting an existing reading with null if the user only updates intercourse.
+        if (hormone_reading) {
             fieldsToUpdate.push('hormone_reading = ?');
             values.push(hormone_reading);
         }
+
+        // Only add intercourse to the update if it's defined in the payload.
         if (intercourse !== undefined) {
             fieldsToUpdate.push('intercourse = ?');
             values.push(intercourse ? 1 : 0);
@@ -138,9 +140,12 @@ const upsertReading = async (db, data) => {
             log('debug', `[UPSERT] UPDATE result:`, result);
         }
     } else {
+        // For new entries, we can use the provided values directly.
         const intercourseValue = intercourse ? 1 : 0;
+        // Use the hormone_reading if provided, otherwise default to null.
+        const readingValue = hormone_reading || null;
         const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?)`, isPostgres);
-        const result = await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
+        const result = await db.run(insertSql, [cycle_id, date, readingValue, intercourseValue]);
         log('debug', `[UPSERT] INSERT result:`, result);
     }
 };
