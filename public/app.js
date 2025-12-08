@@ -526,32 +526,35 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
         }
     });
 
-    const handleDayUpdate = () => {
-        const newReading = dayDiv.querySelector('.reading-select').value;
-        const newIntercourse = dayDiv.querySelector('.intercourse-checkbox').checked;
-
-        log('info', `[EDIT_DAY] Day updated for ${dayData.date}. New reading: ${newReading}, New intercourse: ${newIntercourse}`);
-        
+    dayDiv.querySelector('.reading-select').addEventListener('change', (e) => {
+        const newReading = e.target.value;
+        log('info', `[EDIT_DAY] Reading changed for day ${dayData.date}. New value: ${newReading}`);
         logOrUpdateReading({
             id: dayData.id,
             date: dayData.date,
-            hormone_reading: newReading,
-            intercourse: newIntercourse,
+            hormone_reading: newReading, // Only send the reading
             cycle_id: cycle.id,
             userId: currentlyViewedUserId
         }, elements);
-    };
+    });
 
-    dayDiv.querySelector('.reading-select').addEventListener('change', handleDayUpdate);
-    dayDiv.querySelector('.intercourse-checkbox').addEventListener('change', handleDayUpdate);
+    dayDiv.querySelector('.intercourse-checkbox').addEventListener('change', (e) => {
+        const newIntercourse = e.target.checked;
+        log('info', `[EDIT_DAY] Intercourse changed for day ${dayData.date}. New value: ${newIntercourse}`);
+        logOrUpdateReading({
+            id: dayData.id,
+            date: dayData.date,
+            intercourse: newIntercourse, // Only send the intercourse status
+            cycle_id: cycle.id,
+            userId: currentlyViewedUserId
+        }, elements);
+    });
 
     return dayDiv;
 }
 
 async function logOrUpdateReading(payload, elements) {
     const { id, date, hormone_reading, intercourse, cycle_id, userId } = payload;
-    // --- TROUBLESHOOTING LOG ---
-    console.log('[DEBUG] logOrUpdateReading: Received payload:', JSON.stringify(payload, null, 2));
     
     const isUpdate = id !== undefined;
     const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
@@ -561,9 +564,6 @@ async function logOrUpdateReading(payload, elements) {
     if (hormone_reading !== undefined) body.hormone_reading = hormone_reading;
     if (intercourse !== undefined) body.intercourse = intercourse;
 
-    // --- TROUBLESHOOTING LOG ---
-    console.log(`[DEBUG] logOrUpdateReading: Sending ${method} to ${url} with final body:`, JSON.stringify(body, null, 2));
-
     try {
         const response = await fetch(url, {
             method: method,
@@ -571,17 +571,15 @@ async function logOrUpdateReading(payload, elements) {
             body: JSON.stringify(body)
         });
 
-        // --- TROUBLESHOOTING LOG ---
-        const responseText = await response.text();
-        console.log(`[DEBUG] logOrUpdateReading: Server responded with status ${response.status} and body:`, responseText);
-
         if (!response.ok) {
             let errorMsg = 'Failed to save reading.';
             try {
-                const errorData = JSON.parse(responseText);
+                const errorData = await response.json();
                 errorMsg = errorData.error || errorMsg;
             } catch (e) {
-                errorMsg = responseText || errorMsg;
+                // If the response is not JSON, use its text content
+                const textError = await response.text();
+                errorMsg = textError || errorMsg;
             }
             log('error', `[API_CALL] Failed to save reading. Server responded with ${response.status}. Message: ${errorMsg}`);
             throw new Error(errorMsg);
