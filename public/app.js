@@ -617,27 +617,65 @@ function toggleEditMode(cycleDiv, cycleId, elements) {
 async function handleReadingSubmit(e, elements) {
     e.preventDefault();
     log('info', '[ADD_READING] "Log Reading" form submitted.');
-    const date = document.getElementById('date').value;
+    const rangeCheckbox = document.getElementById('range-checkbox');
+    const startDate = document.getElementById('date').value;
+    const endDate = document.getElementById('end-date').value;
     const hormone_reading = document.getElementById('reading').value;
     const intercourse = document.getElementById('intercourse-checkbox').checked;
 
-    if (!date) {
-        alert('Please select a date.');
+    if (!startDate) {
+        alert('Please select a start date.');
         return;
     }
 
-    const payload = {
-        date,
-        hormone_reading: hormone_reading || null,
-        intercourse,
-        userId: currentlyViewedUserId,
-    };
+    // If the range checkbox is checked, call the range endpoint
+    if (rangeCheckbox.checked) {
+        if (!endDate) {
+            alert('Please select an end date for the range.');
+            return;
+        }
 
-    try {
-        await logOrUpdateReading(payload, elements);
-    } catch (error) {
-        console.error('Error from submit:', error);
-        alert(error.message);
+        const payload = {
+            start_date: startDate,
+            end_date: endDate,
+            hormone_reading: hormone_reading || null,
+            intercourse,
+            userId: currentlyViewedUserId,
+        };
+
+        try {
+            const response = await fetch('/api/cycles/days/range', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to log range.');
+            }
+            fetchAndRenderData(elements, currentlyViewedUserId); // Refresh data
+        } catch (error) {
+            console.error('Error from range submit:', error);
+            alert(error.message);
+        }
+
+    } else {
+        // Otherwise, use the existing single-day logic
+        const payload = {
+            date: startDate,
+            hormone_reading: hormone_reading || null,
+            intercourse,
+            userId: currentlyViewedUserId,
+        };
+
+        try {
+            // The logOrUpdateReading function is designed for single-day updates/inserts.
+            // It will correctly call POST /api/cycles/days.
+            await logOrUpdateReading(payload, elements);
+        } catch (error) {
+            console.error('Error from single day submit:', error);
+            alert(error.message);
+        }
     }
 }
 
