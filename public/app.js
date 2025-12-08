@@ -550,7 +550,9 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
 
 async function logOrUpdateReading(payload, elements) {
     const { id, date, hormone_reading, intercourse, cycle_id, userId } = payload;
-    log('info', `[API_CALL] logOrUpdateReading called with payload:`, payload);
+    // --- TROUBLESHOOTING LOG ---
+    console.log('[DEBUG] logOrUpdateReading: Received payload:', JSON.stringify(payload, null, 2));
+    
     const isUpdate = id !== undefined;
     const url = isUpdate ? `/api/cycles/days/${id}` : '/api/cycles/days';
     const method = isUpdate ? 'PUT' : 'POST';
@@ -559,7 +561,8 @@ async function logOrUpdateReading(payload, elements) {
     if (hormone_reading !== undefined) body.hormone_reading = hormone_reading;
     if (intercourse !== undefined) body.intercourse = intercourse;
 
-    log('info', `[API_CALL] Sending ${method} to ${url} with body:`, body);
+    // --- TROUBLESHOOTING LOG ---
+    console.log(`[DEBUG] logOrUpdateReading: Sending ${method} to ${url} with final body:`, JSON.stringify(body, null, 2));
 
     try {
         const response = await fetch(url, {
@@ -567,19 +570,23 @@ async function logOrUpdateReading(payload, elements) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
+
+        // --- TROUBLESHOOTING LOG ---
+        const responseText = await response.text();
+        console.log(`[DEBUG] logOrUpdateReading: Server responded with status ${response.status} and body:`, responseText);
+
         if (!response.ok) {
             let errorMsg = 'Failed to save reading.';
             try {
-                const errorData = await response.json();
+                const errorData = JSON.parse(responseText);
                 errorMsg = errorData.error || errorMsg;
             } catch (e) {
-                // If the response is not JSON, use its text content
-                const textError = await response.text();
-                errorMsg = textError || errorMsg;
+                errorMsg = responseText || errorMsg;
             }
             log('error', `[API_CALL] Failed to save reading. Server responded with ${response.status}. Message: ${errorMsg}`);
             throw new Error(errorMsg);
         }
+
         log('info', '[API_CALL] Save successful. Refreshing data.');
         fetchAndRenderData(elements, currentlyViewedUserId); // Refresh data
     } catch (error) {

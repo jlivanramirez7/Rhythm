@@ -110,7 +110,8 @@ const getFilledCycle = async (cycleId, db) => {
  */
 const upsertReading = async (db, data) => {
     const { cycle_id, date, hormone_reading, intercourse, userId } = data;
-    log('debug', '[UPSERT] upsertReading called with data:', data);
+    // --- TROUBLESHOOTING LOG ---
+    console.log('[DEBUG] upsertReading: Received data:', JSON.stringify(data, null, 2));
     const isPostgres = db.adapter === 'postgres';
 
     const findExistingSql = sql(`
@@ -134,12 +135,16 @@ const upsertReading = async (db, data) => {
         if (fieldsToUpdate.length > 0) {
             values.push(existingReading.id);
             const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`, isPostgres);
+            // --- TROUBLESHOOTING LOG ---
+            console.log('[DEBUG] upsertReading: Executing UPDATE with SQL:', updateSql, 'and values:', values);
             const result = await db.run(updateSql, values);
             log('debug', `[UPSERT] UPDATE result:`, result);
         }
     } else {
         const intercourseValue = intercourse ? 1 : 0;
         const insertSql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES (?, ?, ?, ?)`, isPostgres);
+        // --- TROUBLESHOOTING LOG ---
+        console.log('[DEBUG] upsertReading: Executing INSERT with SQL:', insertSql, 'and values:', [cycle_id, date, hormone_reading, intercourseValue]);
         const result = await db.run(insertSql, [cycle_id, date, hormone_reading, intercourseValue]);
         log('debug', `[UPSERT] INSERT result:`, result);
     }
@@ -529,8 +534,9 @@ const apiRouter = (db) => {
 
     // Update a specific day's reading
     router.put('/cycles/days/:id', async (req, res) => {
-        log('info', `[API] PUT /api/cycles/days/${req.params.id} - Request received for user ${req.user.id}.`);
-        log('debug', '[API] Request body:', req.body);
+        // --- TROUBLESHOOTING LOG ---
+        console.log(`[DEBUG] PUT /api/cycles/days/${req.params.id}: Raw request body received:`, JSON.stringify(req.body, null, 2));
+        
         const { id } = req.params;
         const { hormone_reading, intercourse } = req.body;
 
