@@ -487,6 +487,7 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
 
     // Calculate day number safely
     const dayNumber = dayDate && cycleStartDate ? Math.round((dayDate - cycleStartDate) / (1000 * 60 * 60 * 24)) + 1 : 'N/A';
+    const isPeriodDay = dayNumber >= 1 && dayNumber <= 5;
 
     // Apply fertile window shading
     if (fertileWindow && fertileWindow.start) {
@@ -497,58 +498,63 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
         }
     }
 
-    const reading = dayData.hormone_reading || '--';
-    const readingClass = dayData.hormone_reading || '';
+    const reading = isPeriodDay ? 'No Reading' : (dayData.hormone_reading || '--');
+    const readingClass = isPeriodDay ? 'no-reading' : (dayData.hormone_reading || '');
 
     dayDiv.innerHTML = `
-        <button class="delete-day" data-id="${dayData.id}">&times;</button>
+        <button class="delete-day" data-id="${dayData.id}" style="visibility: ${isPeriodDay ? 'hidden' : 'visible'}">&times;</button>
         <div class="day-number">Day ${dayNumber}</div>
         <div class="day-date">${dayDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })}</div>
         <div class="reading ${readingClass}">${reading}</div>
         <div class="reading-edit">
-            <select class="reading-select">
-                <option value="" ${!dayData.hormone_reading ? 'selected' : ''}>--</option>
+            <select class="reading-select" ${isPeriodDay ? 'disabled' : ''}>
+                <option value="">--</option>
                 <option value="Low" ${dayData.hormone_reading === 'Low' ? 'selected' : ''}>Low</option>
                 <option value="High" ${dayData.hormone_reading === 'High' ? 'selected' : ''}>High</option>
                 <option value="Peak" ${dayData.hormone_reading === 'Peak' ? 'selected' : ''}>Peak</option>
             </select>
             <div class="intercourse-edit">
-                <input type="checkbox" class="intercourse-checkbox" ${dayData.intercourse ? 'checked' : ''}> ❤️
+                <input type="checkbox" class="intercourse-checkbox" ${dayData.intercourse ? 'checked' : ''} ${isPeriodDay ? 'disabled' : ''}> 
+                ${isPeriodDay ? '<img src="/bloodDrop.png" class="blood-drop-icon" alt="Period"/>' : '❤️'}
             </div>
         </div>
-        <div class="intercourse-display">${dayData.intercourse ? '❤️' : ''}</div>
+        <div class="intercourse-display">
+            ${isPeriodDay ? '<img src="/bloodDrop.png" class="blood-drop-icon" alt="Period"/>' : (dayData.intercourse ? '❤️' : '')}
+        </div>
     `;
 
-    dayDiv.querySelector('.delete-day').addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (confirm('Are you sure you want to delete this reading?')) {
-            deleteReading(dayData.id, elements);
-        }
-    });
+    if (!isPeriodDay) {
+        dayDiv.querySelector('.delete-day').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (confirm('Are you sure you want to delete this reading?')) {
+                deleteReading(dayData.id, elements);
+            }
+        });
 
-    dayDiv.querySelector('.reading-select').addEventListener('change', (e) => {
-        const newReading = e.target.value;
-        log('info', `[EDIT_DAY] Reading changed for day ${dayData.date}. New value: ${newReading}`);
-        logOrUpdateReading({
-            id: dayData.id,
-            date: dayData.date,
-            hormone_reading: newReading, // Only send the reading
-            cycle_id: cycle.id,
-            userId: currentlyViewedUserId
-        }, elements);
-    });
+        dayDiv.querySelector('.reading-select').addEventListener('change', (e) => {
+            const newReading = e.target.value;
+            log('info', `[EDIT_DAY] Reading changed for day ${dayData.date}. New value: ${newReading}`);
+            logOrUpdateReading({
+                id: dayData.id,
+                date: dayData.date,
+                hormone_reading: newReading,
+                cycle_id: cycle.id,
+                userId: currentlyViewedUserId
+            }, elements);
+        });
 
-    dayDiv.querySelector('.intercourse-checkbox').addEventListener('change', (e) => {
-        const newIntercourse = e.target.checked;
-        log('info', `[EDIT_DAY] Intercourse changed for day ${dayData.date}. New value: ${newIntercourse}`);
-        logOrUpdateReading({
-            id: dayData.id,
-            date: dayData.date,
-            intercourse: newIntercourse, // Only send the intercourse status
-            cycle_id: cycle.id,
-            userId: currentlyViewedUserId
-        }, elements);
-    });
+        dayDiv.querySelector('.intercourse-checkbox').addEventListener('change', (e) => {
+            const newIntercourse = e.target.checked;
+            log('info', `[EDIT_DAY] Intercourse changed for day ${dayData.date}. New value: ${newIntercourse}`);
+            logOrUpdateReading({
+                id: dayData.id,
+                date: dayData.date,
+                intercourse: newIntercourse,
+                cycle_id: cycle.id,
+                userId: currentlyViewedUserId
+            }, elements);
+        });
+    }
 
     return dayDiv;
 }

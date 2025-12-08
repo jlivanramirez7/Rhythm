@@ -230,6 +230,17 @@ button:hover {
     background-color: #f2dede; /* Light red */
 }
 
+.day .reading.no-reading {
+    color: #888;
+    font-style: italic;
+}
+
+.blood-drop-icon {
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+}
+
 .delete-day {
     position: absolute;
     top: -5px;
