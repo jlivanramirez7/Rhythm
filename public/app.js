@@ -264,8 +264,8 @@ function renderCycles(cycles, elements, fertileWindows = []) {
         cycleDiv.className = 'cycle'; // Fix: Use .cycle to match CSS
         cycleDiv.dataset.cycleId = cycle.id;
 
-        const startDate = new Date(cycle.start_date).toLocaleDateString();
-        const endDate = cycle.end_date ? new Date(cycle.end_date).toLocaleDateString() : 'Present';
+        const startDate = new Date(cycle.start_date).toLocaleDateString(undefined, { timeZone: 'UTC' });
+        const endDate = cycle.end_date ? new Date(cycle.end_date).toLocaleDateString(undefined, { timeZone: 'UTC' }) : 'Present';
         const cycleLength = cycle.end_date ? Math.round((new Date(cycle.end_date) - new Date(cycle.start_date)) / (1000 * 60 * 60 * 24)) + 1 : 'Ongoing';
 
         cycleDiv.innerHTML = `
