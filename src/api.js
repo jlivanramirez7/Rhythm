@@ -532,37 +532,34 @@ const apiRouter = (db) => {
         log('info', `[API] PUT /api/cycles/days/${req.params.id} - Request received for user ${req.user.id}.`);
         log('debug', '[API] Request body:', req.body);
         const { id } = req.params;
-        let { hormone_reading, intercourse } = req.body;
-
-        if (hormone_reading === '') {
-            hormone_reading = null;
-        }
-
-        const fieldsToUpdate = [];
-        const values = [];
-
-        if (hormone_reading !== undefined) {
-            fieldsToUpdate.push('hormone_reading = ?');
-            values.push(hormone_reading);
-        }
-        if (intercourse !== undefined) {
-            fieldsToUpdate.push('intercourse = ?');
-            values.push(intercourse ? 1 : 0);
-        }
-
-        if (fieldsToUpdate.length === 0) {
-            return res.status(400).send('No updateable fields provided.');
-        }
-
-        values.push(id); // Add the ID for the WHERE clause
+        const { hormone_reading, intercourse } = req.body;
 
         try {
-            const updateSql = sql(`UPDATE cycle_days SET ${fieldsToUpdate.join(', ')} WHERE id = ?`, isPostgres);
-            const result = await db.run(updateSql, values);
-            
-            if (result.changes === 0) {
+            const existingReading = await db.get(sql('SELECT * FROM cycle_days WHERE id = ?', isPostgres), [id]);
+
+            if (!existingReading) {
                 return res.status(404).send('Reading not found.');
             }
+
+            const updatedReading = {
+                ...existingReading,
+            };
+
+            if (hormone_reading !== undefined) {
+                updatedReading.hormone_reading = hormone_reading === '' ? null : hormone_reading;
+            }
+            if (intercourse !== undefined) {
+                updatedReading.intercourse = intercourse;
+            }
+
+            const updateSql = sql('UPDATE cycle_days SET hormone_reading = ?, intercourse = ? WHERE id = ?', isPostgres);
+            const result = await db.run(updateSql, [updatedReading.hormone_reading, updatedReading.intercourse ? 1 : 0, id]);
+
+            if (result.changes === 0) {
+                // This case should ideally not be hit if the record was found, but it's good practice to keep it.
+                return res.status(404).send('Reading not found or not updated.');
+            }
+
             res.status(200).json({ id, message: 'Reading updated.' });
         } catch (err) {
             log('error', `Error in PUT /api/cycles/days/${id}:`, err);
