@@ -504,7 +504,7 @@ const apiRouter = (db) => {
 
     // Delete a cycle and all its readings
     router.delete('/cycles/:id', async (req, res) => {
-        log('info', `[API] DELETE /api/cycles/${req.params.id} - Request received from user ${req.user.id}.`);
+        log('info', `[API] DELETE /api/cycles/${req.params.id} - Request received for user ${req.user.id}.`);
         const { id } = req.params;
         const requestingUserId = req.user.id;
 
@@ -656,10 +656,10 @@ public/app.js
 src/api.js
 
 # Current Time
-12/8/2025, 4:18:27 AM (America/New_York, UTC-5:00)
+12/8/2025, 4:27:32 AM (America/New_York, UTC-5:00)
 
 # Context Window Usage
-430,734 / 1,048.576K tokens used (41%)
+485,349 / 1,048.576K tokens used (46%)
 
 # Current Mode
 ACT MODE
