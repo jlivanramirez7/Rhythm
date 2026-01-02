@@ -23,7 +23,7 @@ const log = (level, message, ...args) => {
 const instructions = [
   {
     title: "The Marquette Method",
-    content: `<h3>Objective. Digital. Effective.</h3><p>This method removes human error byusing the Clearblue Fertility Monitor to track two specific urinary hormones: Estrogen and LH.</p><p>Instead of guessing based on how you "feel," you get a concrete data point every morning. It’s about 98% effective with perfect use, largely because it doesn\\'t rely on you analyzing your own mucus before you\\\'ve had your coffee.</p>`
+    content: `<h3>Objective. Digital. Effective.</h3><p>This method removes human error byusing the Clearblue Fertility Monitor to track two specific urinary hormones: Estrogen and LH.</p><p>Instead of guessing based on how you "feel," you get a concrete data point every morning. It’s about 98% effective with perfect use, largely because it doesn\'t rely on you analyzing your own mucus before you\'ve had your coffee.</p>`
   },
   {
     title: "The Daily Routine",
@@ -256,7 +256,7 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
 
     // --- INTELLIGENT DEFAULT ---
     // If this is the initial load (no viewAsUserId), the current user has no cycles,
-    // and there\s another user available, default to the other user\s view.
+    // and there\'s another user available, default to the other user\'s view.
     if (!viewAsUserId && cycles.length === 0 && sharedUsers.length > 1) {
       const otherUser = sharedUsers.find((u) => u.id !== user.id);
       if (otherUser) {
@@ -269,7 +269,7 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
       }
     }
 
-    // Pass the currently viewed user\s ID to the switcher to maintain state
+    // Pass the currently viewed user\'s ID to the switcher to maintain state
     renderAccountSwitcher(sharedUsers, elements, user, viewAsUserId);
 
     renderCycles(cycles, elements, calculateFertileWindows(cycles));
@@ -291,7 +291,7 @@ function renderCycles(cycles, elements, fertileWindows = []) {
   if (!cycles || cycles.length === 0) {
     log("info", "[RENDER] No cycles to display. Showing message.");
     container.innerHTML =
-      `<p>No cycles recorded yet. Start by logging your period start date.</p>`;
+      '<p>No cycles recorded yet. Start by logging your period start date.</p>';
     return;
   }
 
@@ -441,7 +441,7 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
   container.innerHTML = "";
   container.style.display = "block";
 
-  // Only show the switcher if there\s more than one user (the current user + at least one partner)
+  // Only show the switcher if there\'s more than one user (the current user + at least one partner)
   if (!users || users.length <= 1) {
     log("info", "[RENDER] No other shared users to display. Hiding switcher.");
     container.style.display = "none";
@@ -475,7 +475,7 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
   select.addEventListener("change", (e) => {
     const selectedUserId = e.target.value;
     log("info", `[ACTION] Dropdown changed. Selected User ID: ${selectedUserId}`);
-    // If the selected ID matches the current user\s ID, fetch with null to view self
+    // If the selected ID matches the current user\'s ID, fetch with null to view self
     const viewAsId = selectedUserId == currentUser.id ? null : selectedUserId;
     fetchAndRenderData(elements, viewAsId);
   });
@@ -626,11 +626,12 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
         "info",
         `[EDIT_DAY] Reading changed for day ${dayData.date}. New value: ${newReading}`
       );
-      stageChange(
+      logOrUpdateReading(
         {
           id: dayData.id,
           hormone_reading: newReading
-        }
+        },
+        elements
       );
     });
 
@@ -642,11 +643,12 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
           "info",
           `[EDIT_DAY] Intercourse changed for day ${dayData.date}. New value: ${newIntercourse}`
         );
-        stageChange(
+        logOrUpdateReading(
           {
             id: dayData.id,
             intercourse: newIntercourse
-          }
+          },
+          elements
         );
       });
   }
@@ -654,7 +656,8 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
   return dayDiv;
 }
 
-function stageChange(payload) {
+async function logOrUpdateReading(payload, elements) {
+  const { id, date, hormone_reading, intercourse, cycle_id, userId } = payload;
   pendingChanges.push(payload);
 }
 
