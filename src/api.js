@@ -271,6 +271,55 @@ const apiRouter = (db) => {
     }
   });
 
+  router.post("/cycles/batch-update", async (req, res) => {
+    const { updates, deletions } = req.body;
+
+    try {
+      if (updates && updates.length > 0) {
+        for (const update of updates) {
+          const { id, hormone_reading, intercourse } = update;
+          const fieldsToUpdate = [];
+          const values = [];
+
+          if (hormone_reading !== undefined) {
+            fieldsToUpdate.push("hormone_reading = ?");
+            values.push(hormone_reading);
+          }
+
+          if (intercourse !== undefined) {
+            fieldsToUpdate.push("intercourse = ?");
+            values.push(intercourse);
+          }
+
+          if (fieldsToUpdate.length > 0) {
+            values.push(id);
+            const updateSql = sql(
+              `UPDATE cycle_days SET ${fieldsToUpdate.join(", ")} WHERE id = ?`,
+              isPostgres
+            );
+            await db.run(updateSql, values);
+          }
+        }
+      }
+
+      if (deletions && deletions.length > 0) {
+        const placeholders = deletions.map(() => "?").join(",");
+        const deleteSql = sql(
+          `DELETE FROM cycle_days WHERE id IN (${placeholders})`,
+          isPostgres
+        );
+        await db.run(deleteSql, deletions);
+      }
+
+      res.status(200).json({ message: "Batch update successful." });
+    } catch (err) {
+      log("error", "Error in POST /api/cycles/batch-update:", err);
+      res
+        .status(500)
+        .json({ error: "Failed to batch update cycle days", details: err.message });
+    }
+  });
+
   /**
    * @route POST /api/cycles
    * @description Creates a new cycle for the logged-in user. If an open-ended

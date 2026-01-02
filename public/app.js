@@ -23,7 +23,7 @@ const log = (level, message, ...args) => {
 const instructions = [
   {
     title: "The Marquette Method",
-    content: `<h3>Objective. Digital. Effective.</h3><p>This method removes human error byusing the Clearblue Fertility Monitor to track two specific urinary hormones: Estrogen and LH.</p><p>Instead of guessing based on how you "feel," you get a concrete data point every morning. It’s about 98% effective with perfect use, largely because it doesn't rely on you analyzing your own mucus before you've had your coffee.</p>`
+    content: `<h3>Objective. Digital. Effective.</h3><p>This method removes human error byusing the Clearblue Fertility Monitor to track two specific urinary hormones: Estrogen and LH.</p><p>Instead of guessing based on how you "feel," you get a concrete data point every morning. It’s about 98% effective with perfect use, largely because it doesn\'t rely on you analyzing your own mucus before you\'ve had your coffee.</p>`
   },
   {
     title: "The Daily Routine",
@@ -46,6 +46,7 @@ const instructions = [
 let currentInstruction = 0;
 let currentlyViewedUserId = null; // Track the user whose data is being viewed
 let daysToDelete = [];
+let pendingChanges = [];
 
 document.addEventListener("DOMContentLoaded", () => {
   log("info", "DOM fully loaded and parsed.");
@@ -255,7 +256,7 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
 
     // --- INTELLIGENT DEFAULT ---
     // If this is the initial load (no viewAsUserId), the current user has no cycles,
-    // and there's another user available, default to the other user's view.
+    // and there\'s another user available, default to the other user\'s view.
     if (!viewAsUserId && cycles.length === 0 && sharedUsers.length > 1) {
       const otherUser = sharedUsers.find((u) => u.id !== user.id);
       if (otherUser) {
@@ -268,7 +269,7 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
       }
     }
 
-    // Pass the currently viewed user's ID to the switcher to maintain state
+    // Pass the currently viewed user\'s ID to the switcher to maintain state
     renderAccountSwitcher(sharedUsers, elements, user, viewAsUserId);
 
     renderCycles(cycles, elements, calculateFertileWindows(cycles));
@@ -440,7 +441,7 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
   container.innerHTML = "";
   container.style.display = "block";
 
-  // Only show the switcher if there's more than one user (the current user + at least one partner)
+  // Only show the switcher if there\'s more than one user (the current user + at least one partner)
   if (!users || users.length <= 1) {
     log("info", "[RENDER] No other shared users to display. Hiding switcher.");
     container.style.display = "none";
@@ -474,7 +475,7 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
   select.addEventListener("change", (e) => {
     const selectedUserId = e.target.value;
     log("info", `[ACTION] Dropdown changed. Selected User ID: ${selectedUserId}`);
-    // If the selected ID matches the current user's ID, fetch with null to view self
+    // If the selected ID matches the current user\'s ID, fetch with null to view self
     const viewAsId = selectedUserId == currentUser.id ? null : selectedUserId;
     fetchAndRenderData(elements, viewAsId);
   });
@@ -628,10 +629,7 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
       logOrUpdateReading(
         {
           id: dayData.id,
-          date: dayData.date,
-          hormone_reading: newReading,
-          cycle_id: cycle.id,
-          userId: currentlyViewedUserId
+          hormone_reading: newReading
         },
         elements
       );
@@ -648,10 +646,7 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
         logOrUpdateReading(
           {
             id: dayData.id,
-            date: dayData.date,
-            intercourse: newIntercourse,
-            cycle_id: cycle.id,
-            userId: currentlyViewedUserId
+            intercourse: newIntercourse
           },
           elements
         );
@@ -663,65 +658,29 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
 
 async function logOrUpdateReading(payload, elements) {
   const { id, date, hormone_reading, intercourse, cycle_id, userId } = payload;
+  pendingChanges.push(payload);
+}
 
-  const isUpdate = id !== undefined;
-  const url = isUpdate ? `/api/cycles/days/${id}` : "/api/cycles/days";
-  const method = isUpdate ? "PUT" : "POST";
-
-  const body = { date, cycle_id, userId };
-  if (hormone_reading !== undefined) body.hormone_reading = hormone_reading;
-  if (intercourse !== undefined) body.intercourse = intercourse;
+async function savePendingChanges(elements) {
+  if (pendingChanges.length === 0 && daysToDelete.length === 0) return;
 
   try {
-    const response = await fetch(url, {
-      method: method,
+    const response = await fetch("/api/cycles/batch-update", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ updates: pendingChanges, deletions: daysToDelete })
     });
 
     if (!response.ok) {
-      let errorMsg = "Failed to save reading.";
-      try {
-        const errorData = await response.json();
-        errorMsg = errorData.error || errorMsg;
-      } catch (e) {
-        // If the response is not JSON, use its text content
-        const textError = await response.text();
-        errorMsg = textError || errorMsg;
-      }
-      log(
-        "error",
-        `[API_CALL] Failed to save reading. Server responded with ${response.status}. Message: ${errorMsg}`
-      );
-      throw new Error(errorMsg);
+      throw new Error("Failed to save changes.");
     }
 
-    log("info", "[API_CALL] Save successful. Refreshing data.");
-    fetchAndRenderData(elements, currentlyViewedUserId); // Refresh data
+    pendingChanges = [];
+    daysToDelete = [];
+    fetchAndRenderData(elements, currentlyViewedUserId);
   } catch (error) {
-    console.error("Error saving reading:", error);
+    console.error("Error saving changes:", error);
   }
-}
-
-async function deleteSelectedReadings(elements) {
-    if (daysToDelete.length === 0) return;
-
-    try {
-        const response = await fetch("/api/cycles/days", {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ dayIds: daysToDelete }),
-        });
-
-        if (!response.ok) {
-            throw new Error("Failed to delete selected readings.");
-        }
-
-        daysToDelete = []; // Clear the array
-        fetchAndRenderData(elements, currentlyViewedUserId); // Refresh data
-    } catch (error) {
-        console.error("Error deleting selected readings:", error);
-    }
 }
 
 function toggleEditMode(cycleDiv, cycleId, elements) {
@@ -746,7 +705,7 @@ function toggleEditMode(cycleDiv, cycleId, elements) {
   });
 
   if (!isEditing) {
-      deleteSelectedReadings(elements);
+    savePendingChanges(elements);
   }
 }
 
