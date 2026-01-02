@@ -23,7 +23,7 @@ const log = (level, message, ...args) => {
 const instructions = [
   {
     title: "The Marquette Method",
-    content: `<h3>Objective. Digital. Effective.</h3><p>This method removes human error by using the Clearblue Fertility Monitor to track two specific urinary hormones: Estrogen and LH.</p><p>Instead of guessing based on how you "feel," you get a concrete data point every morning. It’s about 98% effective with perfect use, largely because it doesn't rely on you analyzing your own mucus before you've had your coffee.</p>`
+    content: `<h3>Objective. Digital. Effective.</h3><p>This method removes human error byusing the Clearblue Fertility Monitor to track two specific urinary hormones: Estrogen and LH.</p><p>Instead of guessing based on how you "feel," you get a concrete data point every morning. It’s about 98% effective with perfect use, largely because it doesn't rely on you analyzing your own mucus before you've had your coffee.</p>`
   },
   {
     title: "The Daily Routine",
@@ -45,6 +45,7 @@ const instructions = [
 
 let currentInstruction = 0;
 let currentlyViewedUserId = null; // Track the user whose data is being viewed
+let daysToDelete = [];
 
 document.addEventListener("DOMContentLoaded", () => {
   log("info", "DOM fully loaded and parsed.");
@@ -602,10 +603,19 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
     `;
 
   if (!isPeriodDay) {
-    dayDiv.querySelector(".delete-day").addEventListener("click", (e) => {
+    const deleteButton = dayDiv.querySelector(".delete-day");
+    deleteButton.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (confirm("Are you sure you want to delete this reading?")) {
-        deleteReading(dayData.id, elements);
+      const dayId = e.target.dataset.id;
+      if (daysToDelete.includes(dayId)) {
+        // If already marked, unmark it
+        const index = daysToDelete.indexOf(dayId);
+        daysToDelete.splice(index, 1);
+        dayDiv.classList.remove("marked-for-deletion");
+      } else {
+        // Otherwise, mark it for deletion
+        daysToDelete.push(dayId);
+        dayDiv.classList.add("marked-for-deletion");
       }
     });
 
@@ -693,6 +703,27 @@ async function logOrUpdateReading(payload, elements) {
   }
 }
 
+async function deleteSelectedReadings(elements) {
+    if (daysToDelete.length === 0) return;
+
+    try {
+        const response = await fetch("/api/cycles/days", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ dayIds: daysToDelete }),
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to delete selected readings.");
+        }
+
+        daysToDelete = []; // Clear the array
+        fetchAndRenderData(elements, currentlyViewedUserId); // Refresh data
+    } catch (error) {
+        console.error("Error deleting selected readings:", error);
+    }
+}
+
 function toggleEditMode(cycleDiv, cycleId, elements) {
   cycleDiv.classList.toggle("edit-mode");
   const isEditing = cycleDiv.classList.contains("edit-mode");
@@ -713,6 +744,10 @@ function toggleEditMode(cycleDiv, cycleId, elements) {
     if (edit) edit.style.display = isEditing ? "block" : "none";
     if (intercourseDisplay) intercourseDisplay.style.display = isEditing ? "none" : "block";
   });
+
+  if (!isEditing) {
+      deleteSelectedReadings(elements);
+  }
 }
 
 async function handleReadingSubmit(e, elements) {
@@ -831,18 +866,6 @@ async function deleteCycle(id, elements) {
   } catch (error) {
     console.error("Error deleting cycle:", error);
     alert(error.message);
-  }
-}
-
-async function deleteReading(id, elements) {
-  if (!id) return; // Ignore if there's no ID (for unsaved days)
-  log("info", `[DELETE_DAY] Attempting to delete day reading ID: ${id}`);
-  try {
-    const response = await fetch(`/api/cycles/days/${id}`, { method: "DELETE" });
-    if (!response.ok) throw new Error("Failed to delete reading");
-    fetchAndRenderData(elements); // Refresh data
-  } catch (error) {
-    console.error("Error deleting reading:", error);
   }
 }
 
