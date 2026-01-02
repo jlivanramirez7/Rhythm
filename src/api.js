@@ -137,14 +137,14 @@ const upsertReading = async (db, data) => {
     const fieldsToUpdate = [];
     const values = [];
 
-    // Only add hormone_reading to the update if it's a non-empty string.
+    // Only add hormone_reading to the update if it\s a non-empty string.
     // This prevents overwriting an existing reading with null if the user only updates intercourse.
     if (hormone_reading) {
       fieldsToUpdate.push("hormone_reading = ?");
       values.push(hormone_reading);
     }
 
-    // Only add intercourse to the update if it's defined in the payload.
+    // Only add intercourse to the update if it\s defined in the payload.
     if (intercourse !== undefined) {
       fieldsToUpdate.push("intercourse = ?");
       values.push(intercourse ? 1 : 0);
@@ -183,7 +183,7 @@ const apiRouter = (db) => {
 
   /**
    * @route GET /api/me
-   * @description Fetches the currently logged-in user's profile.
+   * @description Fetches the currently logged-in user\s profile.
    */
   router.get("/me", (req, res) => {
     res.json(req.user);
@@ -323,7 +323,7 @@ const apiRouter = (db) => {
   /**
    * @route POST /api/cycles
    * @description Creates a new cycle for the logged-in user. If an open-ended
-   * cycle exists, its end_date is set to the day before the new cycle's start_date.
+   * cycle exists, its end_date is set to the day before the new cycle\s start_date.
    * @param {object} req.body - { start_date: string }
    */
   router.post("/cycles", async (req, res) => {
@@ -495,7 +495,7 @@ const apiRouter = (db) => {
 
   /**
    * @route POST /api/cycles/days
-   * @description Adds or updates a single day's hormone reading.
+   * @description Adds or updates a single day\s hormone reading.
    * @param {object} req.body - { date: string, hormone_reading: string, intercourse: boolean }
    */
   router.post("/cycles/days", async (req, res) => {
@@ -566,7 +566,7 @@ const apiRouter = (db) => {
     log("info", `GET /api/cycles - Request received for user ${req.user.id}.`);
     const targetUserId = req.query.user_id || req.user.id;
 
-    // Security check: ensure the logged-in user is allowed to view the target user's data
+    // Security check: ensure the logged-in user is allowed to view the target user\s data
     const sharedUsers = await db.query(
       sql("SELECT id FROM users WHERE partner_id = ? OR id = ?", isPostgres),
       [req.user.id, req.user.id]
@@ -604,7 +604,7 @@ const apiRouter = (db) => {
     const targetUserId = req.query.user_id || req.user.id;
     log("info", `GET /api/analytics - Request received for user ${targetUserId}.`);
 
-    // Security check: ensure the logged-in user is allowed to view the target user's data
+    // Security check: ensure the logged-in user is allowed to view the target user\s data
     const sharedUsers = await db.query(
       sql("SELECT id FROM users WHERE partner_id = ? OR id = ?", isPostgres),
       [req.user.id, req.user.id]
@@ -646,7 +646,7 @@ const apiRouter = (db) => {
                 SELECT c.start_date, MIN(cd.date) as peak_date
                 FROM cycles c
                 JOIN cycle_days cd ON c.id = cd.cycle_id
-                WHERE c.user_id = ? AND cd.hormone_reading = 'Peak'
+                WHERE c.user_id = ? AND cd.hormone_reading = \'Peak\'
                 GROUP BY c.id, c.start_date
                 HAVING MIN(cd.date) IS NOT NULL
             `,
@@ -719,7 +719,7 @@ const apiRouter = (db) => {
     }
   });
 
-  // Update a specific day's reading
+  // Update a specific day\s reading
   router.put("/cycles/days/:id", async (req, res) => {
     log(
       "info",
@@ -793,7 +793,7 @@ const apiRouter = (db) => {
         .json({ error: "Failed to delete readings", details: err.message });
     }
   });
-  // Delete a specific day's reading
+  // Delete a specific day\s reading
   router.delete("/cycles/days/:id", async (req, res) => {
     // DEBUG: Do not remove these logs
     log("info", `DELETE /api/cycles/days/${req.params.id} - Request received.`);
