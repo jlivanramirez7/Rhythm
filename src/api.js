@@ -275,8 +275,11 @@ const apiRouter = (db) => {
             const result = await db.run(insertCycleSql, [targetUserId, start_date]);
             const newCycleId = result.lastID;
 
-            const insertDay1Sql = sql(`INSERT INTO cycle_days (cycle_id, date) VALUES (?, ?)`, isPostgres);
-            await db.run(insertDay1Sql, [newCycleId, start_date]);
+            const insertDaySql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading) VALUES (?, ?, ?)`, isPostgres);
+            for (let i = 0; i < 5; i++) {
+                const dayDate = moment.utc(start_date).add(i, 'days').format('YYYY-MM-DD');
+                await db.run(insertDaySql, [newCycleId, dayDate, 'Low']);
+            }
             
             res.status(201).json({ id: newCycleId, start_date: start_date });
         } catch (err) {
