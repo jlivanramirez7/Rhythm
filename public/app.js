@@ -23,7 +23,7 @@ const log = (level, message, ...args) => {
 const instructions = [
   {
     title: "The Marquette Method",
-    content: `<h3>Objective. Digital. Effective.</h3><p>This method removes human error byusing the Clearblue Fertility Monitor to track two specific urinary hormones: Estrogen and LH.</p><p>Instead of guessing based on how you "feel," you get a concrete data point every morning. It’s about 98% effective with perfect use, largely because it doesn\\'t rely on you analyzing your own mucus before you\\\'ve had your coffee.</p>`
+    content: `<h3>Objective. Digital. Effective.</h3><p>This method removes human error byusing the Clearblue Fertility Monitor to track two specific urinary hormones: Estrogen and LH.</p><p>Instead of guessing based on how you "feel," you get a concrete data point every morning. It’s about 98% effective with perfect use, largely because it doesn\\\\\\\'t rely on you analyzing your own mucus before you\\\\\\\\\\'ve had your coffee.</p>`
   },
   {
     title: "The Daily Routine",
@@ -656,6 +656,11 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
 
 function stageChange(payload) {
   pendingChanges.push(payload);
+}
+
+async function logOrUpdateReading(payload, elements) {
+    stageChange(payload);
+    await savePendingChanges(elements);
 }
 
 async function savePendingChanges(elements) {
