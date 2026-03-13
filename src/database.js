@@ -206,7 +206,9 @@ async function initializeDatabase(secrets) {
         // DEBUG: Do not remove these logs
         console.log('[DEBUG] initializeDatabase: Configuring for SQLite...');
         console.log('Connecting to SQLite database...');
-        const dbPath = path.resolve(__dirname, '..', secrets.DB_NAME);
+        const dbPath = secrets.DB_NAME === ':memory:' 
+            ? ':memory:' 
+            : path.resolve(__dirname, '..', secrets.DB_NAME);
         return new Promise((resolve, reject) => {
             const sqliteDb = new sqlite3.Database(dbPath, async (err) => {
                 if (err) {
