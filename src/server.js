@@ -111,7 +111,7 @@ async function main() {
         res.sendFile(path.join(__dirname, '../public/app.html'));
     });
     app.get('/', (req, res) => {
-        if (req.isAuthenticated() || process.env.NODE_ENV !== 'production') {
+        if (req.isAuthenticated()) {
             res.redirect('/app');
         } else {
             res.sendFile(path.join(__dirname, '../public/index.html'));
