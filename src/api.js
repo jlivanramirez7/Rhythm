@@ -402,6 +402,33 @@ const apiRouter = (db) => {
                 intercourse,
                 userId: targetUserId
             });
+
+            // --- BACKFILL LOGIC ---
+            if (hormone_reading === 'Low') {
+                const prevSql = sql(`SELECT date FROM cycle_days WHERE cycle_id = ? AND date < ? ORDER BY date DESC LIMIT 1`, isPostgres);
+                const prevReading = await db.get(prevSql, [cycle.id, date]);
+                if (prevReading) {
+                    const prevDateStr = prevReading.date;
+                    let currentGapDate = moment.utc(prevDateStr).add(1, 'days');
+                    const targetDate = moment.utc(date);
+                    
+                    while (currentGapDate.isBefore(targetDate)) {
+                        const gapDateStr = currentGapDate.format('YYYY-MM-DD');
+                        const checkSql = sql(`SELECT id FROM cycle_days WHERE cycle_id = ? AND date = ?`, isPostgres);
+                        const exists = await db.get(checkSql, [cycle.id, gapDateStr]);
+                        if (!exists) {
+                            await upsertReading(db, {
+                                cycle_id: cycle.id,
+                                date: gapDateStr,
+                                hormone_reading: 'Low',
+                                // Omitting intercourse to preserve null/0 intent
+                            });
+                        }
+                        currentGapDate.add(1, 'days');
+                    }
+                }
+            }
+            // --- END BACKFILL ---
             
             res.status(200).json({ success: true });
         } catch (err) {

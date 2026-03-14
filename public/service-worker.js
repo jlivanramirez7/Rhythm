@@ -66,17 +66,21 @@ self.addEventListener('fetch', event => {
         })
     );
   } else {
-    // For all other requests (app shell and HTML pages), use a cache-first strategy.
-    // This will cache pages like app.html and index.html as they are visited.
+    // For all other requests (app shell and HTML pages), use a network-first strategy
+    // to ensure the user gets the latest updates, falling back to cache if offline.
     event.respondWith(
-      caches.open(CACHE_NAME).then(cache => {
-        return cache.match(request).then(response => {
-          return response || fetch(request).then(networkResponse => {
-            cache.put(request, networkResponse.clone());
-            return networkResponse;
-          });
-        });
-      })
+      fetch(request)
+        .then(response => {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME)
+            .then(cache => {
+              cache.put(request, responseToCache);
+            });
+          return response;
+        })
+        .catch(() => {
+          return caches.match(request);
+        })
     );
   }
 });

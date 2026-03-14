@@ -551,6 +551,18 @@ input[type="checkbox"]:checked::after {
     display: block; 
 }
 
+/* Pending deletion styling */
+.day.to-delete {
+    opacity: 0.5;
+    background-color: var(--md-sys-color-surface-variant);
+}
+
+.day.to-delete .reading,
+.day.to-delete .day-date,
+.day.to-delete .day-number {
+    text-decoration: line-through;
+}
+
 /* Edit layout inside day container */
 .reading-edit {
     display: none;

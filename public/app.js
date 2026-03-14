@@ -604,9 +604,7 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
   if (!isPeriodDay) {
     dayDiv.querySelector(".delete-day").addEventListener("click", (e) => {
       e.stopPropagation();
-      if (confirm("Are you sure you want to delete this reading?")) {
-        deleteReading(dayData.id, elements);
-      }
+      dayDiv.classList.toggle("to-delete");
     });
 
     dayDiv.querySelector(".reading-select").addEventListener("change", (e) => {
@@ -704,6 +702,35 @@ function toggleEditMode(cycleDiv, cycleId, elements) {
   }
 
   const dayElements = cycleDiv.querySelectorAll(".day");
+
+  if (!isEditing) {
+    // We are exiting edit mode. Check for pending deletions.
+    const deletedDays = Array.from(dayElements).filter(d => d.classList.contains("to-delete"));
+    if (deletedDays.length > 0) {
+      if (confirm(`Are you sure you want to delete ${deletedDays.length} reading(s)?`)) {
+        const deletePromises = deletedDays.map(dayDiv => {
+          const id = dayDiv.dataset.dayId;
+          return fetch(`/api/cycles/days/${id}`, { method: "DELETE" });
+        });
+        
+        Promise.all(deletePromises)
+          .then(() => {
+            log("info", `Successfully bulk-deleted ${deletedDays.length} readings.`);
+            fetchAndRenderData(elements, currentlyViewedUserId);
+          })
+          .catch(error => {
+            console.error("Error bulk deleting readings:", error);
+            alert("An error occurred while deleting one or more readings.");
+            fetchAndRenderData(elements, currentlyViewedUserId);
+          });
+        return; // Early return to let fetchAndRenderData handle UI reset
+      } else {
+        // User cancelled. Untoggle the classes.
+        deletedDays.forEach(d => d.classList.remove("to-delete"));
+      }
+    }
+  }
+
   dayElements.forEach((day) => {
     const display = day.querySelector(".reading");
     const edit = day.querySelector(".reading-edit");
