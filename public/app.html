@@ -35,11 +35,11 @@
             <section id="input-section" class="form-container">
                 <h2>Log Today's Reading</h2>
                 <form id="reading-form">
-                    <div>
+                <div class="checkbox-group">
                     <input type="checkbox" id="range-checkbox" name="range-checkbox">
                     <label for="range-checkbox">Set Date Range</label>
                 </div>
-                <div>
+                <div class="checkbox-group">
                     <input type="checkbox" id="intercourse-checkbox" name="intercourse">
                     <label for="intercourse-checkbox">Intercourse</label>
                 </div>
@@ -70,13 +70,13 @@
 
         <section>
             <h2>Start a New Cycle</h2>
-            <div id="period-section">
+            <form id="period-section" class="form-container">
                 <div class="form-input-group">
                     <label for="period-start-date">Period Start Date:</label>
                     <input type="date" id="period-start-date" name="period-start-date">
                 </div>
                 <button id="period-button">Start New Cycle</button>
-            </div>
+            </form>
         </section>
 
         <section id="account-switcher-section">

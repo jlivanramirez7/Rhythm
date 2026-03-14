@@ -162,16 +162,17 @@ h4 {
 }
 
 /* Interactive Elements: Forms & Buttons */
-form#reading-form {
+.form-input-group {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-4);
-    align-items: stretch; /* Align to stretch container */
+    gap: var(--spacing-2);
+    width: 100%;
 }
 
-form#reading-form > div, .form-input-group {
+.checkbox-group {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
     gap: var(--spacing-2);
     width: 100%;
 }
@@ -180,6 +181,7 @@ form#reading-form > div, .form-input-group {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-4);
+    align-items: flex-start;
 }
 
 /* Inputs & Selects styled as Material Outlined text fields */
@@ -310,10 +312,6 @@ input[type="checkbox"]:checked::after {
 }
 
 /* Structure Sections */
-#cycles-section, #input-section, #analytics-section {
-    align-self: start;
-}
-
 #cycles-container {
     display: flex;
     flex-direction: column;
