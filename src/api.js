@@ -174,17 +174,29 @@ const apiRouter = (db) => {
     });
 
     router.put('/settings', async (req, res) => {
-        const { show_instructions } = req.body;
+        const { show_instructions, default_view_user_id } = req.body;
         const userId = req.user.id;
+        const isPostgres = db.adapter === 'postgres';
 
-        console.log(`[API] Received PUT /api/settings for user ${userId}. show_instructions: ${show_instructions}`);
+        console.log(`[API] Received PUT /api/settings for user ${userId}. show_instructions: ${show_instructions}, default_view_user_id: ${default_view_user_id}`);
 
         if (typeof show_instructions !== 'boolean') {
             return res.status(400).json({ error: 'Invalid value for show_instructions' });
         }
 
         try {
-            const result = await db.run(sql('UPDATE users SET show_instructions = ? WHERE id = ?', isPostgres), [show_instructions, userId]);
+            let updateSql = 'UPDATE users SET show_instructions = ?';
+            let params = [show_instructions];
+
+            if (default_view_user_id !== undefined) {
+                updateSql += ', default_view_user_id = ?';
+                params.push(default_view_user_id || null);
+            }
+
+            updateSql += ' WHERE id = ?';
+            params.push(userId);
+
+            const result = await db.run(sql(updateSql, isPostgres), params);
             console.log(`[API] Database update result for user ${userId}:`, result);
             res.status(200).json({ message: 'Settings updated successfully.' });
         } catch (err) {
