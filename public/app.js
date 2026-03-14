@@ -88,6 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     initializeEventListeners(elements);
     elements.periodStartDateInput.value = new Date().toISOString().split("T")[0];
+    elements.dateInput.value = new Date().toISOString().split("T")[0];
     fetchAndRenderData(elements);
   }
 });
@@ -189,8 +190,20 @@ function initializeEventListeners(elements) {
 }
 
 async function fetchAndRenderData(elements, viewAsUserId = null) {
-  currentlyViewedUserId = viewAsUserId; // Update the global tracker
-  log("info", `[START] fetchAndRenderData: Fetching data for user: ${viewAsUserId || "self"}.`);
+  // If no specific view is requested, fetch /api/me first to determine default
+  if (!viewAsUserId && !currentlyViewedUserId) {
+    try {
+      const meRes = await fetch(`/api/me?t=${new Date().getTime()}`);
+      if (meRes.ok) {
+        const me = await meRes.json();
+        currentlyViewedUserId = me.default_view_user_id || me.id;
+        viewAsUserId = currentlyViewedUserId;
+      }
+    } catch(err) {} 
+  } else {
+    currentlyViewedUserId = viewAsUserId || currentlyViewedUserId;
+  }
+  log("info", `[START] fetchAndRenderData: Fetching data for user: ${currentlyViewedUserId}.`);
   try {
     const cacheBust = `?t=${new Date().getTime()}`;
     const userQuery = viewAsUserId ? `?user_id=${viewAsUserId}` : "";
@@ -222,7 +235,7 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
 
     log(
       "info",
-      `[DATA] Logged-in user: ${user.name} (ID: ${user.id}). Viewing as user: ${viewAsUserId || user.id}`
+      `[DATA] Logged-in user: ${user.name} (ID: ${user.id}). Viewing as user: ${currentlyViewedUserId}`
     );
     log("info", `[DATA] Cycles received: ${cycles.length}`);
     log("info", `[DATA] Analytics received:`, analytics);
@@ -608,42 +621,16 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
     });
 
     dayDiv.querySelector(".reading-select").addEventListener("change", (e) => {
-      const newReading = e.target.value;
-      log(
-        "info",
-        `[EDIT_DAY] Reading changed for day ${dayData.date}. New value: ${newReading}`
-      );
-      logOrUpdateReading(
-        {
-          id: dayData.id,
-          date: dayData.date,
-          hormone_reading: newReading,
-          cycle_id: cycle.id,
-          userId: currentlyViewedUserId
-        },
-        elements
-      );
+      e.stopPropagation();
+      dayDiv.dataset.modifiedReading = e.target.value;
+      dayDiv.classList.add("modified");
     });
 
-    dayDiv
-      .querySelector(".intercourse-checkbox")
-      .addEventListener("change", (e) => {
-        const newIntercourse = e.target.checked;
-        log(
-          "info",
-          `[EDIT_DAY] Intercourse changed for day ${dayData.date}. New value: ${newIntercourse}`
-        );
-        logOrUpdateReading(
-          {
-            id: dayData.id,
-            date: dayData.date,
-            intercourse: newIntercourse,
-            cycle_id: cycle.id,
-            userId: currentlyViewedUserId
-          },
-          elements
-        );
-      });
+    dayDiv.querySelector(".intercourse-checkbox").addEventListener("change", (e) => {
+      e.stopPropagation();
+      dayDiv.dataset.modifiedIntercourse = e.target.checked;
+      dayDiv.classList.add("modified");
+    });
   }
 
   return dayDiv;
@@ -728,6 +715,40 @@ function toggleEditMode(cycleDiv, cycleId, elements) {
         // User cancelled. Untoggle the classes.
         deletedDays.forEach(d => d.classList.remove("to-delete"));
       }
+    } else {
+      // Check for modified days to bulk-save
+      const modifiedDays = Array.from(dayElements).filter(d => d.classList.contains("modified") && !d.classList.contains("to-delete"));
+      if (modifiedDays.length > 0) {
+        log("info", "Detected modified days, bulk updating...");
+        const updatePromises = modifiedDays.map(dayDiv => {
+          const id = dayDiv.dataset.dayId;
+          const originalReading = dayDiv.dataset.originalReading === "" ? null : dayDiv.dataset.originalReading;
+          const originalIntercourse = dayDiv.dataset.originalIntercourse === "true";
+          let newReading = dayDiv.dataset.modifiedReading !== undefined ? dayDiv.dataset.modifiedReading : originalReading;
+          let newIntercourse = dayDiv.dataset.modifiedIntercourse !== undefined ? dayDiv.dataset.modifiedIntercourse === "true" : originalIntercourse;
+          
+          if (newReading === "") newReading = null;
+
+          return fetch(`/api/cycles/days/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ hormone_reading: newReading, intercourse: newIntercourse }),
+          });
+        });
+
+        Promise.all(updatePromises)
+          .then(() => {
+            log("info", "Successfully bulk updated readings.");
+            fetchAndRenderData(elements, currentlyViewedUserId);
+          })
+          .catch(error => {
+            console.error("Error bulk updating readings:", error);
+            alert("An error occurred while updating readings.");
+            fetchAndRenderData(elements, currentlyViewedUserId);
+          });
+        return; // Early return to let fetchAndRenderData handle UI reset
+      }
+      // No edits or deletions, just continue
     }
   }
 

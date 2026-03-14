@@ -11,7 +11,7 @@ const adminApiRouter = (db) => {
     router.get('/users', async (req, res) => {
         try {
             const isPostgres = db.adapter === 'postgres';
-            const users = await db.query(sql('SELECT id, name, email, is_admin, approved FROM users ORDER BY id', isPostgres));
+            const users = await db.query(sql('SELECT id, name, email, is_admin, approved, last_login FROM users ORDER BY id', isPostgres));
             res.json(users);
         } catch (err) {
             console.error('Error fetching users for admin:', err);

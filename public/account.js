@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const showInstructionsCheckbox = document.getElementById('show-instructions-checkbox');
     const shareForm = document.getElementById('share-form');
     const deleteDataButton = document.getElementById('delete-data-button');
+    const defaultViewSelect = document.getElementById('default-view-select');
 
     // Fetch user settings and populate the form
     try {
@@ -31,6 +32,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         const user = await res.json();
         showInstructionsCheckbox.checked = user.show_instructions;
+
+        // Populate Default View Select
+        const sharedRes = await fetch('/api/shared-users');
+        if (sharedRes.ok) {
+            const sharedUsers = await sharedRes.json();
+            defaultViewSelect.innerHTML = '<option value="">My Data (Default)</option>';
+            sharedUsers.forEach(u => {
+                if (u.id !== user.id) {
+                    const option = document.createElement('option');
+                    option.value = u.id;
+                    option.textContent = u.name || u.email;
+                    defaultViewSelect.appendChild(option);
+                }
+            });
+            // Select their current preference
+            if (user.default_view_user_id) {
+                defaultViewSelect.value = user.default_view_user_id;
+            }
+        }
+
     } catch (error) {
         console.error('Error fetching user settings:', error);
     }
@@ -39,6 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     settingsForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const show_instructions = showInstructionsCheckbox.checked;
+        const default_view_user_id = defaultViewSelect.value ? parseInt(defaultViewSelect.value, 10) : null;
         const messageElement = document.getElementById('settings-message');
         
         console.log(`[ACCOUNT.JS] "Save Settings" clicked. New value: ${show_instructions}. Sending to backend...`);
@@ -47,7 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetch('/api/settings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ show_instructions }),
+                body: JSON.stringify({ show_instructions, default_view_user_id }),
             });
 
             if (response.ok) {

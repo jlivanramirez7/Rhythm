@@ -197,8 +197,15 @@ const apiRouter = (db) => {
         const userId = req.user.id;
         try {
             const isPostgres = db.adapter === 'postgres';
-            const users = await db.query(sql('SELECT id, name, email FROM users WHERE partner_id = ? OR id = ?', isPostgres), [userId, userId]);
-            res.json(users);
+            if (req.user.is_admin) {
+                // Admins can see everyone
+                const users = await db.query(sql('SELECT id, name, email FROM users ORDER BY name ASC', isPostgres));
+                return res.json(users);
+            } else {
+                // Standard users only see linked partners and themselves
+                const users = await db.query(sql('SELECT id, name, email FROM users WHERE partner_id = ? OR id = ? ORDER BY name ASC', isPostgres), [userId, userId]);
+                return res.json(users);
+            }
         } catch (err) {
             console.error('Error fetching shared users:', err);
             res.status(500).json({ error: 'Failed to fetch shared users' });

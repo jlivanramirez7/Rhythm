@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <th>Email</th>
                     <th>Admin</th>
                     <th>Status</th>
+                    <th>Last Active</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -41,6 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>${user.email}</td>
                         <td>${user.is_admin ? 'Yes' : 'No'}</td>
                         <td>${user.approved ? 'Approved' : 'Pending'}</td>
+                        <td>${user.last_login ? new Date(user.last_login).toLocaleString() : 'Never'}</td>
                         <td>
                             ${!user.approved ? `
                                 <button class="approve-btn" data-id="${user.id}">Approve</button>

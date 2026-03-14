@@ -62,6 +62,14 @@ async function createTables(dbInstance, adapter) {
         console.log('[INFO] Migrating database: Adding show_instructions column to users table.');
         await runQuery('ALTER TABLE users ADD COLUMN show_instructions BOOLEAN DEFAULT true');
     }
+    if (!columns.includes('last_login')) {
+        console.log('[INFO] Migrating database: Adding last_login column to users table.');
+        await runQuery('ALTER TABLE users ADD COLUMN last_login TEXT');
+    }
+    if (!columns.includes('default_view_user_id')) {
+        console.log('[INFO] Migrating database: Adding default_view_user_id column to users table.');
+        await runQuery('ALTER TABLE users ADD COLUMN default_view_user_id INTEGER REFERENCES users(id)');
+    }
     // DEBUG: Do not remove these logs
     console.log('[DEBUG] createTables: Creating cycles table...');
     await runQuery(`

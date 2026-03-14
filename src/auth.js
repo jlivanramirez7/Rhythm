@@ -66,6 +66,10 @@ module.exports = (db, secrets) => {
 
             if (freshUser.approved) {
                 console.log(`[AUTH] User is approved. Calling callback with fresh user object.`);
+                
+                // Track last login time
+                await db.run(sql('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', isPostgres), [freshUser.id]);
+                
                 return cb(null, freshUser);
             } else {
                  console.log(`[AUTH] User ${freshUser.id} is not approved. Denying login.`);
