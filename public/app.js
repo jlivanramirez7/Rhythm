@@ -210,7 +210,7 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
     for (const response of responses) {
       if (response.status === 401) {
         log("error", "[AUTH] User not authenticated (401). Redirecting to login.");
-        window.location.href = "/";
+        window.location.href = "/?auth=expired";
         return;
       }
     }
@@ -780,6 +780,12 @@ async function handleReadingSubmit(e, elements) {
 }
 
 async function handleNewCycleSubmit(elements) {
+  // Prevent any default form submission if wrapped in a form
+  const event = window.event;
+  if (event && event.preventDefault) {
+      event.preventDefault();
+  }
+
   const startDateInput = document.getElementById("period-start-date");
   const start_date = startDateInput.value;
 

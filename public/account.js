@@ -25,6 +25,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Fetch user settings and populate the form
     try {
         const res = await fetch('/api/me');
+        if (res.status === 401) {
+            window.location.href = '/?auth=expired';
+            return;
+        }
         const user = await res.json();
         showInstructionsCheckbox.checked = user.show_instructions;
     } catch (error) {
@@ -93,8 +97,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const response = await fetch('/api/data', { method: 'DELETE' });
                 if (response.ok) {
                     alert('All your data has been deleted.');
-                    window.location.href = '/';
+                    window.location.href = '/?auth=expired';
                 } else {
+                    if (response.status === 401) {
+                        window.location.href = '/?auth=expired';
+                        return;
+                    }
                     throw new Error('Failed to delete data.');
                 }
             } catch (error) {

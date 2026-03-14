@@ -111,6 +111,7 @@ async function main() {
         res.sendFile(path.join(__dirname, '../public/app.html'));
     });
     app.get('/', (req, res) => {
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         if (req.isAuthenticated()) {
             res.redirect('/app');
         } else {
