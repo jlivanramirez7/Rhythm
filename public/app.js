@@ -685,17 +685,19 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
 
 function renderAnalytics(analytics, cycles, elements) {
   const avgCycleLengthSpan = document.getElementById("avg-cycle-length");
+  const cycleVariationSpan = document.getElementById("cycle-variation");
   const avgDaysToPeakSpan = document.getElementById("avg-days-to-peak");
+  const avgLutealLengthSpan = document.getElementById("avg-luteal-length");
   const avgFertileWindowSpan = document.getElementById("avg-fertile-window");
-  const estimatedNextPeriodSpan = document.getElementById(
-    "estimated-next-period"
-  );
+  const estimatedNextPeriodSpan = document.getElementById("estimated-next-period");
   const fertileWindowStartSpan = document.getElementById("fertile-window-start");
   const fertileWindowEndSpan = document.getElementById("fertile-window-end");
 
   // Use backend-calculated averages
   avgCycleLengthSpan.textContent = analytics.averageCycleLength || "--";
+  cycleVariationSpan.textContent = analytics.cycleVariation !== undefined ? analytics.cycleVariation : "--";
   avgDaysToPeakSpan.textContent = analytics.averageDaysToPeak || "--";
+  avgLutealLengthSpan.textContent = analytics.averageLutealLength || "--";
 
   const fertileWindows = calculateFertileWindows(cycles);
   const validWindows = fertileWindows.filter((fw) => fw.start && fw.end);

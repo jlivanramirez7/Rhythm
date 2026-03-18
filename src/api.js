@@ -517,31 +517,59 @@ const apiRouter = (db) => {
             if (cycleLengths.length > 0) {
                 const totalDays = cycleLengths.reduce((acc, row) => acc + row.length, 0);
                 analytics.averageCycleLength = Math.round(totalDays / cycleLengths.length);
+                
+                // Calculate Cycle Variation (Standard Deviation)
+                if (cycleLengths.length > 1) {
+                    const variance = cycleLengths.reduce((acc, row) => acc + Math.pow(row.length - analytics.averageCycleLength, 2), 0) / (cycleLengths.length - 1);
+                    analytics.cycleVariation = Math.round(Math.sqrt(variance));
+                } else {
+                    analytics.cycleVariation = 0; // Not enough data for variation
+                }
             } else {
                 analytics.averageCycleLength = 0;
+                analytics.cycleVariation = 0;
             }
 
             const peakDaySql = sql(`
-                SELECT c.start_date, MIN(cd.date) as peak_date
+                SELECT c.start_date, c.end_date, MIN(cd.date) as peak_date
                 FROM cycles c
                 JOIN cycle_days cd ON c.id = cd.cycle_id
                 WHERE c.user_id = ? AND cd.hormone_reading = 'Peak'
-                GROUP BY c.id, c.start_date
+                GROUP BY c.id, c.start_date, c.end_date
                 HAVING MIN(cd.date) IS NOT NULL
             `, isPostgres);
 
             const peakRows = await db.query(peakDaySql, [targetUserId]);
 
             if (peakRows.length > 0) {
-                const daysToPeak = peakRows.map(row => {
+                let totalDaysToPeak = 0;
+                let validLutealPhases = 0;
+                let totalLutealDays = 0;
+
+                peakRows.forEach(row => {
                     const start = new Date(row.start_date);
                     const peak = new Date(row.peak_date);
-                    return (peak - start) / (1000 * 60 * 60 * 24) + 1;
+                    
+                    // Days to Peak calculation
+                    totalDaysToPeak += ((peak - start) / (1000 * 60 * 60 * 24)) + 1;
+
+                    // Luteal Phase calculation (Requires a finished cycle)
+                    if (row.end_date) {
+                        const end = new Date(row.end_date);
+                        // Luteal phase starts the day AFTER peak and ends on the last day of the cycle
+                        const lutealDays = ((end - peak) / (1000 * 60 * 60 * 24)); 
+                        if (lutealDays > 0) {
+                            totalLutealDays += lutealDays;
+                            validLutealPhases++;
+                        }
+                    }
                 });
-                const totalDaysToPeak = daysToPeak.reduce((acc, days) => acc + days, 0);
+
                 analytics.averageDaysToPeak = Math.round(totalDaysToPeak / peakRows.length);
+                analytics.averageLutealLength = validLutealPhases > 0 ? Math.round(totalLutealDays / validLutealPhases) : 0;
             } else {
                 analytics.averageDaysToPeak = 0;
+                analytics.averageLutealLength = 0;
             }
 
             res.json(analytics);
