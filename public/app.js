@@ -67,6 +67,10 @@ const infoData = {
   lunar_pulse: {
     title: "How to Read The Lunar Pulse",
     content: "<img src='/lunar_infographic.png' alt='Lunar Pulse Infographic' style='width: 100%; border-radius: 8px; margin-bottom: 15px;'><br/><p>The Lunar Pulse is a visual representation of your current cycle. <br/><br/>The dot marks where you are today based on your average cycle length. Each phase represents different hormonal shifts. Tap any phase to learn about the science and the 'vibe' of that part of your cycle.</p>"
+  },
+  estimated_peak: {
+    title: "Estimated Next Peak",
+    content: "Our algorithm's prediction for the exact day your next hormone surge should occur, based on your historical Days to Peak average."
   }
 };
 
