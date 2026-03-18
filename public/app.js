@@ -72,6 +72,7 @@ const infoData = {
 
 let currentInstruction = 0;
 let currentlyViewedUserId = null; // Track the user whose data is being viewed
+let displayedCycleLimit = 2; // Pagination limit for cycles
 
 document.addEventListener("DOMContentLoaded", () => {
   log("info", "DOM fully loaded and parsed.");
@@ -546,7 +547,9 @@ function renderCycles(cycles, elements, fertileWindows = []) {
     return;
   }
 
-  cycles.forEach((cycle, index) => {
+  const displayedCycles = cycles.slice(0, displayedCycleLimit);
+
+  displayedCycles.forEach((cycle, index) => {
     log("info", `[RENDER] Processing cycle ${index + 1}/${cycles.length}, ID: ${cycle.id}`);
     const cycleDiv = document.createElement("div");
     cycleDiv.className = "cycle"; // Fix: Use .cycle to match CSS
@@ -631,6 +634,21 @@ function renderCycles(cycles, elements, fertileWindows = []) {
       }
     });
   });
+
+  if (cycles.length > displayedCycleLimit) {
+    const showMoreBtn = document.createElement("button");
+    showMoreBtn.className = "primary-btn";
+    showMoreBtn.style.display = "block";
+    showMoreBtn.style.margin = "20px auto";
+    showMoreBtn.textContent = "Show More";
+    showMoreBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      displayedCycleLimit += 2;
+      renderCycles(cycles, elements, fertileWindows);
+    });
+    container.appendChild(showMoreBtn);
+  }
+
   log("info", `[RENDER] --- renderCycles END ---. Finished rendering cycles.`);
 }
 
@@ -765,6 +783,7 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
     log("info", `[ACTION] Dropdown changed. Selected User ID: ${selectedUserId}`);
     // If the selected ID matches the current user's ID, fetch with null to view self
     const viewAsId = selectedUserId == currentUser.id ? null : selectedUserId;
+    displayedCycleLimit = 2; // Reset pagination
     fetchAndRenderData(elements, viewAsId);
   });
 
