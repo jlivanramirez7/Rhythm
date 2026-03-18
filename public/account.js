@@ -62,9 +62,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const show_instructions = showInstructionsCheckbox.checked;
         const default_view_user_id = defaultViewSelect.value ? parseInt(defaultViewSelect.value, 10) : null;
         const messageElement = document.getElementById('settings-message');
-        
+
         console.log(`[ACCOUNT.JS] "Save Settings" clicked. New value: ${show_instructions}. Sending to backend...`);
-        
+
         try {
             const response = await fetch('/api/settings', {
                 method: 'PUT',

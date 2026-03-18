@@ -842,5 +842,114 @@ input[type="checkbox"]:checked::after {
     .cycle-menu-button {
         background-color: transparent;
         box-shadow: none;
-    }
+}
+
+/* The Lunar Pulse styling */
+.lunar-donut-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: var(--spacing-4);
+}
+
+.circular-chart {
+    display: block;
+    margin: 0 auto;
+    max-width: 80%;
+    max-height: 250px;
+}
+
+.circle-segment {
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    cursor: pointer;
+    transition: stroke-width 0.2s ease, opacity 0.2s ease;
+}
+
+.circle-segment:hover {
+    stroke-width: 4;
+    opacity: 0.8;
+}
+
+/* Phase Colors */
+.menstrual-segment { stroke: #d32f2f; } /* Deep red */
+.follicular-segment { stroke: #1976d2; } /* Vibrant blue */
+.ovulatory-segment { stroke: #f57c00; } /* Orange */
+.luteal-segment { stroke: #8e24aa; } /* Mauve/Purple */
+
+.chart-center-text {
+    fill: var(--md-sys-color-on-surface);
+    font-size: 4px; /* SVG coords */
+    font-family: var(--md-font-family);
+    text-anchor: middle;
+    font-weight: 500;
+}
+
+/* Vibe Modal Overlay */
+.vibe-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 9999;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.vibe-overlay.active {
+    display: flex; /* Script will set this */
+    opacity: 1;
+}
+
+.vibe-modal {
+    background: var(--md-sys-color-surface);
+    padding: var(--spacing-6);
+    border-radius: var(--md-sys-shape-corner-large);
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border-top: 6px solid; /* Will be colored dynamically */
+    transform: translateY(20px);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.vibe-overlay.active .vibe-modal {
+    transform: translateY(0);
+}
+
+/* Dynamic Typography rules */
+.vibe-title {
+    font-family: 'Georgia', 'Times New Roman', serif; /* Bold modern serif */
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-top: 0;
+    margin-bottom: var(--spacing-3);
+    color: var(--md-sys-color-on-surface);
+}
+
+.vibe-science {
+    font-family: var(--md-font-family); /* Muted sans-serif subtitle */
+    font-size: 0.95rem;
+    font-weight: 400;
+    color: var(--md-sys-color-outline);
+    margin-bottom: var(--spacing-4);
+    line-height: 1.4;
+    font-style: italic;
+}
+
+.vibe-text {
+    font-family: var(--md-font-family); /* Highly legible body text */
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--md-sys-color-on-surface);
+    margin-bottom: 0;
 }

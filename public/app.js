@@ -49,6 +49,7 @@ let currentlyViewedUserId = null; // Track the user whose data is being viewed
 document.addEventListener("DOMContentLoaded", () => {
   log("info", "DOM fully loaded and parsed.");
   initializeInstructionalOverlay();
+  initializeLunarPulse();
 
   const appMenuToggle = document.getElementById("app-menu-toggle");
   const appMenuContent = document.getElementById("app-menu-content");
@@ -139,6 +140,82 @@ function initializeInstructionalOverlay() {
       renderInstruction();
     }
   });
+}
+
+const lunarPulseData = {
+  Menstrual: {
+    Title: "The Hibernation Phase",
+    The_Science: "Estrogen and progesterone are at their lowest baseline. The body is shedding the uterine lining, which requires a significant amount of baseline energy.",
+    The_Vibe: "Cancel the non-essential meetings. Biology dictates low energy, and reality dictates sweatpants with zero guilt about leaving texts on read. It's time for introversion, weighted blankets, and low-stakes choices.",
+    ColorClass: "menstrual-segment"
+  },
+  Follicular: {
+    Title: "The Main Character Phase",
+    The_Science: "The brain is pumping out follicle-stimulating hormone (FSH), and estrogen is beginning a steep, steady climb, bringing serotonin and dopamine along for the ride.",
+    The_Vibe: "The fog has lifted. You are biologically primed to be charming, tackle complex tasks, and actually want to answer your emails. A great time to brainstorm, socialize, or finally fold the laundry that's been sitting in the basket for three days.",
+    ColorClass: "follicular-segment"
+  },
+  Ovulatory: {
+    Title: "The Peak Phase",
+    The_Science: "Estrogen hits its absolute ceiling, triggering a surge of luteinizing hormone (LH) to release the egg. A brief, sharp spike in testosterone also occurs.",
+    The_Vibe: "Peak magnetism and high confidence. You are at your most articulate and sharp. If you need to negotiate a raise, ask for a massive favor, or win a petty debate about household chores, your biological success rate is currently maxed out.",
+    ColorClass: "ovulatory-segment"
+  },
+  Luteal: {
+    Title: "The \"Handle With Care\" Phase",
+    The_Science: "The follicle that released the egg becomes the corpus luteum, which pumps out progesterone. Progesterone has a sedative effect, but the simultaneous sharp drop in estrogen can cause a withdrawal effect, lowering serotonin.",
+    The_Vibe: "You are not actually furious at the way people breathe; it is just the progesterone talking. Brain fog and sensitivity are the default settings right now. The world might feel about 20% more annoying than it actually is, so be gentle with yourself and lower your expectations of others.",
+    ColorClass: "luteal-segment"
+  }
+};
+
+function initializeLunarPulse() {
+  const segments = document.querySelectorAll('.circle-segment');
+  const overlay = document.getElementById('vibe-modal-overlay');
+  if (!overlay || segments.length === 0) return;
+
+  const vibeModal = overlay.querySelector('.vibe-modal');
+  const titleEl = document.getElementById('vibe-title');
+  const scienceEl = document.getElementById('vibe-science');
+  const textEl = document.getElementById('vibe-text');
+
+  segments.forEach(segment => {
+    segment.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const phaseId = segment.getAttribute('data-phase');
+      const data = lunarPulseData[phaseId];
+      if (data) {
+        titleEl.textContent = data.Title;
+        scienceEl.textContent = data.The_Science;
+        textEl.textContent = data.The_Vibe;
+        
+        // Inherit border color via JS lookup of the stroke value (simulated via hardcoded colors for safety)
+        let color = '#74777f'; // default
+        if (phaseId === 'Menstrual') color = '#d32f2f';
+        if (phaseId === 'Follicular') color = '#1976d2';
+        if (phaseId === 'Ovulatory') color = '#f57c00';
+        if (phaseId === 'Luteal') color = '#8e24aa';
+        vibeModal.style.borderColor = color;
+        titleEl.style.color = color;
+
+        overlay.classList.add('active');
+      }
+    });
+  });
+
+  const closeOverlay = () => { overlay.classList.remove('active'); };
+  
+  // Close on outside click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeOverlay();
+  });
+  
+  // Close on swipe down (rudimentary mobile support)
+  let touchstartY = 0;
+  overlay.addEventListener('touchstart', e => { touchstartY = e.changedTouches[0].screenY; }, { passive: true });
+  overlay.addEventListener('touchend', e => {
+    if (e.changedTouches[0].screenY - touchstartY > 50) closeOverlay();
+  }, { passive: true });
 }
 
 function renderInstruction() {

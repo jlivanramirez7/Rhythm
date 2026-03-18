@@ -92,6 +92,47 @@
             <div id="cycles-container"></div>
         </section>
 
+        <section id="lunar-pulse-section">
+            <h2>The Lunar Pulse</h2>
+            <div class="lunar-donut-container">
+                <svg viewBox="0 0 36 36" class="circular-chart">
+                    <!-- Menstrual Phase: Approx Day 1-5 (5 days / 28 = ~18%) -->
+                    <path class="circle-segment menstrual-segment"
+                        stroke-dasharray="18, 100"
+                        stroke-dashoffset="25"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        data-phase="Menstrual"
+                    />
+                    <!-- Follicular Phase: Approx Day 6-13 (8 days / 28 = ~28%) 
+                         Offset = previous offset (25) - previous length (18) = 7 -->
+                    <path class="circle-segment follicular-segment"
+                        stroke-dasharray="28, 100"
+                        stroke-dashoffset="7"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        data-phase="Follicular"
+                    />
+                    <!-- Ovulatory Phase: Approx Day 14-15 (2 days / 28 = ~7%) 
+                         Offset = previous offset (7) - previous length (28) = -21 (or 79) -->
+                    <path class="circle-segment ovulatory-segment"
+                        stroke-dasharray="7, 100"
+                        stroke-dashoffset="79"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        data-phase="Ovulatory"
+                    />
+                    <!-- Luteal Phase: Approx Day 16-28 (13 days / 28 = ~47%) 
+                         Offset = previous offset (79) - previous length (7) = 72 -->
+                    <path class="circle-segment luteal-segment"
+                        stroke-dasharray="47, 100"
+                        stroke-dashoffset="72"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        data-phase="Luteal"
+                    />
+                    <text x="18" y="20.35" class="chart-center-text">Tap Phase</text>
+                </svg>
+            </div>
+            <p style="text-align: center; font-size: 0.9em; margin-top: 10px; color: var(--md-sys-color-outline);">Interactive phase map</p>
+        </section>
+
         <section id="analytics-section">
             <h2>Analytics</h2>
             <div class="analytics-grid">
@@ -120,6 +161,15 @@
     </main>
 
     <script src="/app.js?v=1.1"></script>
+
+    <!-- The Vibe Modal Overlay -->
+    <div id="vibe-modal-overlay" class="vibe-overlay">
+        <div class="vibe-modal">
+            <h2 id="vibe-title" class="vibe-title">Phase Title</h2>
+            <h3 id="vibe-science" class="vibe-science">The Science</h3>
+            <p id="vibe-text" class="vibe-text">The Vibe Body</p>
+        </div>
+    </div>
 
     <!-- Instructional Overlay -->
     <div id="instructional-overlay" class="overlay">
