@@ -748,20 +748,14 @@ function calculateFertileWindows(cycles) {
     let fertileEnd = null;
     // Window closes EXACTLY 3 full days after the last recorded "Peak" day.
     if (lastPeak) {
-      const endDate = new Date(lastPeak.date);
-      endDate.setDate(endDate.getDate() + 3); // 3 full days after Peak
-      fertileEnd = endDate.toISOString().split("T")[0];
-    }
-
-    // If the cycle is ongoing and a peak has been detected, the window might still be open
-    if (lastPeak && !cycle.end_date && !fertileEnd) {
-      const endDate = new Date(lastPeak.date);
-      endDate.setDate(endDate.getDate() + 3);
-      if (new Date() < endDate) {
-        fertileEnd = null; // Still in the window
-      } else {
-        fertileEnd = endDate.toISOString().split("T")[0];
-      }
+      const pDateStr = lastPeak.date.split('T')[0];
+      const endDateObj = new Date(pDateStr + 'T00:00:00');
+      endDateObj.setDate(endDateObj.getDate() + 3); // 3 full days after Peak
+      
+      const year = endDateObj.getFullYear();
+      const month = String(endDateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(endDateObj.getDate()).padStart(2, '0');
+      fertileEnd = `${year}-${month}-${day}`;
     }
 
     return { cycleId: cycle.id, start: fertileStart, end: fertileEnd };
