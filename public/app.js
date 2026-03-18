@@ -326,6 +326,30 @@ function renderLunarPulse(analytics, cycles) {
       ${drawTick(angle3, formatDate(dOvulatoryEnd))}
       ${drawTick(359.9, formatDate(dLutealEnd))}
 
+      <!-- Estimated Next Peak Marker -->
+      ${(() => {
+        if (analytics && analytics.averageDaysToPeak > 0) {
+          const hasPeaked = cycles[0] && cycles[0].days && cycles[0].days.some(d => d.hormone_reading === 'Peak');
+          if (!hasPeaked && currentDay <= avgCycleLength) {
+            // Predict peak day inside current cycle
+            const estPeakDay = analytics.averageDaysToPeak;
+            if (estPeakDay <= avgCycleLength) {
+              const peakAngle = Math.min((estPeakDay / avgCycleLength) * 360, 359.9);
+              const peakMarker = polarToCartesian(cx, cy, radius, peakAngle);
+              const peakText = polarToCartesian(cx, cy, radius + 14, peakAngle);
+              const estPeakDate = addDays(cycleStart, estPeakDay);
+              return `
+                <circle cx="${peakMarker.x}" cy="${peakMarker.y}" r="2" fill="none" stroke="#f57c00" stroke-width="0.8" stroke-dasharray="1,1" />
+                <path d="M ${peakMarker.x} ${peakMarker.y-3} L ${peakMarker.x+2} ${peakMarker.y+1} L ${peakMarker.x-2} ${peakMarker.y+1} Z" fill="#f57c00" />
+                <text x="${peakText.x}" y="${peakText.y}" fill="#f57c00" font-size="2.5" text-anchor="middle" font-weight="700">Est. Peak</text>
+                <text x="${peakText.x}" y="${peakText.y + 3}" fill="#f57c00" font-size="2.5" text-anchor="middle" font-weight="500">${formatDate(estPeakDate)}</text>
+              `;
+            }
+          }
+        }
+        return '';
+      })()}
+
       <!-- Today Marker -->
       <circle cx="${marker.x}" cy="${marker.y}" r="2.5" class="today-marker" fill="var(--md-sys-color-on-surface)" stroke="var(--md-sys-color-surface)" stroke-width="1" />
       
@@ -810,6 +834,7 @@ function renderAnalytics(analytics, cycles, elements) {
   const avgLutealLengthSpan = document.getElementById("avg-luteal-length");
   const avgFertileWindowSpan = document.getElementById("avg-fertile-window");
   const estimatedNextPeriodSpan = document.getElementById("estimated-next-period");
+  const estimatedNextPeakSpan = document.getElementById("estimated-next-peak");
   const fertileWindowStartSpan = document.getElementById("fertile-window-start");
   const fertileWindowEndSpan = document.getElementById("fertile-window-end");
 
@@ -844,22 +869,45 @@ function renderAnalytics(analytics, cycles, elements) {
     );
     estimatedNextPeriodSpan.textContent = nextPeriodDate.toLocaleDateString();
 
-    if (analytics.averageDaysToPeak > 0 && avgFertileWindowLength > 0) {
-      const nextFertileStartDate = new Date(nextPeriodDate.getTime());
-      nextFertileStartDate.setDate(
-        nextPeriodDate.getDate() +
-          analytics.averageDaysToPeak -
-          avgFertileWindowLength / 2
-      );
+    if (analytics.averageDaysToPeak > 0) {
+      // Logic for Next Peak Estimation
+      const hasPeakedThisCycle = mostRecentCycle.days && mostRecentCycle.days.some(d => d.hormone_reading === 'Peak');
+      let nextPeakDate;
+      
+      if (!hasPeakedThisCycle && !mostRecentCycle.end_date) {
+        // If they haven't peaked in the active ongoing cycle, predict it for this current cycle
+        nextPeakDate = new Date(lastStartDate.getTime());
+        nextPeakDate.setDate(lastStartDate.getDate() + analytics.averageDaysToPeak - 1);
+      } else {
+        // If they already peaked, or the cycle is closed, predict it for the upcoming cycle
+        nextPeakDate = new Date(nextPeriodDate.getTime());
+        nextPeakDate.setDate(nextPeriodDate.getDate() + analytics.averageDaysToPeak - 1);
+      }
+      
+      estimatedNextPeakSpan.textContent = nextPeakDate.toLocaleDateString();
 
-      const nextFertileEndDate = new Date(nextFertileStartDate.getTime());
-      nextFertileEndDate.setDate(
-        nextFertileStartDate.getDate() + avgFertileWindowLength
-      );
+      // Ensure Fertile Window logic follows correctly
+      if (avgFertileWindowLength > 0) {
+        const nextFertileStartDate = new Date(nextPeriodDate.getTime());
+        nextFertileStartDate.setDate(
+          nextPeriodDate.getDate() +
+            analytics.averageDaysToPeak -
+            avgFertileWindowLength / 2
+        );
 
-      fertileWindowStartSpan.textContent = nextFertileStartDate.toLocaleDateString();
-      fertileWindowEndSpan.textContent = nextFertileEndDate.toLocaleDateString();
+        const nextFertileEndDate = new Date(nextFertileStartDate.getTime());
+        nextFertileEndDate.setDate(
+          nextFertileStartDate.getDate() + avgFertileWindowLength
+        );
+
+        fertileWindowStartSpan.textContent = nextFertileStartDate.toLocaleDateString();
+        fertileWindowEndSpan.textContent = nextFertileEndDate.toLocaleDateString();
+      } else {
+        fertileWindowStartSpan.textContent = "--";
+        fertileWindowEndSpan.textContent = "--";
+      }
     } else {
+      estimatedNextPeakSpan.textContent = "--";
       fertileWindowStartSpan.textContent = "--";
       fertileWindowEndSpan.textContent = "--";
     }
