@@ -953,3 +953,16 @@ input[type="checkbox"]:checked::after {
     color: var(--md-sys-color-on-surface);
     margin-bottom: 0;
 }
+
+.vibe-dates {
+  font-family: var(--md-font-family);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--md-sys-color-on-surface);
+  margin-top: -10px;
+  margin-bottom: var(--spacing-2);
+}
+
+.today-marker {
+  fill: var(--md-sys-color-on-surface);
+}

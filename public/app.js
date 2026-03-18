@@ -49,7 +49,6 @@ let currentlyViewedUserId = null; // Track the user whose data is being viewed
 document.addEventListener("DOMContentLoaded", () => {
   log("info", "DOM fully loaded and parsed.");
   initializeInstructionalOverlay();
-  initializeLunarPulse();
 
   const appMenuToggle = document.getElementById("app-menu-toggle");
   const appMenuContent = document.getElementById("app-menu-content");
@@ -169,13 +168,125 @@ const lunarPulseData = {
   }
 };
 
-function initializeLunarPulse() {
-  const segments = document.querySelectorAll('.circle-segment');
+function renderLunarPulse(analytics, cycles) {
+  const container = document.getElementById('lunar-donut-container');
   const overlay = document.getElementById('vibe-modal-overlay');
-  if (!overlay || segments.length === 0) return;
+  if (!container || !overlay) return;
 
+  // 1. Calculate Averages & Fertile Window Length
+  const avgCycleLength = analytics.averageCycleLength > 0 ? analytics.averageCycleLength : 28;
+  const avgDaysToPeak = analytics.averageDaysToPeak > 0 ? analytics.averageDaysToPeak : 14;
+  
+  let avgFertileWindowLength = 5; // Default fallback
+  const fertileWindows = calculateFertileWindows(cycles);
+  const validWindows = fertileWindows.filter((fw) => fw.start && fw.end);
+  if (validWindows.length > 0) {
+    const totalFertileDays = validWindows.reduce((acc, fw) => {
+      const start = new Date(fw.start);
+      const end = new Date(fw.end);
+      return acc + (end - start) / (1000 * 60 * 60 * 24) + 1;
+    }, 0);
+    avgFertileWindowLength = Math.round(totalFertileDays / validWindows.length);
+  }
+
+  // 2. Day Mapping
+  // Menstrual: Days 1-5 (5 days)
+  const menstrualDays = 5;
+  // Ovulatory: Window around peak
+  const ovulatoryDays = avgFertileWindowLength > 0 ? avgFertileWindowLength : 5;
+  // Follicular: Day 6 to start of Ovulatory window
+  const follicularStart = menstrualDays + 1;
+  const ovulatoryStart = Math.max(follicularStart + 1, avgDaysToPeak - Math.floor(ovulatoryDays / 2));
+  const follicularDays = Math.max(1, ovulatoryStart - follicularStart);
+  // Luteal: Rest of the cycle
+  const lutealDays = Math.max(1, avgCycleLength - (menstrualDays + follicularDays + ovulatoryDays));
+
+  // Determine percentages (circumference = 100)
+  const totalMappedDays = menstrualDays + follicularDays + ovulatoryDays + lutealDays;
+  const pMenstrual = (menstrualDays / totalMappedDays) * 100;
+  const pFollicular = (follicularDays / totalMappedDays) * 100;
+  const pOvulatory = (ovulatoryDays / totalMappedDays) * 100;
+  const pLuteal = (lutealDays / totalMappedDays) * 100;
+
+  // Calculate Dash Offsets (Starting at top: offset 25)
+  // Menstrual
+  const offMenstrual = 25;
+  // Follicular
+  let offFollicular = offMenstrual - pMenstrual;
+  if (offFollicular < 0) offFollicular += 100;
+  // Ovulatory
+  let offOvulatory = offFollicular - pFollicular;
+  if (offOvulatory < 0) offOvulatory += 100;
+  // Luteal
+  let offLuteal = offOvulatory - pOvulatory;
+  if (offLuteal < 0) offLuteal += 100;
+
+  // 3. Date Calculations for active cycle
+  let cycleStart = new Date();
+  if (cycles && cycles.length > 0) {
+    cycleStart = new Date(cycles[0].start_date);
+  }
+
+  const addDays = (date, days) => {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days - 1);
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+  };
+
+  const datesMenstrual = `${addDays(cycleStart, 1)} - ${addDays(cycleStart, menstrualDays)}`;
+  const datesFollicular = `${addDays(cycleStart, menstrualDays + 1)} - ${addDays(cycleStart, menstrualDays + follicularDays)}`;
+  const datesOvulatory = `${addDays(cycleStart, menstrualDays + follicularDays + 1)} - ${addDays(cycleStart, menstrualDays + follicularDays + ovulatoryDays)}`;
+  const datesLuteal = `${addDays(cycleStart, menstrualDays + follicularDays + ovulatoryDays + 1)} - ${addDays(cycleStart, avgCycleLength)}`;
+
+  // Update lunarPulseData strings
+  lunarPulseData['Menstrual'].Dates = datesMenstrual;
+  lunarPulseData['Follicular'].Dates = datesFollicular;
+  lunarPulseData['Ovulatory'].Dates = datesOvulatory;
+  lunarPulseData['Luteal'].Dates = datesLuteal;
+
+  // Calculate "Today" marker angle
+  const today = new Date();
+  let currentDay = Math.floor((today - cycleStart) / (1000 * 60 * 60 * 24)) + 1;
+  if (currentDay > avgCycleLength) currentDay = avgCycleLength; // Cap to ring visual if overdue
+  
+  // Angle: top is -90deg, clockwise
+  const angleDeg = (currentDay / avgCycleLength) * 360 - 90;
+  const angleRad = angleDeg * (Math.PI / 180);
+  const cx = 18, cy = 18, r = 15.9155; // ring radius
+  const markerX = cx + r * Math.cos(angleRad);
+  const markerY = cy + r * Math.sin(angleRad);
+
+  // 4. SVG Generation
+  container.innerHTML = `
+    <svg viewBox="0 0 36 36" class="circular-chart">
+        <path class="circle-segment menstrual-segment"
+            stroke-dasharray="${pMenstrual}, 100" stroke-dashoffset="${offMenstrual}"
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            data-phase="Menstrual" />
+        <path class="circle-segment follicular-segment"
+            stroke-dasharray="${pFollicular}, 100" stroke-dashoffset="${offFollicular}"
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            data-phase="Follicular" />
+        <path class="circle-segment ovulatory-segment"
+            stroke-dasharray="${pOvulatory}, 100" stroke-dashoffset="${offOvulatory}"
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            data-phase="Ovulatory" />
+        <path class="circle-segment luteal-segment"
+            stroke-dasharray="${pLuteal}, 100" stroke-dashoffset="${offLuteal}"
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            data-phase="Luteal" />
+        
+        <circle cx="${markerX}" cy="${markerY}" r="1.5" class="today-marker" />
+        
+        <text x="18" y="20.35" class="chart-center-text">Tap Phase</text>
+    </svg>
+  `;
+
+  // 5. Attach Events
+  const segments = container.querySelectorAll('.circle-segment');
   const vibeModal = overlay.querySelector('.vibe-modal');
   const titleEl = document.getElementById('vibe-title');
+  const datesEl = document.getElementById('vibe-dates');
   const scienceEl = document.getElementById('vibe-science');
   const textEl = document.getElementById('vibe-text');
 
@@ -186,17 +297,18 @@ function initializeLunarPulse() {
       const data = lunarPulseData[phaseId];
       if (data) {
         titleEl.textContent = data.Title;
+        datesEl.textContent = data.Dates;
         scienceEl.textContent = data.The_Science;
         textEl.textContent = data.The_Vibe;
         
-        // Inherit border color via JS lookup of the stroke value (simulated via hardcoded colors for safety)
-        let color = '#74777f'; // default
+        let color = '#74777f';
         if (phaseId === 'Menstrual') color = '#d32f2f';
         if (phaseId === 'Follicular') color = '#1976d2';
         if (phaseId === 'Ovulatory') color = '#f57c00';
         if (phaseId === 'Luteal') color = '#8e24aa';
         vibeModal.style.borderColor = color;
         titleEl.style.color = color;
+        datesEl.style.color = color;
 
         overlay.classList.add('active');
       }
@@ -205,12 +317,10 @@ function initializeLunarPulse() {
 
   const closeOverlay = () => { overlay.classList.remove('active'); };
   
-  // Close on outside click
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) closeOverlay();
   });
   
-  // Close on swipe down (rudimentary mobile support)
   let touchstartY = 0;
   overlay.addEventListener('touchstart', e => { touchstartY = e.changedTouches[0].screenY; }, { passive: true });
   overlay.addEventListener('touchend', e => {
@@ -362,6 +472,7 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
 
     renderCycles(cycles, elements, calculateFertileWindows(cycles));
     renderAnalytics(analytics, cycles, elements);
+    renderLunarPulse(analytics, cycles);
   } catch (error) {
     log("error", "Error fetching data:", error);
   }
