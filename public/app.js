@@ -666,9 +666,14 @@ function calculateFertileWindows(cycles) {
     if (!c.days) return;
     const peakDay = c.days.find(d => d.hormone_reading === 'Peak');
     if (peakDay) {
-      const start = new Date(c.start_date);
-      const peak = new Date(peakDay.date);
-      const dayIndex = Math.round((peak - start) / (1000 * 60 * 60 * 24)) + 1;
+      const cStartStr = c.start_date.split('T')[0];
+      const pDateStr = peakDay.date.split('T')[0];
+      
+      const startObj = new Date(cStartStr + 'T00:00:00');
+      const peakObj = new Date(pDateStr + 'T00:00:00');
+      
+      const dayIndex = Math.round((peakObj - startObj) / (1000 * 60 * 60 * 24)) + 1;
+      log("debug", `[FERTILE_WIN] Historic cycle ${c.id}: Peak on day index ${dayIndex}`);
       if (dayIndex < earliestPeakDayIndex) earliestPeakDayIndex = dayIndex;
     }
   });
@@ -688,17 +693,24 @@ function calculateFertileWindows(cycles) {
       .reverse()
       .find((d) => d.hormone_reading === "Peak");
 
-    const cycleStartDate = new Date(cycle.start_date);
+    const cycleStartDateStr = cycle.start_date.split('T')[0]; // Safe YYYY-MM-DD
+    const cycleStartObj = new Date(cycleStartDateStr + 'T00:00:00'); // Clean local boundary
+
     let fertileStart = null;
 
     // 1. Start window 6 days prior to historically established earliest Peak day
     if (earliestPeakDayIndex !== null && earliestPeakDayIndex > 6) {
-      const calculatedStartDate = new Date(cycleStartDate);
-      calculatedStartDate.setDate(calculatedStartDate.getDate() + (earliestPeakDayIndex - 1) - 6);
-      fertileStart = calculatedStartDate.toISOString().split("T")[0];
+      const calculatedStartObj = new Date(cycleStartObj);
+      calculatedStartObj.setDate(calculatedStartObj.getDate() + (earliestPeakDayIndex - 1) - 6);
+      
+      const year = calculatedStartObj.getFullYear();
+      const month = String(calculatedStartObj.getMonth() + 1).padStart(2, '0');
+      const day = String(calculatedStartObj.getDate()).padStart(2, '0');
+      fertileStart = `${year}-${month}-${day}`;
+      
     } else if (earliestPeakDayIndex !== null && earliestPeakDayIndex <= 6) {
       // If the peak is super early, window opens on day 1
-      fertileStart = cycleStartDate.toISOString().split("T")[0];
+      fertileStart = cycleStartDateStr;
     }
 
     // 2. OR immediately if a "High" or "Peak" is manually logged before that calculated date.
