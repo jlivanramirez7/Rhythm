@@ -617,6 +617,34 @@ input[type="checkbox"]:checked::after {
     border-radius: var(--md-sys-shape-corner-small);
     border: none;
     text-align: center;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.card-info-btn {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 4px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.card-info-btn:hover {
+    opacity: 1;
+}
+
+.info-modal {
+    max-width: 500px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
 }
 
 .analytic-card h4 {

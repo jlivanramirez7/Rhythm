@@ -97,7 +97,10 @@
             <div id="lunar-donut-container" class="lunar-donut-container">
                 <!-- SVG dynamically injected by app.js -->
             </div>
-            <p style="text-align: center; font-size: 0.9em; margin-top: 10px; color: var(--md-sys-color-outline);">Interactive phase map</p>
+            <div style="text-align: center; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <p style="font-size: 0.9em; color: var(--md-sys-color-outline); margin: 0;">Interactive phase map</p>
+                <button class="card-info-btn" data-info="lunar_pulse" aria-label="Chart Info" title="How to read this chart" style="position: static; padding: 0;">ℹ️</button>
+            </div>
         </section>
 
         <section id="analytics-section">
@@ -106,22 +109,27 @@
                 <div class="analytic-card">
                     <h4>Average Cycle Length</h4>
                     <p><span id="avg-cycle-length">--</span> days</p>
+                    <button class="card-info-btn" data-info="cycle_length" aria-label="Info">ℹ️</button>
                 </div>
                 <div class="analytic-card">
                     <h4>Cycle Variation</h4>
                     <p>± <span id="cycle-variation">--</span> days</p>
+                    <button class="card-info-btn" data-info="cycle_variation" aria-label="Info">ℹ️</button>
                 </div>
                 <div class="analytic-card">
                     <h4>Average Days to Peak</h4>
                     <p><span id="avg-days-to-peak">--</span> days</p>
+                    <button class="card-info-btn" data-info="days_to_peak" aria-label="Info">ℹ️</button>
                 </div>
                 <div class="analytic-card">
                     <h4>Average Luteal Phase</h4>
                     <p><span id="avg-luteal-length">--</span> days</p>
+                    <button class="card-info-btn" data-info="luteal_phase" aria-label="Info">ℹ️</button>
                 </div>
                 <div class="analytic-card">
                     <h4>Average Fertile Window</h4>
                     <p><span id="avg-fertile-window">--</span> days</p>
+                    <button class="card-info-btn" data-info="fertile_window" aria-label="Info">ℹ️</button>
                 </div>
                 <div class="analytic-card">
                     <h4>Estimated Next Period</h4>
@@ -136,6 +144,15 @@
     </main>
 
     <script src="/app.js?v=1.1"></script>
+
+    <!-- Generic Info Modal Overlay -->
+    <div id="info-modal-overlay" class="vibe-overlay">
+        <div class="vibe-modal info-modal">
+            <h2 id="info-title" class="vibe-title">Title</h2>
+            <div id="info-content" class="vibe-text">Content</div>
+            <button class="primary-btn" id="close-info-btn" style="margin-top: 20px; width: 100%;">Got It</button>
+        </div>
+    </div>
 
     <!-- The Vibe Modal Overlay -->
     <div id="vibe-modal-overlay" class="vibe-overlay">

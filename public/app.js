@@ -43,12 +43,40 @@ const instructions = [
   }
 ];
 
+const infoData = {
+  cycle_length: {
+    title: "Average Cycle Length",
+    content: "The average number of days from the first day of your period to the day before your next period begins. A typical cycle is between 21 and 35 days."
+  },
+  cycle_variation: {
+    title: "Cycle Variation",
+    content: "This shows how much your cycle length changes from month to month (standard deviation). A variation of up to 7 days is considered regular. Tracking this helps you understand the predictability of your cycle."
+  },
+  days_to_peak: {
+    title: "Average Days to Peak",
+    content: "The average number of days from the start of your cycle until your 'Peak' fertility day. This is a key indicator of when ovulation is likely to occur."
+  },
+  luteal_phase: {
+    title: "Average Luteal Phase",
+    content: "The luteal phase is the time between your Peak day and the start of your next period. A healthy luteal phase is typically 10-14 days and is crucial for sustaining early pregnancy."
+  },
+  fertile_window: {
+    title: "Average Fertile Window",
+    content: "The number of days in your cycle where intercourse is most likely to result in pregnancy, estimated based on your High and Peak readings."
+  },
+  lunar_pulse: {
+    title: "How to Read The Lunar Pulse",
+    content: "<img src='/lunar_infographic.png' alt='Lunar Pulse Infographic' style='width: 100%; border-radius: 8px; margin-bottom: 15px;'><br/><p>The Lunar Pulse is a visual representation of your current cycle. <br/><br/>The dot marks where you are today based on your average cycle length. Each phase represents different hormonal shifts. Tap any phase to learn about the science and the 'vibe' of that part of your cycle.</p>"
+  }
+};
+
 let currentInstruction = 0;
 let currentlyViewedUserId = null; // Track the user whose data is being viewed
 
 document.addEventListener("DOMContentLoaded", () => {
   log("info", "DOM fully loaded and parsed.");
   initializeInstructionalOverlay();
+  initializeInfoButtons();
 
   const appMenuToggle = document.getElementById("app-menu-toggle");
   const appMenuContent = document.getElementById("app-menu-content");
@@ -262,10 +290,23 @@ function renderLunarPulse(analytics, cycles) {
   const drawTick = (angle, label) => {
     const inner = polarToCartesian(cx, cy, radius - 4, angle);
     const outer = polarToCartesian(cx, cy, radius + 4, angle);
-    const textPos = polarToCartesian(cx, cy, radius + 11, angle);
+    let textPos = polarToCartesian(cx, cy, radius + 11, angle);
+    let anchor = "middle";
+    
+    // Stagger dates at top to prevent overlap
+    if (angle === 0) {
+      textPos = polarToCartesian(cx, cy, radius + 8, angle);
+      textPos.x += 2;
+      anchor = "start";
+    } else if (angle >= 359) {
+      textPos = polarToCartesian(cx, cy, radius + 8, angle);
+      textPos.x -= 2;
+      anchor = "end";
+    }
+
     return `
       <line x1="${inner.x}" y1="${inner.y}" x2="${outer.x}" y2="${outer.y}" stroke="var(--md-sys-color-outline)" stroke-width="1" />
-      <text x="${textPos.x}" y="${textPos.y + 1.5}" class="chart-tick-text" text-anchor="middle" fill="var(--md-sys-color-outline)" font-size="3">${label}</text>
+      <text x="${textPos.x}" y="${textPos.y + 1.5}" class="chart-tick-text" text-anchor="${anchor}" fill="var(--md-sys-color-outline)" font-size="3">${label}</text>
     `;
   };
 
@@ -1099,6 +1140,36 @@ async function deleteReading(id, elements) {
   } catch (error) {
     console.error("Error deleting reading:", error);
   }
+}
+
+function initializeInfoButtons() {
+    const buttons = document.querySelectorAll('.card-info-btn');
+    const overlay = document.getElementById('info-modal-overlay');
+    if (!overlay) return;
+    
+    const titleEl = document.getElementById('info-title');
+    const contentEl = document.getElementById('info-content');
+    const closeBtn = document.getElementById('close-info-btn');
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const key = btn.getAttribute('data-info');
+            const data = infoData[key];
+            if (data) {
+                titleEl.textContent = data.title;
+                contentEl.innerHTML = data.content;
+                overlay.classList.add('active');
+            }
+        });
+    });
+
+    const closeOverlay = () => overlay.classList.remove('active');
+    
+    closeBtn.addEventListener('click', closeOverlay);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeOverlay();
+    });
 }
 
 async function handleShareSubmit(e) {
