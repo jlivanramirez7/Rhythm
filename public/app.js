@@ -190,95 +190,106 @@ function renderLunarPulse(analytics, cycles) {
   }
 
   // 2. Day Mapping
-  // Menstrual: Days 1-5 (5 days)
   const menstrualDays = 5;
-  // Ovulatory: Window around peak
   const ovulatoryDays = avgFertileWindowLength > 0 ? avgFertileWindowLength : 5;
-  // Follicular: Day 6 to start of Ovulatory window
   const follicularStart = menstrualDays + 1;
   const ovulatoryStart = Math.max(follicularStart + 1, avgDaysToPeak - Math.floor(ovulatoryDays / 2));
   const follicularDays = Math.max(1, ovulatoryStart - follicularStart);
-  // Luteal: Rest of the cycle
   const lutealDays = Math.max(1, avgCycleLength - (menstrualDays + follicularDays + ovulatoryDays));
 
-  // Determine percentages (circumference = 100)
+  // Determine percentages
   const totalMappedDays = menstrualDays + follicularDays + ovulatoryDays + lutealDays;
-  const pMenstrual = (menstrualDays / totalMappedDays) * 100;
-  const pFollicular = (follicularDays / totalMappedDays) * 100;
-  const pOvulatory = (ovulatoryDays / totalMappedDays) * 100;
-  const pLuteal = (lutealDays / totalMappedDays) * 100;
+  const pMenstrual = (menstrualDays / totalMappedDays);
+  const pFollicular = (follicularDays / totalMappedDays);
+  const pOvulatory = (ovulatoryDays / totalMappedDays);
+  const pLuteal = (lutealDays / totalMappedDays);
 
-  // Calculate Dash Offsets (Starting at top: offset 25)
-  // Menstrual
-  const offMenstrual = 25;
-  // Follicular
-  let offFollicular = offMenstrual - pMenstrual;
-  if (offFollicular < 0) offFollicular += 100;
-  // Ovulatory
-  let offOvulatory = offFollicular - pFollicular;
-  if (offOvulatory < 0) offOvulatory += 100;
-  // Luteal
-  let offLuteal = offOvulatory - pOvulatory;
-  if (offLuteal < 0) offLuteal += 100;
+  const angle1 = pMenstrual * 360;
+  const angle2 = angle1 + (pFollicular * 360);
+  const angle3 = angle2 + (pOvulatory * 360);
+  const angle4 = 360;
 
-  // 3. Date Calculations for active cycle
+  // 3. Date Calculations
   let cycleStart = new Date();
-  if (cycles && cycles.length > 0) {
-    cycleStart = new Date(cycles[0].start_date);
-  }
+  if (cycles && cycles.length > 0) cycleStart = new Date(cycles[0].start_date);
 
   const addDays = (date, days) => {
     const d = new Date(date);
     d.setDate(d.getDate() + days - 1);
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+    return d;
   };
+  const formatDate = (date) => `${date.getMonth()+1}/${date.getDate()}`;
 
-  const datesMenstrual = `${addDays(cycleStart, 1)} - ${addDays(cycleStart, menstrualDays)}`;
-  const datesFollicular = `${addDays(cycleStart, menstrualDays + 1)} - ${addDays(cycleStart, menstrualDays + follicularDays)}`;
-  const datesOvulatory = `${addDays(cycleStart, menstrualDays + follicularDays + 1)} - ${addDays(cycleStart, menstrualDays + follicularDays + ovulatoryDays)}`;
-  const datesLuteal = `${addDays(cycleStart, menstrualDays + follicularDays + ovulatoryDays + 1)} - ${addDays(cycleStart, avgCycleLength)}`;
+  const dMenstrualEnd = addDays(cycleStart, menstrualDays);
+  const dFollicularEnd = addDays(cycleStart, menstrualDays + follicularDays);
+  const dOvulatoryEnd = addDays(cycleStart, menstrualDays + follicularDays + ovulatoryDays);
+  const dLutealEnd = addDays(cycleStart, avgCycleLength);
 
-  // Update lunarPulseData strings
-  lunarPulseData['Menstrual'].Dates = datesMenstrual;
-  lunarPulseData['Follicular'].Dates = datesFollicular;
-  lunarPulseData['Ovulatory'].Dates = datesOvulatory;
-  lunarPulseData['Luteal'].Dates = datesLuteal;
+  lunarPulseData['Menstrual'].Dates = `${formatDate(cycleStart)} - ${formatDate(dMenstrualEnd)}`;
+  lunarPulseData['Follicular'].Dates = `${formatDate(addDays(cycleStart, menstrualDays+1))} - ${formatDate(dFollicularEnd)}`;
+  lunarPulseData['Ovulatory'].Dates = `${formatDate(addDays(cycleStart, menstrualDays+follicularDays+1))} - ${formatDate(dOvulatoryEnd)}`;
+  lunarPulseData['Luteal'].Dates = `${formatDate(addDays(cycleStart, menstrualDays+follicularDays+ovulatoryDays+1))} - ${formatDate(dLutealEnd)}`;
 
-  // Calculate "Today" marker angle
+  // Find Current Phase & Marker Angle
   const today = new Date();
   let currentDay = Math.floor((today - cycleStart) / (1000 * 60 * 60 * 24)) + 1;
-  if (currentDay > avgCycleLength) currentDay = avgCycleLength; // Cap to ring visual if overdue
-  
-  // Angle: top is -90deg, clockwise
-  const angleDeg = (currentDay / avgCycleLength) * 360 - 90;
-  const angleRad = angleDeg * (Math.PI / 180);
-  const cx = 18, cy = 18, r = 15.9155; // ring radius
-  const markerX = cx + r * Math.cos(angleRad);
-  const markerY = cy + r * Math.sin(angleRad);
+  // If user is past their average cycle, cap it at 359 degrees so it doesn't wrap confusingly
+  const clampedDay = currentDay > avgCycleLength ? avgCycleLength : currentDay;
+  const currentAngleDeg = Math.min((clampedDay / avgCycleLength) * 360, 359.9);
 
-  // 4. SVG Generation
+  let currentPhase = "Menstrual";
+  if (currentDay > menstrualDays) currentPhase = "Follicular";
+  if (currentDay > menstrualDays + follicularDays) currentPhase = "Ovulatory";
+  if (currentDay > menstrualDays + follicularDays + ovulatoryDays) currentPhase = "Luteal";
+
+  // 4. SVG Math
+  const polarToCartesian = (cx, cy, r, angleDeg) => {
+    const angleRad = (angleDeg - 90) * Math.PI / 180.0;
+    return { x: cx + (r * Math.cos(angleRad)), y: cy + (r * Math.sin(angleRad)) };
+  };
+  
+  const describeArc = (x, y, r, startAngle, endAngle) => {
+    // subtract 0.1 from endAngle to prevent arc overlapping/disappearing at exactly 360
+    const start = polarToCartesian(x, y, r, endAngle - 0.1); 
+    const end = polarToCartesian(x, y, r, startAngle);
+    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+    return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
+  };
+
+  const cx = 50, cy = 50, radius = 35;
+  const marker = polarToCartesian(cx, cy, radius, currentAngleDeg);
+
+  const drawTick = (angle, label) => {
+    const inner = polarToCartesian(cx, cy, radius - 4, angle);
+    const outer = polarToCartesian(cx, cy, radius + 4, angle);
+    const textPos = polarToCartesian(cx, cy, radius + 11, angle);
+    return `
+      <line x1="${inner.x}" y1="${inner.y}" x2="${outer.x}" y2="${outer.y}" stroke="var(--md-sys-color-outline)" stroke-width="1" />
+      <text x="${textPos.x}" y="${textPos.y + 1.5}" class="chart-tick-text" text-anchor="middle" fill="var(--md-sys-color-outline)" font-size="3">${label}</text>
+    `;
+  };
+
+  // Generate SVG String
   container.innerHTML = `
-    <svg viewBox="0 0 36 36" class="circular-chart">
-        <path class="circle-segment menstrual-segment"
-            stroke-dasharray="${pMenstrual}, 100" stroke-dashoffset="${offMenstrual}"
-            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            data-phase="Menstrual" />
-        <path class="circle-segment follicular-segment"
-            stroke-dasharray="${pFollicular}, 100" stroke-dashoffset="${offFollicular}"
-            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            data-phase="Follicular" />
-        <path class="circle-segment ovulatory-segment"
-            stroke-dasharray="${pOvulatory}, 100" stroke-dashoffset="${offOvulatory}"
-            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            data-phase="Ovulatory" />
-        <path class="circle-segment luteal-segment"
-            stroke-dasharray="${pLuteal}, 100" stroke-dashoffset="${offLuteal}"
-            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            data-phase="Luteal" />
-        
-        <circle cx="${markerX}" cy="${markerY}" r="1.5" class="today-marker" />
-        
-        <text x="18" y="20.35" class="chart-center-text">Tap Phase</text>
+    <svg viewBox="0 0 100 100" class="circular-chart-v2" style="display: block; margin: 0 auto; max-width: 100%; max-height: 300px;">
+      <path class="circle-segment menstrual-segment" d="${describeArc(cx, cy, radius, 0, angle1)}" data-phase="Menstrual" stroke-width="6" fill="none" />
+      <path class="circle-segment follicular-segment" d="${describeArc(cx, cy, radius, angle1, angle2)}" data-phase="Follicular" stroke-width="6" fill="none" />
+      <path class="circle-segment ovulatory-segment" d="${describeArc(cx, cy, radius, angle2, angle3)}" data-phase="Ovulatory" stroke-width="6" fill="none" />
+      <path class="circle-segment luteal-segment" d="${describeArc(cx, cy, radius, angle3, 359.9)}" data-phase="Luteal" stroke-width="6" fill="none" />
+      
+      <!-- Date Ticks -->
+      ${drawTick(0, formatDate(cycleStart))}
+      ${drawTick(angle1, formatDate(dMenstrualEnd))}
+      ${drawTick(angle2, formatDate(dFollicularEnd))}
+      ${drawTick(angle3, formatDate(dOvulatoryEnd))}
+      ${drawTick(359.9, formatDate(dLutealEnd))}
+
+      <!-- Today Marker -->
+      <circle cx="${marker.x}" cy="${marker.y}" r="2.5" class="today-marker" fill="var(--md-sys-color-on-surface)" stroke="var(--md-sys-color-surface)" stroke-width="1" />
+      
+      <!-- Center Text -->
+      <text x="50" y="48" fill="var(--md-sys-color-on-surface)" text-anchor="middle" font-size="6" font-weight="700">${currentPhase}</text>
+      <text x="50" y="55" fill="var(--md-sys-color-outline)" text-anchor="middle" font-size="4">Day ${currentDay}</text>
     </svg>
   `;
 
