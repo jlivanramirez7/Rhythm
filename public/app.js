@@ -635,10 +635,32 @@ function renderCycles(cycles, elements, fertileWindows = []) {
 }
 
 function calculateFertileWindows(cycles) {
-  if (!cycles) return [];
+  if (!cycles || cycles.length === 0) return [];
 
-  return cycles.map((cycle) => {
-    const sortedDays = cycle.days.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+  // Calculate the historically established earliest Peak day across ALL cycles (up to last 6)
+  // We'll calculate it once and apply it to each cycle relative to its own history if needed, 
+  // but usually it applies broadly or building up to the current. 
+  // To be safe and simple: find the historic earliest peak day index across the 6 most recent cycles.
+  const recentCyclesForPeak = cycles.slice(0, 6); // Assuming cycles are sorted newest first
+  let earliestPeakDayIndex = Infinity;
+
+  recentCyclesForPeak.forEach(c => {
+    if (!c.days) return;
+    const peakDay = c.days.find(d => d.hormone_reading === 'Peak');
+    if (peakDay) {
+      const start = new Date(c.start_date);
+      const peak = new Date(peakDay.date);
+      const dayIndex = Math.round((peak - start) / (1000 * 60 * 60 * 24)) + 1;
+      if (dayIndex < earliestPeakDayIndex) earliestPeakDayIndex = dayIndex;
+    }
+  });
+
+  if (earliestPeakDayIndex === Infinity) {
+    earliestPeakDayIndex = null; // No historic peaks
+  }
+
+  return cycles.map((cycle, index) => {
+    const sortedDays = (cycle.days || []).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
 
     const firstHighOrPeak = sortedDays.find(
       (d) => d.hormone_reading === "High" || d.hormone_reading === "Peak"
@@ -648,24 +670,39 @@ function calculateFertileWindows(cycles) {
       .reverse()
       .find((d) => d.hormone_reading === "Peak");
 
+    const cycleStartDate = new Date(cycle.start_date);
     let fertileStart = null;
+
+    // 1. Start window 6 days prior to historically established earliest Peak day
+    if (earliestPeakDayIndex !== null && earliestPeakDayIndex > 6) {
+      const calculatedStartDate = new Date(cycleStartDate);
+      calculatedStartDate.setDate(calculatedStartDate.getDate() + (earliestPeakDayIndex - 1) - 6);
+      fertileStart = calculatedStartDate.toISOString().split("T")[0];
+    } else if (earliestPeakDayIndex !== null && earliestPeakDayIndex <= 6) {
+      // If the peak is super early, window opens on day 1
+      fertileStart = cycleStartDate.toISOString().split("T")[0];
+    }
+
+    // 2. OR immediately if a "High" or "Peak" is manually logged before that calculated date.
     if (firstHighOrPeak) {
-      const startDate = new Date(firstHighOrPeak.date);
-      startDate.setDate(startDate.getDate() - 3); // Window opens 3 days before the first high/peak
-      fertileStart = startDate.toISOString().split("T")[0];
+      const loggedHighPeakDateStr = firstHighOrPeak.date.split("T")[0];
+      if (!fertileStart || new Date(loggedHighPeakDateStr) < new Date(fertileStart)) {
+        fertileStart = loggedHighPeakDateStr;
+      }
     }
 
     let fertileEnd = null;
+    // Window closes EXACTLY 3 full days after the last recorded "Peak" day.
     if (lastPeak) {
       const endDate = new Date(lastPeak.date);
-      endDate.setDate(endDate.getDate() + 4); // Window closes after Peak + 4 days
+      endDate.setDate(endDate.getDate() + 3); // 3 full days after Peak
       fertileEnd = endDate.toISOString().split("T")[0];
     }
 
     // If the cycle is ongoing and a peak has been detected, the window might still be open
     if (lastPeak && !cycle.end_date && !fertileEnd) {
       const endDate = new Date(lastPeak.date);
-      endDate.setDate(endDate.getDate() + 4);
+      endDate.setDate(endDate.getDate() + 3);
       if (new Date() < endDate) {
         fertileEnd = null; // Still in the window
       } else {
@@ -1059,9 +1096,44 @@ async function handleReadingSubmit(e, elements) {
     };
 
     try {
-      // The logOrUpdateReading function is designed for single-day updates/inserts.
-      // It will correctly call POST /api/cycles/days.
-      await logOrUpdateReading(payload, elements);
+      // Hardware Automation: PPHLL Sequence Check
+      if (hormone_reading === "Peak") {
+        log("info", "[AUTOMATION] Peak detected! Automating PPHLL sequence...");
+        
+        // 1. Submit the initial actual Peak Day
+        await fetch("/api/cycles/days", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        // 2. Submit the automated future days
+        const sequence = ['Peak', 'High', 'Low', 'Low'];
+        const autoPromises = sequence.map((reading, index) => {
+          const nextDate = new Date(startDate);
+          nextDate.setDate(nextDate.getDate() + (index + 1));
+          return fetch("/api/cycles/days", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              date: nextDate.toISOString().split("T")[0],
+              hormone_reading: reading,
+              intercourse: false, // Default false for future prediction
+              userId: currentlyViewedUserId
+            })
+          });
+        });
+        
+        await Promise.all(autoPromises);
+        log("info", "[AUTOMATION] PPHLL Sequence successfully injected.");
+        
+        // Render UI once at the very end
+        fetchAndRenderData(elements, currentlyViewedUserId);
+
+      } else {
+        // Normal single day submission 
+        await logOrUpdateReading(payload, elements);
+      }
     } catch (error) {
       console.error("Error from single day submit:", error);
       alert(error.message);

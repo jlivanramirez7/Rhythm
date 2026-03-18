@@ -286,6 +286,31 @@ const apiRouter = (db) => {
                 const updateResult = await db.run(updatePreviousCycleSql, [previousCycleEndDate, previousCycle.id]);
                 log('info', `[NEW_CYCLE_LOGIC] DB update result:`, updateResult);
 
+                // --- Ghosting Protocol (Phase 3) ---
+                log('info', `[NEW_CYCLE_LOGIC] Initiating Ghosting Protocol for gap bridging...`);
+                const lastRecordedDaySql = sql(`SELECT date FROM cycle_days WHERE cycle_id = ? ORDER BY date DESC LIMIT 1`, isPostgres);
+                const lastRecordedDay = await db.get(lastRecordedDaySql, [previousCycle.id]);
+                
+                if (lastRecordedDay) {
+                    const lastDate = moment.utc(lastRecordedDay.date);
+                    const endDate = moment.utc(previousCycleEndDate);
+                    
+                    if (lastDate.isBefore(endDate)) {
+                        log('info', `[NEW_CYCLE_LOGIC] Gap detected between ${lastDate.format('YYYY-MM-DD')} and ${endDate.format('YYYY-MM-DD')}. Backfilling 'Low' readings...`);
+                        
+                        const insertDaySql = sql(`INSERT INTO cycle_days (cycle_id, date, hormone_reading) VALUES (?, ?, 'Low')`, isPostgres);
+                        
+                        // Loop from day after last recorded day, up to the end date.
+                        let currentDate = lastDate.clone().add(1, 'days');
+                        while (currentDate.isSameOrBefore(endDate)) {
+                            const dateStr = currentDate.format('YYYY-MM-DD');
+                            await db.run(insertDaySql, [previousCycle.id, dateStr]);
+                            currentDate.add(1, 'days');
+                        }
+                        log('info', `[NEW_CYCLE_LOGIC] Ghosting Protocol backfill complete.`);
+                    }
+                }
+
             } else {
                 log('info', `[NEW_CYCLE_LOGIC] No previous open cycle found for user ${targetUserId}.`);
             }
