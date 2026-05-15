@@ -945,7 +945,7 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
   const readingClass = dayData.hormone_reading || "";
 
   dayDiv.innerHTML = `
-        <button class="delete-day" data-id="${dayData.id}" style="visibility: ${isPeriodDay ? "hidden" : "visible"}">&times;</button>
+        <button class="delete-day" data-id="${dayData.id}" style="display: ${!dayData.hormone_reading ? "none" : ""}; visibility: ${isPeriodDay ? "hidden" : "visible"}">&times;</button>
         <div class="day-number">Day ${dayNumber}</div>
         <div class="day-date">${dayDate.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })}</div>
         <div class="reading ${readingClass}">${reading}</div>

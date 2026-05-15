@@ -9,3 +9,6 @@ database/*.db
 
 # macOS
 .DS_Store
+
+# Binaries
+cloud-sql-proxy

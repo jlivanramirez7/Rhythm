@@ -18,7 +18,6 @@ const ensureAuthenticated = (req, res, next) => {
     if (req.isAuthenticated()) {
         return next();
     }
-    // For API requests, send a 401 Unauthorized status instead of a redirect.
     res.status(401).json({ error: 'User not authenticated' });
 };
 
@@ -29,6 +28,45 @@ const ensureAdmin = (req, res, next) => {
     }
     res.status(403).send('Forbidden');
 };
+
+// Custom Express Session Store utilizing our GCS-Synchronized SQLite wrapper
+class GcsSqliteSessionStore extends session.Store {
+    constructor(db) {
+        super();
+        this.db = db;
+    }
+    async get(sid, cb) {
+        try {
+            const row = await this.db.get('SELECT sess FROM sessions WHERE sid = ?', [sid]);
+            if (!row) return cb(null, null);
+            cb(null, JSON.parse(row.sess));
+        } catch (err) {
+            console.error('[SESSION-STORE] Error getting session:', err);
+            cb(err);
+        }
+    }
+    async set(sid, sess, cb) {
+        try {
+            const expired = new Date(Date.now() + (sess.cookie.originalMaxAge || 30 * 24 * 60 * 60 * 1000)).toISOString();
+            await this.db.run('REPLACE INTO sessions (sid, expired, sess) VALUES (?, ?, ?)', [
+                sid, expired, JSON.stringify(sess)
+            ]);
+            cb(null);
+        } catch (err) {
+            console.error('[SESSION-STORE] Error setting session:', err);
+            cb(err);
+        }
+    }
+    async destroy(sid, cb) {
+        try {
+            await this.db.run('DELETE FROM sessions WHERE sid = ?', [sid]);
+            cb(null);
+        } catch (err) {
+            console.error('[SESSION-STORE] Error destroying session:', err);
+            cb(err);
+        }
+    }
+}
 
 async function main() {
     const secrets = await loadSecrets();
@@ -50,16 +88,19 @@ async function main() {
     app.use(express.json());
     app.use(express.static(path.join(__dirname, '../public'), { index: false }));
     
-    // Configure session store
-    const sessionStore = db.adapter === 'postgres' 
-        ? new pgSession({ pool: db.pool, tableName: 'sessions' })
-        : null;
+    // Configure session store based on active adapter
+    let sessionStore = null;
+    if (db.adapter === 'postgres') {
+        sessionStore = new pgSession({ pool: db.pool, tableName: 'sessions' });
+    } else if (db.adapter === 'gcs-sqlite' || db.adapter === 'sqlite') {
+        sessionStore = new GcsSqliteSessionStore(db);
+    }
 
     app.use(session({
         store: sessionStore,
         secret: secrets.SESSION_SECRET,
         resave: false,
-        saveUninitialized: false, // Set to false as per connect-pg-simple recommendation
+        saveUninitialized: false,
         cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 } // 30 days
     }));
 

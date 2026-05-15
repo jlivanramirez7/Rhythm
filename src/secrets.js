@@ -22,27 +22,30 @@ async function loadSecrets() {
     if (process.env.NODE_ENV !== 'production') {
         console.log('Loading secrets from .env file for local development...');
         return {
-            DB_ADAPTER: process.env.DB_ADAPTER,
-            DB_NAME: process.env.DB_NAME,
+            DB_ADAPTER: process.env.DB_ADAPTER || 'sqlite',
+            DB_NAME: process.env.DB_NAME || 'rhythm.db',
             DB_USER: process.env.DB_USER,
             DB_PASSWORD: process.env.DB_PASSWORD,
             DB_HOST: process.env.DB_HOST,
             DB_PORT: process.env.DB_PORT,
             GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
             GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-            SESSION_SECRET: process.env.SESSION_SECRET
+            AUTHORIZED_USERS: process.env.AUTHORIZED_USERS || 'dev_user@example.com',
+            SESSION_SECRET: process.env.SESSION_SECRET || 'local_development_secret',
+            GCS_BUCKET_NAME: process.env.GCS_BUCKET_NAME || 'rhythm-479516-db-bucket'
         };
     }
 
     console.log('Loading secrets from Google Cloud Secret Manager...');
     try {
-        const [dbUser, dbPassword, dbName, dbHost, googleClientId, googleClientSecret, sessionSecret] = await Promise.all([
+        const [dbUser, dbPassword, dbName, dbHost, googleClientId, googleClientSecret, authorizedUsers, sessionSecret] = await Promise.all([
             accessSecretVersion('DB_USER'),
             accessSecretVersion('DB_PASSWORD'),
             accessSecretVersion('DB_NAME'),
             accessSecretVersion('DB_HOST'),
             accessSecretVersion('GOOGLE_CLIENT_ID'),
             accessSecretVersion('GOOGLE_CLIENT_SECRET'),
+            accessSecretVersion('AUTHORIZED_USERS'),
             accessSecretVersion('SESSION_SECRET')
         ]);
         console.log('Secrets loaded successfully.');
@@ -53,8 +56,10 @@ async function loadSecrets() {
             DB_HOST: dbHost,
             GOOGLE_CLIENT_ID: googleClientId,
             GOOGLE_CLIENT_SECRET: googleClientSecret,
+            AUTHORIZED_USERS: authorizedUsers,
             SESSION_SECRET: sessionSecret,
-            DB_ADAPTER: 'postgres'
+            DB_ADAPTER: process.env.DB_ADAPTER || 'gcs-sqlite',
+            GCS_BUCKET_NAME: process.env.GCS_BUCKET_NAME || 'rhythm-479516-db-bucket'
         };
     } catch (error) {
         console.error('Failed to load secrets:', error);
