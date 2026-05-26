@@ -206,10 +206,47 @@ function renderLunarPulse(analytics, cycles) {
   const overlay = document.getElementById('vibe-modal-overlay');
   if (!container || !overlay) return;
 
-  // 1. Calculate Averages & Fertile Window Length
-  const avgCycleLength = analytics.averageCycleLength > 0 ? analytics.averageCycleLength : 28;
-  const avgDaysToPeak = analytics.averageDaysToPeak > 0 ? analytics.averageDaysToPeak : 14;
+  // 1. Calculate Averages & Fertile Window Length Strictly Based on Last 6 Cycles
+  const recentCycles = cycles || [];
+  const completedCycles = recentCycles.filter(c => c.end_date).slice(0, 6);
   
+  // Calculate average cycle length from the 6 most recent completed cycles
+  let avgCycleLength = 28; // Default fallback
+  if (completedCycles.length > 0) {
+    const totalDays = completedCycles.reduce((acc, c) => {
+      const start = new Date(c.start_date.split('T')[0]);
+      const end = new Date(c.end_date.split('T')[0]);
+      return acc + Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    }, 0);
+    avgCycleLength = Math.round(totalDays / completedCycles.length);
+  } else if (analytics.averageCycleLength > 0) {
+    avgCycleLength = analytics.averageCycleLength;
+  }
+
+  // Calculate average days to peak fertility from the 6 most recent cycles
+  let avgDaysToPeak = 14; // Default fallback
+  const recentCyclesForPeak = recentCycles.slice(0, 6);
+  let totalDaysToPeak = 0;
+  let peakCyclesCount = 0;
+
+  recentCyclesForPeak.forEach(c => {
+    if (!c.days) return;
+    const peakDay = c.days.find(d => d.hormone_reading === 'Peak');
+    if (peakDay) {
+      const start = new Date(c.start_date.split('T')[0]);
+      const peak = new Date(peakDay.date.split('T')[0]);
+      const dayIndex = Math.round((peak - start) / (1000 * 60 * 60 * 24)) + 1;
+      totalDaysToPeak += dayIndex;
+      peakCyclesCount++;
+    }
+  });
+
+  if (peakCyclesCount > 0) {
+    avgDaysToPeak = Math.round(totalDaysToPeak / peakCyclesCount);
+  } else if (analytics.averageDaysToPeak > 0) {
+    avgDaysToPeak = analytics.averageDaysToPeak;
+  }
+
   let avgFertileWindowLength = 5; // Default fallback
   const fertileWindows = calculateFertileWindows(cycles);
   const validWindows = fertileWindows.filter((fw) => fw.start && fw.end);
@@ -444,9 +481,18 @@ function renderInstruction() {
 
 function initializeEventListeners(elements) {
   elements.rangeCheckbox.addEventListener("change", () => {
-    elements.rangeInputs.style.display = elements.rangeCheckbox.checked
-      ? "block"
-      : "none";
+    if (elements.rangeCheckbox.checked) {
+      elements.rangeInputs.style.display = "block";
+      // Jump today's date from start Date box to the End Date box
+      elements.endDateInput.value = elements.dateInput.value;
+      // Clear start Date box for manual beginning date input
+      elements.dateInput.value = "";
+    } else {
+      elements.rangeInputs.style.display = "none";
+      // Restore today's date back to the start Date box and clear end date
+      elements.dateInput.value = new Date().toISOString().split("T")[0];
+      elements.endDateInput.value = "";
+    }
   });
 
   elements.readingForm.addEventListener("submit", (e) =>
