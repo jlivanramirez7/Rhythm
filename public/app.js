@@ -46,37 +46,232 @@ const instructions = [
 const infoData = {
   cycle_length: {
     title: "Average Cycle Length",
-    content: "The average number of days from the first day of your period to the day before your next period begins. A typical cycle is between 21 and 35 days."
+    content: "The average number of days from the first day of your period to the day before your next period begins, calculated across all completed cycles. A typical cycle is between 21 and 35 days."
   },
   cycle_variation: {
     title: "Cycle Variation",
-    content: "This shows how much your cycle length changes from month to month (standard deviation). A variation of up to 7 days is considered regular. Tracking this helps you understand the predictability of your cycle."
+    content: "This shows how much your cycle length changes from cycle to cycle (standard deviation). A variation of up to 7 days is considered regular. Tracking this helps you understand the predictability of your cycle."
   },
   days_to_peak: {
     title: "Average Days to Peak",
-    content: "The average number of days from the start of your cycle until your 'Peak' fertility day. This is a key indicator of when ovulation is likely to occur."
+    content: "The average number of days from the start of your cycle until your 'Peak' fertility day across all recorded cycles. This is a key indicator of when ovulation is likely to occur."
+  },
+  earliest_peak: {
+    title: "Earliest Peak Day",
+    content: "The earliest cycle day on which a 'Peak' reading has occurred across your entire history. Under the Marquette Method, your fertile window automatically opens 6 days before your earliest historical Peak day (Earliest Peak − 6)."
+  },
+  follicular_phase: {
+    title: "Average Follicular Phase",
+    content: "The pre-fertile days between the end of your 5-day menstrual period (Day 6) and the start of your fertile window. Rising follicle-stimulating hormone (FSH) and estrogen mature the dominant follicle during this phase."
   },
   luteal_phase: {
     title: "Average Luteal Phase",
-    content: "The luteal phase is the time between your Peak day and the start of your next period. A healthy luteal phase is typically 10-14 days and is crucial for sustaining early pregnancy."
+    content: "The luteal phase is the time between your Peak day and the start of your next period. A healthy luteal phase is typically 10–14 days and is crucial for sustaining early pregnancy."
   },
   fertile_window: {
     title: "Average Fertile Window",
-    content: "The number of days in your cycle where intercourse is most likely to result in pregnancy, estimated based on your High and Peak readings."
+    content: "The average number of fertile (Ovulatory phase) days in your cycle based on all your recorded High and Peak readings and the Marquette PPHLL countdown rule."
   },
   lunar_pulse: {
     title: "How to Read The Lunar Pulse",
-    content: "<img src='/lunar_infographic.png' alt='Lunar Pulse Infographic' style='width: 100%; border-radius: 8px; margin-bottom: 15px;'><br/><p>The Lunar Pulse is a visual representation of your current cycle. <br/><br/>The dot marks where you are today based on your average cycle length. Each phase represents different hormonal shifts. Tap any phase to learn about the science and the 'vibe' of that part of your cycle.</p>"
+    content: "<img src='/lunar_infographic.png' alt='Lunar Pulse Infographic' style='width: 100%; border-radius: 8px; margin-bottom: 15px;'><br/><p>The Lunar Pulse is a dynamic visual map of your current cycle. <br/><br/>Each ring section is sized dynamically from all of your historical analytics (Menstrual, Follicular, Ovulatory/Fertile Window, and Luteal phases). The dot marks where you are today. Tap any phase on the ring or legend below it to explore the science and 'vibe' of that phase.</p>"
+  },
+  phase_history: {
+    title: "Last 5 Cycles — Phase Breakdown",
+    content: "<p>This horizontal stacked bar chart compares your <strong>5 most recent cycles</strong> along a shared day axis so you can spot patterns in both total cycle length and individual phase durations:</p><ul><li><strong>Menstrual (Red):</strong> Days 1–5 of each cycle.</li><li><strong>Follicular (Blue):</strong> Pre-fertile days from Day 6 until your fertile window opens.</li><li><strong>Ovulatory / Fertile (Orange):</strong> Your open fertile window (High/Peak readings through the 3-day post-Peak countdown), with a <strong>P</strong> pin marking your exact Peak day.</li><li><strong>Luteal (Purple):</strong> Post-ovulatory safe days until the cycle concludes.</li></ul>"
   },
   estimated_peak: {
     title: "Estimated Next Peak",
-    content: "Our algorithm's prediction for the exact day your next hormone surge should occur, based on your historical Days to Peak average."
+    content: "Our algorithm's prediction for the exact day your next hormone surge should occur, based on your all-time historical Days to Peak average."
+  },
+  estimated_period: {
+    title: "Estimated Next Period",
+    content: "Projected start date of your upcoming menstrual period, calculated by adding your all-time Average Cycle Length to your current cycle's start date."
+  },
+  estimated_fertile_window: {
+    title: "Estimated Fertile Window",
+    content: "Projected start and end dates for your current or upcoming fertile window based on your historical Peak timing and fertile window length."
   }
 };
 
 let currentInstruction = 0;
 let currentlyViewedUserId = null; // Track the user whose data is being viewed
 let displayedCycleLimit = 2; // Pagination limit for cycles
+let cachedCycles = []; // Cached cycles for smart form defaults
+
+/**
+ * Computes the default start date when logging a date range:
+ * defaults to the day immediately after the last added (or auto-entered) entry
+ * in the current active cycle.
+ * @param {Array} cycles - Array of cycle objects (sorted newest first).
+ * @returns {string} YYYY-MM-DD date string, or "" if no active cycle exists.
+ */
+function getDefaultRangeStartDate(cycles) {
+  if (!cycles || cycles.length === 0) return "";
+
+  const activeCycle = cycles.find((c) => !c.end_date) || cycles[0];
+  if (!activeCycle) return "";
+
+  const recordedDays = (activeCycle.days || [])
+    .filter(
+      (d) =>
+        Boolean(d.hormone_reading) ||
+        Boolean(d.intercourse) ||
+        d.id !== undefined
+    )
+    .slice()
+    .sort((a, b) => {
+      const da = String(a.date).split("T")[0];
+      const db = String(b.date).split("T")[0];
+      return da.localeCompare(db);
+    });
+
+  if (recordedDays.length > 0) {
+    const lastDateStr = String(recordedDays[recordedDays.length - 1].date).split("T")[0];
+    const parts = lastDateStr.split("-").map(Number);
+    if (parts.length === 3 && !parts.some(isNaN)) {
+      const nextDayUtc = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + 1));
+      return nextDayUtc.toISOString().split("T")[0];
+    }
+  }
+
+  if (activeCycle.start_date) {
+    return String(activeCycle.start_date).split("T")[0];
+  }
+
+  return "";
+}
+
+/**
+ * Calculates unified phase lengths and metrics across ALL historical data
+ * so that The Lunar Pulse ring sections and the Analytics cards stay 100% in sync.
+ * @param {object} analytics - Backend analytics object from /api/analytics.
+ * @param {Array} cycles - All cycles for the user.
+ * @param {Array} [precomputedWindows] - Optional precomputed calculateFertileWindows(cycles).
+ */
+function calculatePhaseBreakdown(analytics = {}, cycles = [], precomputedWindows = null) {
+  const allCycles = Array.isArray(cycles) ? cycles : [];
+  const fertileWindows = precomputedWindows || calculateFertileWindows(allCycles);
+
+  // 1. Average Cycle Length across ALL completed cycles
+  let avgCycleLength = analytics && analytics.averageCycleLength > 0 ? analytics.averageCycleLength : 0;
+  const completedCycles = allCycles.filter((c) => c.end_date);
+  if (!avgCycleLength && completedCycles.length > 0) {
+    const totalDays = completedCycles.reduce((acc, c) => {
+      const s = new Date(String(c.start_date).split("T")[0] + "T00:00:00Z");
+      const e = new Date(String(c.end_date).split("T")[0] + "T00:00:00Z");
+      return acc + Math.round((e - s) / 86400000) + 1;
+    }, 0);
+    avgCycleLength = Math.round(totalDays / completedCycles.length);
+  }
+  const effectiveCycleLength = avgCycleLength > 0 ? avgCycleLength : 28;
+
+  // 2. Average Days to Peak & Earliest Peak across ALL cycles
+  let avgDaysToPeak = analytics && analytics.averageDaysToPeak > 0 ? analytics.averageDaysToPeak : 0;
+  let earliestPeakDayIndex = null;
+  let latestPeakDayIndex = null;
+  let totalPeakDayIdx = 0;
+  let peakCyclesCount = 0;
+
+  allCycles.forEach((c) => {
+    if (!c.days) return;
+    const sortedDays = c.days.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+    const peakDay = sortedDays.find((d) => d.hormone_reading === "Peak");
+    if (peakDay) {
+      const s = new Date(String(c.start_date).split("T")[0] + "T00:00:00Z");
+      const p = new Date(String(peakDay.date).split("T")[0] + "T00:00:00Z");
+      const dayIdx = Math.round((p - s) / 86400000) + 1;
+      if (dayIdx > 0) {
+        totalPeakDayIdx += dayIdx;
+        peakCyclesCount++;
+        if (earliestPeakDayIndex === null || dayIdx < earliestPeakDayIndex) {
+          earliestPeakDayIndex = dayIdx;
+        }
+        if (latestPeakDayIndex === null || dayIdx > latestPeakDayIndex) {
+          latestPeakDayIndex = dayIdx;
+        }
+      }
+    }
+  });
+
+  if (!avgDaysToPeak && peakCyclesCount > 0) {
+    avgDaysToPeak = Math.round(totalPeakDayIdx / peakCyclesCount);
+  }
+  const effectiveDaysToPeak = avgDaysToPeak > 0 ? avgDaysToPeak : 14;
+
+  // 3. Average Fertile Window (Ovulatory Phase) across ALL valid windows
+  const validWindows = fertileWindows.filter((fw) => fw.start && fw.end);
+  let avgFertileWindowLength = 0;
+  let totalFertileStartDayIdx = 0;
+  let validStartCount = 0;
+
+  if (validWindows.length > 0) {
+    const totalFertileDays = validWindows.reduce((acc, fw) => {
+      const s = new Date(String(fw.start).split("T")[0] + "T00:00:00Z");
+      const e = new Date(String(fw.end).split("T")[0] + "T00:00:00Z");
+      return acc + Math.round((e - s) / 86400000) + 1;
+    }, 0);
+    avgFertileWindowLength = Math.round(totalFertileDays / validWindows.length);
+  }
+
+  allCycles.forEach((c) => {
+    const fw = fertileWindows.find((f) => f.cycleId === c.id);
+    if (fw && fw.start) {
+      const cs = new Date(String(c.start_date).split("T")[0] + "T00:00:00Z");
+      const fs = new Date(String(fw.start).split("T")[0] + "T00:00:00Z");
+      const startIdx = Math.round((fs - cs) / 86400000) + 1;
+      if (startIdx >= 1) {
+        totalFertileStartDayIdx += startIdx;
+        validStartCount++;
+      }
+    }
+  });
+
+  // 4. Dynamic 4-Phase Lengths aligned 1-to-1 with All-Data Analytics
+  const menstrualDays = Math.min(5, Math.max(1, effectiveCycleLength - 3));
+  const ovulatoryDays = Math.min(
+    Math.max(1, effectiveCycleLength - menstrualDays - 2),
+    avgFertileWindowLength > 0 ? avgFertileWindowLength : 5
+  );
+
+  const rawAnalyticsLuteal =
+    analytics && analytics.averageLutealLength > 0 ? analytics.averageLutealLength : 0;
+
+  let follicularDays;
+  if (validStartCount > 0) {
+    const avgFertileStartDay = Math.round(totalFertileStartDayIdx / validStartCount);
+    follicularDays = Math.max(1, avgFertileStartDay - menstrualDays - 1);
+  } else {
+    const follicularStart = menstrualDays + 1;
+    const ovulatoryStart = Math.max(
+      follicularStart + 1,
+      effectiveDaysToPeak - Math.floor(ovulatoryDays / 2)
+    );
+    follicularDays = Math.max(1, ovulatoryStart - follicularStart);
+  }
+
+  const lutealDays =
+    rawAnalyticsLuteal > 0
+      ? rawAnalyticsLuteal
+      : Math.max(1, effectiveCycleLength - (menstrualDays + follicularDays + ovulatoryDays));
+
+  return {
+    avgCycleLength,
+    effectiveCycleLength,
+    avgDaysToPeak,
+    effectiveDaysToPeak,
+    avgFertileWindowLength,
+    avgLutealLength: rawAnalyticsLuteal,
+    menstrualDays,
+    follicularDays,
+    ovulatoryDays,
+    lutealDays,
+    earliestPeakDayIndex,
+    latestPeakDayIndex,
+    completedCyclesCount: completedCycles.length,
+    peakCyclesCount
+  };
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   log("info", "DOM fully loaded and parsed.");
@@ -201,111 +396,74 @@ const lunarPulseData = {
   }
 };
 
-function renderLunarPulse(analytics, cycles) {
+function renderLunarPulse(analytics, cycles, precomputedWindows = null) {
   const container = document.getElementById('lunar-donut-container');
   const overlay = document.getElementById('vibe-modal-overlay');
   if (!container || !overlay) return;
 
-  // 1. Calculate Averages & Fertile Window Length Strictly Based on Last 6 Cycles
-  const recentCycles = cycles || [];
-  const completedCycles = recentCycles.filter(c => c.end_date).slice(0, 6);
-  
-  // Calculate average cycle length from the 6 most recent completed cycles
-  let avgCycleLength = 28; // Default fallback
-  if (completedCycles.length > 0) {
-    const totalDays = completedCycles.reduce((acc, c) => {
-      const start = new Date(c.start_date.split('T')[0]);
-      const end = new Date(c.end_date.split('T')[0]);
-      return acc + Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
-    }, 0);
-    avgCycleLength = Math.round(totalDays / completedCycles.length);
-  } else if (analytics.averageCycleLength > 0) {
-    avgCycleLength = analytics.averageCycleLength;
-  }
+  // 1. Dynamically compute phase lengths from ALL data (aligned with Analytics)
+  const breakdown = calculatePhaseBreakdown(analytics, cycles, precomputedWindows);
+  const avgCycleLength = breakdown.effectiveCycleLength;
+  const avgDaysToPeak = breakdown.effectiveDaysToPeak;
+  const { menstrualDays, follicularDays, ovulatoryDays, lutealDays } = breakdown;
 
-  // Calculate average days to peak fertility from the 6 most recent cycles
-  let avgDaysToPeak = 14; // Default fallback
-  const recentCyclesForPeak = recentCycles.slice(0, 6);
-  let totalDaysToPeak = 0;
-  let peakCyclesCount = 0;
-
-  recentCyclesForPeak.forEach(c => {
-    if (!c.days) return;
-    const peakDay = c.days.find(d => d.hormone_reading === 'Peak');
-    if (peakDay) {
-      const start = new Date(c.start_date.split('T')[0]);
-      const peak = new Date(peakDay.date.split('T')[0]);
-      const dayIndex = Math.round((peak - start) / (1000 * 60 * 60 * 24)) + 1;
-      totalDaysToPeak += dayIndex;
-      peakCyclesCount++;
-    }
-  });
-
-  if (peakCyclesCount > 0) {
-    avgDaysToPeak = Math.round(totalDaysToPeak / peakCyclesCount);
-  } else if (analytics.averageDaysToPeak > 0) {
-    avgDaysToPeak = analytics.averageDaysToPeak;
-  }
-
-  let avgFertileWindowLength = 5; // Default fallback
-  const fertileWindows = calculateFertileWindows(cycles);
-  const validWindows = fertileWindows.filter((fw) => fw.start && fw.end);
-  if (validWindows.length > 0) {
-    const totalFertileDays = validWindows.reduce((acc, fw) => {
-      const start = new Date(fw.start);
-      const end = new Date(fw.end);
-      return acc + (end - start) / (1000 * 60 * 60 * 24) + 1;
-    }, 0);
-    avgFertileWindowLength = Math.round(totalFertileDays / validWindows.length);
-  }
-
-  // 2. Day Mapping
-  const menstrualDays = 5;
-  const ovulatoryDays = avgFertileWindowLength > 0 ? avgFertileWindowLength : 5;
-  const follicularStart = menstrualDays + 1;
-  const ovulatoryStart = Math.max(follicularStart + 1, avgDaysToPeak - Math.floor(ovulatoryDays / 2));
-  const follicularDays = Math.max(1, ovulatoryStart - follicularStart);
-  const lutealDays = Math.max(1, avgCycleLength - (menstrualDays + follicularDays + ovulatoryDays));
-
-  // Determine percentages
+  // 2. Determine percentages & angles across the 360-degree ring
   const totalMappedDays = menstrualDays + follicularDays + ovulatoryDays + lutealDays;
-  const pMenstrual = (menstrualDays / totalMappedDays);
-  const pFollicular = (follicularDays / totalMappedDays);
-  const pOvulatory = (ovulatoryDays / totalMappedDays);
-  const pLuteal = (lutealDays / totalMappedDays);
+  const pMenstrual = menstrualDays / totalMappedDays;
+  const pFollicular = follicularDays / totalMappedDays;
+  const pOvulatory = ovulatoryDays / totalMappedDays;
 
   const angle1 = pMenstrual * 360;
-  const angle2 = angle1 + (pFollicular * 360);
-  const angle3 = angle2 + (pOvulatory * 360);
-  const angle4 = 360;
+  const angle2 = angle1 + pFollicular * 360;
+  const angle3 = angle2 + pOvulatory * 360;
 
-  // 3. Date Calculations
+  // 3. Date Calculations (UTC-safe to prevent timezone shift)
   let cycleStart = new Date();
-  if (cycles && cycles.length > 0) cycleStart = new Date(cycles[0].start_date);
+  if (cycles && cycles.length > 0 && cycles[0].start_date) {
+    const startStr = String(cycles[0].start_date).split('T')[0];
+    cycleStart = new Date(startStr + 'T00:00:00');
+  }
 
   const addDays = (date, days) => {
     const d = new Date(date);
     d.setDate(d.getDate() + days - 1);
     return d;
   };
-  const formatDate = (date) => `${date.getMonth()+1}/${date.getDate()}`;
+  const formatDate = (date) => `${date.getMonth() + 1}/${date.getDate()}`;
 
   const dMenstrualEnd = addDays(cycleStart, menstrualDays);
   const dFollicularEnd = addDays(cycleStart, menstrualDays + follicularDays);
   const dOvulatoryEnd = addDays(cycleStart, menstrualDays + follicularDays + ovulatoryDays);
   const dLutealEnd = addDays(cycleStart, avgCycleLength);
 
-  lunarPulseData['Menstrual'].Dates = `${formatDate(cycleStart)} - ${formatDate(dMenstrualEnd)}`;
-  lunarPulseData['Follicular'].Dates = `${formatDate(addDays(cycleStart, menstrualDays+1))} - ${formatDate(dFollicularEnd)}`;
-  lunarPulseData['Ovulatory'].Dates = `${formatDate(addDays(cycleStart, menstrualDays+follicularDays+1))} - ${formatDate(dOvulatoryEnd)}`;
-  lunarPulseData['Luteal'].Dates = `${formatDate(addDays(cycleStart, menstrualDays+follicularDays+ovulatoryDays+1))} - ${formatDate(dLutealEnd)}`;
+  lunarPulseData['Menstrual'].Dates = `${formatDate(cycleStart)} - ${formatDate(dMenstrualEnd)} (${menstrualDays}d)`;
+  lunarPulseData['Follicular'].Dates = `${formatDate(addDays(cycleStart, menstrualDays + 1))} - ${formatDate(dFollicularEnd)} (${follicularDays}d)`;
+  lunarPulseData['Ovulatory'].Dates = `${formatDate(addDays(cycleStart, menstrualDays + follicularDays + 1))} - ${formatDate(dOvulatoryEnd)} (${ovulatoryDays}d)`;
+  const lutealStartDayIdx = Math.min(avgCycleLength, menstrualDays + follicularDays + ovulatoryDays + 1);
+  lunarPulseData['Luteal'].Dates = `${formatDate(addDays(cycleStart, lutealStartDayIdx))} - ${formatDate(dLutealEnd)} (${lutealDays}d)`;
+
+  // Map a 1-based cycle day onto its corresponding phase arc on the 360-degree ring
+  const dayToRingAngle = (dayNum) => {
+    const d = Math.max(1, Math.min(avgCycleLength, dayNum));
+    const folEnd = menstrualDays + follicularDays;
+    const ovuEnd = folEnd + ovulatoryDays;
+    if (d <= menstrualDays) {
+      return (d / Math.max(1, menstrualDays)) * angle1;
+    }
+    if (d <= folEnd) {
+      return angle1 + ((d - menstrualDays) / Math.max(1, follicularDays)) * (angle2 - angle1);
+    }
+    if (d <= ovuEnd) {
+      return angle2 + ((d - folEnd) / Math.max(1, ovulatoryDays)) * (angle3 - angle2);
+    }
+    const postOvuSpan = Math.max(1, avgCycleLength - ovuEnd);
+    return Math.min(359.9, angle3 + ((d - ovuEnd) / postOvuSpan) * (360 - angle3));
+  };
 
   // Find Current Phase & Marker Angle
   const today = new Date();
-  let currentDay = Math.floor((today - cycleStart) / (1000 * 60 * 60 * 24)) + 1;
-  // If user is past their average cycle, cap it at 359 degrees so it doesn't wrap confusingly
-  const clampedDay = currentDay > avgCycleLength ? avgCycleLength : currentDay;
-  const currentAngleDeg = Math.min((clampedDay / avgCycleLength) * 360, 359.9);
+  let currentDay = Math.max(1, Math.floor((today - cycleStart) / (1000 * 60 * 60 * 24)) + 1);
+  const currentAngleDeg = dayToRingAngle(currentDay);
 
   let currentPhase = "Menstrual";
   if (currentDay > menstrualDays) currentPhase = "Follicular";
@@ -319,10 +477,10 @@ function renderLunarPulse(analytics, cycles) {
   };
   
   const describeArc = (x, y, r, startAngle, endAngle) => {
-    // subtract 0.1 from endAngle to prevent arc overlapping/disappearing at exactly 360
-    const start = polarToCartesian(x, y, r, endAngle - 0.1); 
+    const safeEnd = Math.max(startAngle + 0.5, endAngle - 0.1);
+    const start = polarToCartesian(x, y, r, safeEnd); 
     const end = polarToCartesian(x, y, r, startAngle);
-    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+    const largeArcFlag = safeEnd - startAngle <= 180 ? "0" : "1";
     return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
   };
 
@@ -355,10 +513,10 @@ function renderLunarPulse(analytics, cycles) {
   // Generate SVG String
   container.innerHTML = `
     <svg viewBox="0 0 100 100" class="circular-chart-v2" style="display: block; margin: 0 auto; max-width: 100%; max-height: 300px;">
-      <path class="circle-segment menstrual-segment" d="${describeArc(cx, cy, radius, 0, angle1)}" data-phase="Menstrual" stroke-width="6" fill="none" />
-      <path class="circle-segment follicular-segment" d="${describeArc(cx, cy, radius, angle1, angle2)}" data-phase="Follicular" stroke-width="6" fill="none" />
-      <path class="circle-segment ovulatory-segment" d="${describeArc(cx, cy, radius, angle2, angle3)}" data-phase="Ovulatory" stroke-width="6" fill="none" />
-      <path class="circle-segment luteal-segment" d="${describeArc(cx, cy, radius, angle3, 359.9)}" data-phase="Luteal" stroke-width="6" fill="none" />
+      <path class="circle-segment menstrual-segment" d="${describeArc(cx, cy, radius, 0, angle1)}" data-phase="Menstrual" data-days="${menstrualDays}" stroke-width="6" fill="none" />
+      <path class="circle-segment follicular-segment" d="${describeArc(cx, cy, radius, angle1, angle2)}" data-phase="Follicular" data-days="${follicularDays}" stroke-width="6" fill="none" />
+      <path class="circle-segment ovulatory-segment" d="${describeArc(cx, cy, radius, angle2, angle3)}" data-phase="Ovulatory" data-days="${ovulatoryDays}" stroke-width="6" fill="none" />
+      <path class="circle-segment luteal-segment" d="${describeArc(cx, cy, radius, angle3, 359.9)}" data-phase="Luteal" data-days="${lutealDays}" stroke-width="6" fill="none" />
       
       <!-- Date Ticks -->
       ${drawTick(0, formatDate(cycleStart))}
@@ -369,13 +527,12 @@ function renderLunarPulse(analytics, cycles) {
 
       <!-- Estimated Next Peak Marker -->
       ${(() => {
-        if (analytics && analytics.averageDaysToPeak > 0) {
+        if (avgDaysToPeak > 0 && cycles && cycles.length > 0) {
           const hasPeaked = cycles[0] && cycles[0].days && cycles[0].days.some(d => d.hormone_reading === 'Peak');
           if (!hasPeaked && currentDay <= avgCycleLength) {
-            // Predict peak day inside current cycle
-            const estPeakDay = analytics.averageDaysToPeak;
+            const estPeakDay = avgDaysToPeak;
             if (estPeakDay <= avgCycleLength) {
-              const peakAngle = Math.min((estPeakDay / avgCycleLength) * 360, 359.9);
+              const peakAngle = dayToRingAngle(estPeakDay);
               const peakMarker = polarToCartesian(cx, cy, radius, peakAngle);
               const peakText = polarToCartesian(cx, cy, radius + 14, peakAngle);
               const estPeakDate = addDays(cycleStart, estPeakDay);
@@ -396,42 +553,77 @@ function renderLunarPulse(analytics, cycles) {
       
       <!-- Center Text -->
       <text x="50" y="48" fill="var(--md-sys-color-on-surface)" text-anchor="middle" font-size="6" font-weight="700">${currentPhase}</text>
-      <text x="50" y="55" fill="var(--md-sys-color-outline)" text-anchor="middle" font-size="4">Day ${currentDay}</text>
+      <text x="50" y="55" fill="var(--md-sys-color-outline)" text-anchor="middle" font-size="4">Day ${currentDay} of ${avgCycleLength}</text>
     </svg>
   `;
 
+  // Render dynamic phase day-length pills below the Lunar Pulse ring
+  const legendContainer = document.getElementById('lunar-phase-legend');
+  if (legendContainer) {
+    const phasePills = [
+      { id: 'Menstrual', label: 'Menstrual', days: menstrualDays, color: '#d32f2f' },
+      { id: 'Follicular', label: 'Follicular', days: follicularDays, color: '#1976d2' },
+      { id: 'Ovulatory', label: 'Ovulatory', days: ovulatoryDays, color: '#f57c00' },
+      { id: 'Luteal', label: 'Luteal', days: lutealDays, color: '#8e24aa' }
+    ];
+    legendContainer.innerHTML = phasePills
+      .map(
+        (p) => `
+        <div class="lunar-phase-pill" data-phase="${p.id}" title="Tap to view ${p.label} phase details">
+          <span class="lunar-phase-pill-label">
+            <span class="lunar-phase-dot" style="background-color: ${p.color};"></span>
+            ${p.label}
+          </span>
+          <span class="lunar-phase-pill-days">${p.days}d</span>
+        </div>
+      `
+      )
+      .join('');
+  }
+
   // 5. Attach Events
-  const segments = container.querySelectorAll('.circle-segment');
   const vibeModal = overlay.querySelector('.vibe-modal');
   const titleEl = document.getElementById('vibe-title');
   const datesEl = document.getElementById('vibe-dates');
   const scienceEl = document.getElementById('vibe-science');
   const textEl = document.getElementById('vibe-text');
 
-  segments.forEach(segment => {
+  const openPhaseModal = (phaseId) => {
+    const data = lunarPulseData[phaseId];
+    if (data && vibeModal) {
+      titleEl.textContent = data.Title;
+      datesEl.textContent = data.Dates;
+      scienceEl.textContent = data.The_Science;
+      textEl.textContent = data.The_Vibe;
+
+      let color = '#74777f';
+      if (phaseId === 'Menstrual') color = '#d32f2f';
+      if (phaseId === 'Follicular') color = '#1976d2';
+      if (phaseId === 'Ovulatory') color = '#f57c00';
+      if (phaseId === 'Luteal') color = '#8e24aa';
+      vibeModal.style.borderColor = color;
+      titleEl.style.color = color;
+      datesEl.style.color = color;
+
+      overlay.classList.add('active');
+    }
+  };
+
+  container.querySelectorAll('.circle-segment').forEach(segment => {
     segment.addEventListener('click', (e) => {
       e.stopPropagation();
-      const phaseId = segment.getAttribute('data-phase');
-      const data = lunarPulseData[phaseId];
-      if (data) {
-        titleEl.textContent = data.Title;
-        datesEl.textContent = data.Dates;
-        scienceEl.textContent = data.The_Science;
-        textEl.textContent = data.The_Vibe;
-        
-        let color = '#74777f';
-        if (phaseId === 'Menstrual') color = '#d32f2f';
-        if (phaseId === 'Follicular') color = '#1976d2';
-        if (phaseId === 'Ovulatory') color = '#f57c00';
-        if (phaseId === 'Luteal') color = '#8e24aa';
-        vibeModal.style.borderColor = color;
-        titleEl.style.color = color;
-        datesEl.style.color = color;
-
-        overlay.classList.add('active');
-      }
+      openPhaseModal(segment.getAttribute('data-phase'));
     });
   });
+
+  if (legendContainer) {
+    legendContainer.querySelectorAll('.lunar-phase-pill').forEach(pill => {
+      pill.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openPhaseModal(pill.getAttribute('data-phase'));
+      });
+    });
+  }
 
   const closeOverlay = () => { overlay.classList.remove('active'); };
   
@@ -444,6 +636,190 @@ function renderLunarPulse(analytics, cycles) {
   overlay.addEventListener('touchend', e => {
     if (e.changedTouches[0].screenY - touchstartY > 50) closeOverlay();
   }, { passive: true });
+}
+
+/**
+ * Renders the "Last 5 Cycles — Phase Breakdown" horizontal stacked bar graph.
+ */
+function renderPhaseHistoryChart(cycles, analytics, fertileWindows = []) {
+  const container = document.getElementById("phase-history-container");
+  if (!container) return;
+
+  if (!cycles || cycles.length === 0) {
+    container.innerHTML =
+      '<p>No cycles recorded yet. Start by logging your period start date to compare phase lengths.</p>';
+    return;
+  }
+
+  const recentFive = cycles.slice(0, 5);
+  const formatShortUtc = (dateStr) => {
+    const d = new Date(String(dateStr).split("T")[0] + "T00:00:00Z");
+    return d.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC"
+    });
+  };
+
+  const cycleRows = recentFive.map((cycle, idx) => {
+    const startStr = String(cycle.start_date).split("T")[0];
+    const startUtc = new Date(startStr + "T00:00:00Z");
+    const isOngoing = !cycle.end_date;
+
+    let totalDays = 1;
+    if (cycle.end_date) {
+      const endStr = String(cycle.end_date).split("T")[0];
+      const endUtc = new Date(endStr + "T00:00:00Z");
+      totalDays = Math.max(1, Math.round((endUtc - startUtc) / 86400000) + 1);
+    } else if (cycle.days && cycle.days.length > 0) {
+      const sorted = cycle.days
+        .slice()
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      const lastDayStr = String(sorted[sorted.length - 1].date).split("T")[0];
+      const lastUtc = new Date(lastDayStr + "T00:00:00Z");
+      const recordedSpan = Math.round((lastUtc - startUtc) / 86400000) + 1;
+      const todayUtc = new Date(new Date().toISOString().split("T")[0] + "T00:00:00Z");
+      const elapsedToday = Math.round((todayUtc - startUtc) / 86400000) + 1;
+      totalDays = Math.max(1, recordedSpan, elapsedToday > 0 && elapsedToday <= 60 ? elapsedToday : recordedSpan);
+    }
+
+    // Find Peak day index (1-based) if present
+    let peakDayIndex = null;
+    if (cycle.days) {
+      const sortedDays = cycle.days
+        .slice()
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      const firstPeak = sortedDays.find((d) => d.hormone_reading === "Peak");
+      if (firstPeak) {
+        const pUtc = new Date(String(firstPeak.date).split("T")[0] + "T00:00:00Z");
+        peakDayIndex = Math.round((pUtc - startUtc) / 86400000) + 1;
+      }
+    }
+
+    const fw = fertileWindows.find((f) => f.cycleId === cycle.id);
+    const menstrual = Math.min(5, totalDays);
+    let follicular = 0;
+    let ovulatory = 0;
+    let luteal = 0;
+
+    if (fw && fw.start) {
+      const fwStartUtc = new Date(String(fw.start).split("T")[0] + "T00:00:00Z");
+      const fwStartIdx = Math.max(menstrual + 1, Math.round((fwStartUtc - startUtc) / 86400000) + 1);
+      const fwEndIdx = fw.end
+        ? Math.max(
+            fwStartIdx,
+            Math.round(
+              (new Date(String(fw.end).split("T")[0] + "T00:00:00Z") - startUtc) /
+                86400000
+            ) + 1
+          )
+        : totalDays;
+
+      follicular = Math.max(0, Math.min(totalDays, fwStartIdx - 1) - menstrual);
+      if (totalDays >= fwStartIdx) {
+        ovulatory = Math.max(0, Math.min(totalDays, fwEndIdx) - fwStartIdx + 1);
+      }
+      const covered = menstrual + follicular + ovulatory;
+      luteal = Math.max(0, totalDays - covered);
+    } else {
+      follicular = Math.max(0, totalDays - menstrual);
+    }
+
+    const dateRangeLabel = cycle.end_date
+      ? `${formatShortUtc(cycle.start_date)} – ${formatShortUtc(cycle.end_date)}`
+      : `${formatShortUtc(cycle.start_date)} – Present`;
+
+    return {
+      id: cycle.id,
+      index: idx,
+      isOngoing,
+      dateRangeLabel,
+      totalDays,
+      menstrual,
+      follicular,
+      ovulatory,
+      luteal,
+      peakDayIndex
+    };
+  });
+
+  const maxScaleDays = Math.max(...cycleRows.map((r) => r.totalDays), 28);
+
+  const buildSegmentHtml = (days, totalCycleDays, cssClass, phaseName) => {
+    if (days <= 0) return "";
+    const widthPct = (days / totalCycleDays) * 100;
+    const label = days >= 2 ? `${days}d` : `${days}`;
+    return `
+      <div class="phase-bar-segment ${cssClass}" style="width: ${widthPct.toFixed(2)}%;" title="${phaseName}: ${days} day(s)">
+        ${label}
+      </div>
+    `;
+  };
+
+  const barsHtml = cycleRows
+    .map((row) => {
+      const trackWidthPct = Math.min(100, (row.totalDays / maxScaleDays) * 100);
+      const peakPinHtml =
+        row.peakDayIndex && row.peakDayIndex <= row.totalDays
+          ? `<div class="phase-peak-pin" style="left: ${(
+              ((row.peakDayIndex - 0.5) / maxScaleDays) *
+              100
+            ).toFixed(2)}%;" title="Peak Fertility recorded on Day ${row.peakDayIndex}">P</div>`
+          : "";
+
+      const summaryParts = [`${row.totalDays} days`];
+      if (row.peakDayIndex) {
+        summaryParts.push(`Peak Day ${row.peakDayIndex}`);
+      } else if (row.isOngoing) {
+        summaryParts.push("In progress");
+      }
+
+      return `
+        <div class="phase-bar-row" data-cycle-id="${row.id}">
+          <div class="phase-bar-meta">
+            <span class="phase-bar-title">
+              ${row.dateRangeLabel}
+              ${row.isOngoing ? '<span class="phase-bar-badge">Current</span>' : ""}
+            </span>
+            <span class="phase-bar-summary">${summaryParts.join(" • ")}</span>
+          </div>
+          <div class="phase-bar-track-wrapper">
+            <div class="phase-bar-track" style="width: ${trackWidthPct.toFixed(2)}%;">
+              ${buildSegmentHtml(row.menstrual, row.totalDays, "phase-seg-menstrual", "Menstrual Phase")}
+              ${buildSegmentHtml(row.follicular, row.totalDays, "phase-seg-follicular", "Follicular Phase")}
+              ${buildSegmentHtml(row.ovulatory, row.totalDays, "phase-seg-ovulatory", "Ovulatory / Fertile Window")}
+              ${buildSegmentHtml(row.luteal, row.totalDays, "phase-seg-luteal", "Luteal Phase")}
+            </div>
+            ${peakPinHtml}
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  const axisTicks = [1, 7, 14, 21, maxScaleDays]
+    .filter((v, i, a) => a.indexOf(v) === i && v <= maxScaleDays)
+    .map((dayTick) => {
+      const leftPct = dayTick === 1 ? 0 : ((dayTick / maxScaleDays) * 100).toFixed(1);
+      return `<span class="phase-axis-tick" style="left: ${leftPct}%;">Day ${dayTick}</span>`;
+    })
+    .join("");
+
+  container.innerHTML = `
+    <div class="phase-legend-row">
+      <span class="phase-legend-item"><span class="phase-legend-swatch phase-seg-menstrual"></span>Menstrual</span>
+      <span class="phase-legend-item"><span class="phase-legend-swatch phase-seg-follicular"></span>Follicular</span>
+      <span class="phase-legend-item"><span class="phase-legend-swatch phase-seg-ovulatory"></span>Ovulatory (Fertile)</span>
+      <span class="phase-legend-item"><span class="phase-legend-swatch phase-seg-luteal"></span>Luteal</span>
+      <span class="phase-legend-item"><span class="phase-legend-peak">P</span>Peak Day</span>
+    </div>
+    <div class="phase-bars-list">
+      ${barsHtml}
+    </div>
+    <div class="phase-axis-row">
+      ${axisTicks}
+    </div>
+  `;
 }
 
 function renderInstruction() {
@@ -483,10 +859,11 @@ function initializeEventListeners(elements) {
   elements.rangeCheckbox.addEventListener("change", () => {
     if (elements.rangeCheckbox.checked) {
       elements.rangeInputs.style.display = "block";
+      const todayStr = new Date().toISOString().split("T")[0];
       // Jump today's date from start Date box to the End Date box
-      elements.endDateInput.value = elements.dateInput.value;
-      // Clear start Date box for manual beginning date input
-      elements.dateInput.value = "";
+      elements.endDateInput.value = elements.dateInput.value || todayStr;
+      // Default start Date box to the day after the last added (or auto-entered) entry in the active cycle
+      elements.dateInput.value = getDefaultRangeStartDate(cachedCycles);
     } else {
       elements.rangeInputs.style.display = "none";
       // Restore today's date back to the start Date box and clear end date
@@ -594,12 +971,23 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
       }
     }
 
+    // Cache cycles for smart date-range start date defaults
+    cachedCycles = Array.isArray(cycles) ? cycles : [];
+    if (elements.rangeCheckbox && elements.rangeCheckbox.checked) {
+      elements.dateInput.value = getDefaultRangeStartDate(cachedCycles);
+      if (!elements.endDateInput.value) {
+        elements.endDateInput.value = new Date().toISOString().split("T")[0];
+      }
+    }
+
     // Pass the currently viewed user's ID to the switcher to maintain state
     renderAccountSwitcher(sharedUsers, elements, user, viewAsUserId);
 
-    renderCycles(cycles, elements, calculateFertileWindows(cycles));
-    renderAnalytics(analytics, cycles, elements);
-    renderLunarPulse(analytics, cycles);
+    const fertileWindows = calculateFertileWindows(cycles);
+    renderCycles(cycles, elements, fertileWindows);
+    renderPhaseHistoryChart(cycles, analytics, fertileWindows);
+    renderAnalytics(analytics, cycles, elements, fertileWindows);
+    renderLunarPulse(analytics, cycles, fertileWindows);
   } catch (error) {
     log("error", "Error fetching data:", error);
   }
@@ -729,16 +1117,13 @@ function renderCycles(cycles, elements, fertileWindows = []) {
 function calculateFertileWindows(cycles) {
   if (!cycles || cycles.length === 0) return [];
 
-  // Calculate the historically established earliest Peak day across ALL cycles (up to last 6)
-  // We'll calculate it once and apply it to each cycle relative to its own history if needed, 
-  // but usually it applies broadly or building up to the current. 
-  // To be safe and simple: find the historic earliest peak day index across the 6 most recent cycles.
-  const recentCyclesForPeak = cycles.slice(0, 6); // Assuming cycles are sorted newest first
+  // Calculate the historically established earliest Peak day across ALL cycles
   let earliestPeakDayIndex = Infinity;
 
-  recentCyclesForPeak.forEach(c => {
+  cycles.forEach(c => {
     if (!c.days) return;
-    const peakDay = c.days.find(d => d.hormone_reading === 'Peak');
+    const sortedDays = c.days.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+    const peakDay = sortedDays.find(d => d.hormone_reading === 'Peak');
     if (peakDay) {
       const cStartStr = c.start_date.split('T')[0];
       const pDateStr = peakDay.date.split('T')[0];
@@ -756,7 +1141,7 @@ function calculateFertileWindows(cycles) {
     earliestPeakDayIndex = null; // No historic peaks
   }
 
-  return cycles.map((cycle, index) => {
+  return cycles.map((cycle) => {
     const sortedDays = (cycle.days || []).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
 
     const firstHighOrPeak = sortedDays.find(
@@ -871,10 +1256,12 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
   log("info", "Dropdown appended to container. --- renderAccountSwitcher END ---");
 }
 
-function renderAnalytics(analytics, cycles, elements) {
+function renderAnalytics(analytics, cycles, elements, precomputedWindows = null) {
   const avgCycleLengthSpan = document.getElementById("avg-cycle-length");
   const cycleVariationSpan = document.getElementById("cycle-variation");
   const avgDaysToPeakSpan = document.getElementById("avg-days-to-peak");
+  const earliestPeakDaySpan = document.getElementById("earliest-peak-day");
+  const avgFollicularLengthSpan = document.getElementById("avg-follicular-length");
   const avgLutealLengthSpan = document.getElementById("avg-luteal-length");
   const avgFertileWindowSpan = document.getElementById("avg-fertile-window");
   const estimatedNextPeriodSpan = document.getElementById("estimated-next-period");
@@ -882,83 +1269,238 @@ function renderAnalytics(analytics, cycles, elements) {
   const fertileWindowStartSpan = document.getElementById("fertile-window-start");
   const fertileWindowEndSpan = document.getElementById("fertile-window-end");
 
-  // Use backend-calculated averages
+  const cycleLengthBadge = document.getElementById("cycle-length-badge");
+  const cycleVariationBadge = document.getElementById("cycle-variation-badge");
+  const daysToPeakBadge = document.getElementById("days-to-peak-badge");
+  const earliestPeakBadge = document.getElementById("earliest-peak-badge");
+  const lutealPhaseBadge = document.getElementById("luteal-phase-badge");
+  const estimatedPeakBadge = document.getElementById("estimated-peak-badge");
+  const estimatedPeriodBadge = document.getElementById("estimated-period-badge");
+  const estimatedFertileBadge = document.getElementById("estimated-fertile-badge");
+  const estimatedFertileTitle = document.getElementById("estimated-fertile-window-title");
+  const summarySubtitle = document.getElementById("analytics-summary-subtitle");
+  const statusBanner = document.getElementById("current-cycle-status-banner");
+
+  const fertileWindows = precomputedWindows || calculateFertileWindows(cycles);
+  const breakdown = calculatePhaseBreakdown(analytics, cycles, fertileWindows);
+
+  if (summarySubtitle) {
+    const totalCycles = cycles ? cycles.length : 0;
+    summarySubtitle.textContent =
+      totalCycles > 0
+        ? `Based on all ${totalCycles} recorded cycle${totalCycles === 1 ? "" : "s"} (${breakdown.completedCyclesCount} completed)`
+        : "Historical patterns & upcoming predictions";
+  }
+
+  // 1. Core Averages & Health Badges
   avgCycleLengthSpan.textContent = analytics.averageCycleLength || "--";
-  cycleVariationSpan.textContent = analytics.cycleVariation !== undefined ? analytics.cycleVariation : "--";
+  if (cycleLengthBadge) {
+    if (analytics.averageCycleLength > 0) {
+      const isTypical = analytics.averageCycleLength >= 21 && analytics.averageCycleLength <= 35;
+      cycleLengthBadge.textContent = isTypical ? "Typical range (21–35d)" : "Outside 21–35d range";
+      cycleLengthBadge.className = `analytic-badge ${isTypical ? "badge-good" : "badge-warn"}`;
+    } else {
+      cycleLengthBadge.textContent = "Needs 1 completed cycle";
+      cycleLengthBadge.className = "analytic-badge";
+    }
+  }
+
+  cycleVariationSpan.textContent =
+    analytics.cycleVariation !== undefined && analytics.averageCycleLength > 0
+      ? analytics.cycleVariation
+      : "--";
+  if (cycleVariationBadge) {
+    if (breakdown.completedCyclesCount > 1 && analytics.cycleVariation !== undefined) {
+      const isRegular = analytics.cycleVariation <= 7;
+      cycleVariationBadge.textContent = isRegular ? "Regular (≤ 7d)" : "Variable (> 7d)";
+      cycleVariationBadge.className = `analytic-badge ${isRegular ? "badge-good" : "badge-warn"}`;
+    } else {
+      cycleVariationBadge.textContent = "Needs 2+ completed cycles";
+      cycleVariationBadge.className = "analytic-badge";
+    }
+  }
+
   avgDaysToPeakSpan.textContent = analytics.averageDaysToPeak || "--";
-  avgLutealLengthSpan.textContent = analytics.averageLutealLength || "--";
+  if (daysToPeakBadge) {
+    if (breakdown.earliestPeakDayIndex && breakdown.latestPeakDayIndex) {
+      daysToPeakBadge.textContent =
+        breakdown.earliestPeakDayIndex === breakdown.latestPeakDayIndex
+          ? `Consistent on Day ${breakdown.earliestPeakDayIndex}`
+          : `Range: Day ${breakdown.earliestPeakDayIndex}–${breakdown.latestPeakDayIndex}`;
+    } else {
+      daysToPeakBadge.textContent = "";
+    }
+  }
 
-  const fertileWindows = calculateFertileWindows(cycles);
-  const validWindows = fertileWindows.filter((fw) => fw.start && fw.end);
+  if (earliestPeakDaySpan) {
+    earliestPeakDaySpan.textContent = breakdown.earliestPeakDayIndex
+      ? `Day ${breakdown.earliestPeakDayIndex}`
+      : "--";
+  }
+  if (earliestPeakBadge) {
+    if (breakdown.earliestPeakDayIndex) {
+      const openDay = Math.max(1, breakdown.earliestPeakDayIndex - 6);
+      earliestPeakBadge.textContent = `Window opens Day ${openDay}`;
+      earliestPeakBadge.className = "analytic-badge badge-good";
+    } else {
+      earliestPeakBadge.textContent = "No Peak logged yet";
+      earliestPeakBadge.className = "analytic-badge";
+    }
+  }
 
-  let avgFertileWindowLength = 0;
-  if (validWindows.length > 0) {
-    const totalFertileDays = validWindows.reduce((acc, fw) => {
-      const start = new Date(fw.start);
-      const end = new Date(fw.end);
-      return acc + (end - start) / (1000 * 60 * 60 * 24) + 1;
-    }, 0);
-    avgFertileWindowLength = Math.round(totalFertileDays / validWindows.length);
-    avgFertileWindowSpan.textContent = avgFertileWindowLength;
+  if (avgFollicularLengthSpan) {
+    avgFollicularLengthSpan.textContent =
+      cycles && cycles.length > 0 ? breakdown.follicularDays : "--";
+  }
+
+  const avgLuteal = analytics.averageLutealLength || (cycles && cycles.length > 0 && breakdown.completedCyclesCount > 0 ? breakdown.lutealDays : 0);
+  avgLutealLengthSpan.textContent = avgLuteal || "--";
+  if (lutealPhaseBadge) {
+    if (avgLuteal > 0) {
+      const isOptimal = avgLuteal >= 10 && avgLuteal <= 16;
+      lutealPhaseBadge.textContent = isOptimal
+        ? "Optimal (10–16d)"
+        : avgLuteal < 10
+        ? "Short (< 10d)"
+        : "Extended (> 16d)";
+      lutealPhaseBadge.className = `analytic-badge ${isOptimal ? "badge-good" : "badge-warn"}`;
+    } else {
+      lutealPhaseBadge.textContent = "";
+      lutealPhaseBadge.className = "analytic-badge";
+    }
+  }
+
+  if (breakdown.avgFertileWindowLength > 0) {
+    avgFertileWindowSpan.textContent = breakdown.avgFertileWindowLength;
   } else {
     avgFertileWindowSpan.textContent = "--";
   }
 
+  // 2. UTC-safe Date Helper for Predictions
+  const parseUtcDate = (dateStr) => {
+    const clean = String(dateStr).split("T")[0];
+    return new Date(clean + "T00:00:00Z");
+  };
+  const addUtcDays = (utcDate, daysToAdd) => {
+    const d = new Date(utcDate.getTime());
+    d.setUTCDate(d.getUTCDate() + daysToAdd);
+    return d;
+  };
+  const formatUtcLocale = (utcDate) =>
+    utcDate.toLocaleDateString(undefined, { timeZone: "UTC" });
+
+  // 3. Current Cycle Fertility Status Banner & Predictive Dates
   const mostRecentCycle = cycles && cycles.length > 0 ? cycles[0] : null;
+  if (statusBanner) {
+    if (mostRecentCycle && !mostRecentCycle.end_date) {
+      const currentFw = fertileWindows.find((f) => f.cycleId === mostRecentCycle.id);
+      const todayStr = new Date().toISOString().split("T")[0];
+      const startUtc = parseUtcDate(mostRecentCycle.start_date);
+      const todayUtc = parseUtcDate(todayStr);
+      const currentCycleDay = Math.max(1, Math.round((todayUtc - startUtc) / 86400000) + 1);
+
+      let isFertileOpen = false;
+      let statusReason = "Pre-fertile phase (Low readings)";
+      if (currentFw && currentFw.start) {
+        if (todayStr >= currentFw.start && (!currentFw.end || todayStr <= currentFw.end)) {
+          isFertileOpen = true;
+          statusReason = currentFw.end
+            ? `PPHLL countdown active through ${formatUtcLocale(parseUtcDate(currentFw.end))}`
+            : `Opened on ${formatUtcLocale(parseUtcDate(currentFw.start))} — awaiting Peak + 3 days`;
+        } else if (currentFw.end && todayStr > currentFw.end) {
+          isFertileOpen = false;
+          statusReason = `Closed on ${formatUtcLocale(parseUtcDate(currentFw.end))} (Post-ovulatory Luteal phase)`;
+        }
+      }
+
+      statusBanner.style.display = "flex";
+      statusBanner.innerHTML = `
+        <div class="cycle-status-banner-header">
+          <span>Active Cycle • Day ${currentCycleDay}</span>
+          <span class="cycle-status-pill ${isFertileOpen ? "status-fertile-open" : "status-fertile-closed"}">
+            ${isFertileOpen ? "Fertile Window OPEN" : "Fertile Window CLOSED"}
+          </span>
+        </div>
+        <span style="color: var(--md-sys-color-on-surface-variant); font-size: 0.78rem;">${statusReason}</span>
+      `;
+    } else {
+      statusBanner.style.display = "none";
+    }
+  }
+
   if (mostRecentCycle && analytics.averageCycleLength > 0) {
-    const lastStartDate = new Date(mostRecentCycle.start_date);
-    const nextPeriodDate = new Date(lastStartDate.getTime());
-    nextPeriodDate.setDate(
-      lastStartDate.getDate() + analytics.averageCycleLength
-    );
-    estimatedNextPeriodSpan.textContent = nextPeriodDate.toLocaleDateString();
+    const lastStartDate = parseUtcDate(mostRecentCycle.start_date);
+    const nextPeriodDate = addUtcDays(lastStartDate, analytics.averageCycleLength);
+    estimatedNextPeriodSpan.textContent = formatUtcLocale(nextPeriodDate);
+    if (estimatedPeriodBadge) {
+      estimatedPeriodBadge.textContent = `Based on ${analytics.averageCycleLength}d avg cycle`;
+    }
 
     if (analytics.averageDaysToPeak > 0) {
-      // Logic for Next Peak Estimation
-      const hasPeakedThisCycle = mostRecentCycle.days && mostRecentCycle.days.some(d => d.hormone_reading === 'Peak');
-      let nextPeakDate;
-      
-      if (!hasPeakedThisCycle && !mostRecentCycle.end_date) {
-        // If they haven't peaked in the active ongoing cycle, predict it for this current cycle
-        nextPeakDate = new Date(lastStartDate.getTime());
-        nextPeakDate.setDate(lastStartDate.getDate() + analytics.averageDaysToPeak - 1);
-      } else {
-        // If they already peaked, or the cycle is closed, predict it for the upcoming cycle
-        nextPeakDate = new Date(nextPeriodDate.getTime());
-        nextPeakDate.setDate(nextPeriodDate.getDate() + analytics.averageDaysToPeak - 1);
+      const hasPeakedThisCycle =
+        mostRecentCycle.days &&
+        mostRecentCycle.days.some((d) => d.hormone_reading === "Peak");
+      const predictCurrentCycle = !hasPeakedThisCycle && !mostRecentCycle.end_date;
+
+      const baseCycleStart = predictCurrentCycle ? lastStartDate : nextPeriodDate;
+      const nextPeakDate = addUtcDays(baseCycleStart, analytics.averageDaysToPeak - 1);
+
+      estimatedNextPeakSpan.textContent = formatUtcLocale(nextPeakDate);
+      if (estimatedPeakBadge) {
+        estimatedPeakBadge.textContent = predictCurrentCycle
+          ? `Current cycle (Day ${analytics.averageDaysToPeak})`
+          : `Next cycle (Day ${analytics.averageDaysToPeak})`;
       }
-      
-      estimatedNextPeakSpan.textContent = nextPeakDate.toLocaleDateString();
 
-      // Ensure Fertile Window logic follows correctly
-      if (avgFertileWindowLength > 0) {
-        const nextFertileStartDate = new Date(nextPeriodDate.getTime());
-        nextFertileStartDate.setDate(
-          nextPeriodDate.getDate() +
-            analytics.averageDaysToPeak -
-            avgFertileWindowLength / 2
-        );
+      // Align Estimated Fertile Window with current ongoing cycle (if window not yet closed) or next cycle
+      const windowLength = breakdown.avgFertileWindowLength;
+      if (windowLength > 0) {
+        const currentFw = fertileWindows.find((f) => f.cycleId === mostRecentCycle.id);
+        let fwStartDate;
+        let fwEndDate;
 
-        const nextFertileEndDate = new Date(nextFertileStartDate.getTime());
-        nextFertileEndDate.setDate(
-          nextFertileStartDate.getDate() + avgFertileWindowLength
-        );
+        if (predictCurrentCycle && currentFw && currentFw.start) {
+          fwStartDate = parseUtcDate(currentFw.start);
+          fwEndDate = addUtcDays(fwStartDate, windowLength - 1);
+        } else {
+          const offsetBeforePeak = Math.max(1, Math.floor(windowLength / 2));
+          fwStartDate = addUtcDays(
+            baseCycleStart,
+            analytics.averageDaysToPeak - offsetBeforePeak
+          );
+          fwEndDate = addUtcDays(fwStartDate, windowLength);
+        }
 
-        fertileWindowStartSpan.textContent = nextFertileStartDate.toLocaleDateString();
-        fertileWindowEndSpan.textContent = nextFertileEndDate.toLocaleDateString();
+        fertileWindowStartSpan.textContent = formatUtcLocale(fwStartDate);
+        fertileWindowEndSpan.textContent = formatUtcLocale(fwEndDate);
+        if (estimatedFertileTitle) {
+          estimatedFertileTitle.textContent = predictCurrentCycle
+            ? "Current / Upcoming Fertile Window"
+            : "Next Cycle Fertile Window";
+        }
+        if (estimatedFertileBadge) {
+          estimatedFertileBadge.textContent = `~${windowLength} fertile days`;
+        }
       } else {
         fertileWindowStartSpan.textContent = "--";
         fertileWindowEndSpan.textContent = "--";
+        if (estimatedFertileBadge) estimatedFertileBadge.textContent = "";
       }
     } else {
       estimatedNextPeakSpan.textContent = "--";
       fertileWindowStartSpan.textContent = "--";
       fertileWindowEndSpan.textContent = "--";
+      if (estimatedPeakBadge) estimatedPeakBadge.textContent = "";
+      if (estimatedFertileBadge) estimatedFertileBadge.textContent = "";
     }
   } else {
     estimatedNextPeriodSpan.textContent = "--";
+    estimatedNextPeakSpan.textContent = "--";
     fertileWindowStartSpan.textContent = "--";
     fertileWindowEndSpan.textContent = "--";
+    if (estimatedPeriodBadge) estimatedPeriodBadge.textContent = "";
+    if (estimatedPeakBadge) estimatedPeakBadge.textContent = "";
+    if (estimatedFertileBadge) estimatedFertileBadge.textContent = "";
   }
 }
 
@@ -967,6 +1509,8 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
   dayDiv.className = "day";
   dayDiv.dataset.dayId = dayData.id;
   dayDiv.dataset.date = dayData.date;
+  dayDiv.dataset.originalReading = dayData.hormone_reading || "";
+  dayDiv.dataset.originalIntercourse = Boolean(dayData.intercourse);
 
   const dayDate = new Date(dayData.date);
   const cycleStartDate = new Date(cycle.start_date);

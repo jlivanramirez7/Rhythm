@@ -995,3 +995,304 @@ input[type="checkbox"]:checked::after {
 .today-marker {
   fill: var(--md-sys-color-on-surface);
 }
+
+/* Section Headers & Subtitles */
+.section-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-3);
+}
+
+.section-header-row h2 {
+    margin-bottom: 2px;
+}
+
+.section-subtitle {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+/* Lunar Pulse Phase Day Breakdown Legend */
+.lunar-phase-legend {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-3);
+}
+
+.lunar-phase-pill {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-radius: var(--md-sys-shape-corner-small);
+    background: var(--md-sys-color-surface-container);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.lunar-phase-pill:hover {
+    background: var(--md-sys-color-surface-variant);
+    transform: translateY(-1px);
+}
+
+.lunar-phase-pill-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+}
+
+.lunar-phase-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.lunar-phase-pill-days {
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+/* Last 5 Cycles — Stacked Horizontal Phase Bar Graph */
+.phase-history-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+    margin-top: var(--spacing-3);
+}
+
+.phase-legend-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+    padding: 10px 12px;
+    background: var(--md-sys-color-surface-container);
+    border-radius: var(--md-sys-shape-corner-small);
+    font-size: 0.8rem;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.phase-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+}
+
+.phase-legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.phase-legend-peak {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid #b71c1c;
+    color: #b71c1c;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.phase-bars-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.phase-bar-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.phase-bar-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.85rem;
+}
+
+.phase-bar-title {
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+}
+
+.phase-bar-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    margin-left: 6px;
+}
+
+.phase-bar-summary {
+    font-size: 0.78rem;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.phase-bar-track-wrapper {
+    position: relative;
+    width: 100%;
+    background: var(--md-sys-color-surface-container);
+    border-radius: var(--md-sys-shape-corner-small);
+    height: 32px;
+    overflow: hidden;
+}
+
+.phase-bar-track {
+    display: flex;
+    height: 100%;
+    border-radius: var(--md-sys-shape-corner-small);
+    overflow: hidden;
+    transition: width 0.3s ease;
+}
+
+.phase-bar-segment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 0.73rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 4px;
+    box-sizing: border-box;
+    transition: filter 0.15s ease;
+    position: relative;
+}
+
+.phase-bar-segment:hover {
+    filter: brightness(1.08);
+}
+
+.phase-seg-menstrual { background-color: #d32f2f; }
+.phase-seg-follicular { background-color: #1976d2; }
+.phase-seg-ovulatory { background-color: #f57c00; }
+.phase-seg-luteal { background-color: #8e24aa; }
+
+.phase-peak-pin {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid #b71c1c;
+    color: #b71c1c;
+    font-size: 0.65rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    z-index: 3;
+    pointer-events: none;
+}
+
+.phase-axis-row {
+    position: relative;
+    height: 22px;
+    margin-top: 2px;
+    border-top: 1px solid var(--md-sys-color-surface-variant);
+    font-size: 0.72rem;
+    color: var(--md-sys-color-outline);
+}
+
+.phase-axis-tick {
+    position: absolute;
+    top: 4px;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+.phase-axis-tick:first-child {
+    transform: none;
+}
+
+.phase-axis-tick:last-child {
+    transform: translateX(-100%);
+}
+
+/* Analytics Enhancements */
+.cycle-status-banner {
+    padding: 12px 14px;
+    border-radius: var(--md-sys-shape-corner-small);
+    background: var(--md-sys-color-surface-container);
+    margin-bottom: var(--spacing-3);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.85rem;
+}
+
+.cycle-status-banner-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+}
+
+.cycle-status-pill {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.status-fertile-open {
+    background-color: #fdecea;
+    color: #b71c1c;
+}
+
+.status-fertile-closed {
+    background-color: #e6f4ea;
+    color: #137333;
+}
+
+.analytic-card p {
+    margin: 4px 0;
+}
+
+.analytic-card-wide {
+    grid-column: 1 / -1;
+}
+
+.analytic-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin-top: 2px;
+    min-height: 1em;
+}
+
+.analytic-badge.badge-good {
+    color: #137333;
+    font-weight: 500;
+}
+
+.analytic-badge.badge-warn {
+    color: #b06000;
+    font-weight: 500;
+}
+

@@ -813,4 +813,154 @@ describe('UI Tests', () => {
     expect(day2DeleteButton).not.toBeNull();
     expect(day2DeleteButton.style.display).toBe('none');
   });
+
+  it('should default the range start date to the day after the last entry in the active cycle', async () => {
+    const mockCycles = [
+      {
+        id: 10,
+        start_date: '2025-03-01',
+        end_date: null,
+        days: [
+          { id: 1, date: '2025-03-01', hormone_reading: 'Low', intercourse: false },
+          { id: 2, date: '2025-03-02', hormone_reading: 'Low', intercourse: false },
+          { id: 3, date: '2025-03-03', hormone_reading: 'Low', intercourse: false },
+          { id: 4, date: '2025-03-04', hormone_reading: 'Low', intercourse: false },
+          { id: 5, date: '2025-03-05', hormone_reading: 'Low', intercourse: false },
+        ],
+      },
+    ];
+
+    fetch.mockImplementation((url) => {
+      if (url.includes('/api/me')) {
+        return Promise.resolve({
+          json: () => Promise.resolve({ id: 1, name: 'Test User', default_view_user_id: null }),
+          ok: true,
+          status: 200,
+        });
+      }
+      if (url.includes('/api/cycles')) {
+        return Promise.resolve({
+          json: () => Promise.resolve(mockCycles),
+          ok: true,
+          status: 200,
+        });
+      }
+      if (url.includes('/api/analytics')) {
+        return Promise.resolve({
+          json: () => Promise.resolve({ averageCycleLength: 28, averageDaysToPeak: 14, averageLutealLength: 14 }),
+          ok: true,
+          status: 200,
+        });
+      }
+      if (url.includes('/api/shared-users')) {
+        return Promise.resolve({
+          json: () => Promise.resolve([{ id: 1, name: 'Test User' }]),
+          ok: true,
+          status: 200,
+        });
+      }
+      return Promise.resolve({ json: () => Promise.resolve([]), ok: true, status: 200 });
+    });
+
+    document.body.innerHTML = appHtml;
+    jest.isolateModules(() => {
+      require('../public/app.js');
+    });
+
+    document.dispatchEvent(new Event('DOMContentLoaded', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const rangeCheckbox = document.getElementById('range-checkbox');
+    const dateInput = document.getElementById('date');
+    const endDateInput = document.getElementById('end-date');
+
+    rangeCheckbox.click();
+
+    expect(endDateInput.value).toBe(todayStr);
+    expect(dateInput.value).toBe('2025-03-06');
+  });
+
+  it('should dynamically size Lunar Pulse ring sections from all-data analytics and render the 5-cycle phase chart', async () => {
+    const mockCycles = [
+      {
+        id: 1,
+        start_date: '2025-01-01',
+        end_date: '2025-01-30',
+        days: [
+          { id: 1, date: '2025-01-12', hormone_reading: 'High', intercourse: false },
+          { id: 2, date: '2025-01-16', hormone_reading: 'Peak', intercourse: false },
+        ],
+      },
+    ];
+    const mockAnalytics = {
+      averageCycleLength: 30,
+      cycleVariation: 2,
+      averageDaysToPeak: 16,
+      averageLutealLength: 14,
+    };
+
+    fetch.mockImplementation((url) => {
+      if (url.includes('/api/me')) {
+        return Promise.resolve({
+          json: () => Promise.resolve({ id: 1, name: 'Test User', default_view_user_id: null }),
+          ok: true,
+          status: 200,
+        });
+      }
+      if (url.includes('/api/cycles')) {
+        return Promise.resolve({
+          json: () => Promise.resolve(mockCycles),
+          ok: true,
+          status: 200,
+        });
+      }
+      if (url.includes('/api/analytics')) {
+        return Promise.resolve({
+          json: () => Promise.resolve(mockAnalytics),
+          ok: true,
+          status: 200,
+        });
+      }
+      if (url.includes('/api/shared-users')) {
+        return Promise.resolve({
+          json: () => Promise.resolve([{ id: 1, name: 'Test User' }]),
+          ok: true,
+          status: 200,
+        });
+      }
+      return Promise.resolve({ json: () => Promise.resolve([]), ok: true, status: 200 });
+    });
+
+    document.body.innerHTML = appHtml;
+    jest.isolateModules(() => {
+      require('../public/app.js');
+    });
+
+    document.dispatchEvent(new Event('DOMContentLoaded', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Verify Lunar Pulse segments align with all-data analytics (5d Menstrual, 4d Follicular [Days 6-9], 10d Ovulatory [Days 10-19], 14d Luteal)
+    const menstrualSeg = document.querySelector('.circle-segment.menstrual-segment');
+    const follicularSeg = document.querySelector('.circle-segment.follicular-segment');
+    const ovulatorySeg = document.querySelector('.circle-segment.ovulatory-segment');
+    const lutealSeg = document.querySelector('.circle-segment.luteal-segment');
+
+    expect(menstrualSeg.getAttribute('data-days')).toBe('5');
+    expect(follicularSeg.getAttribute('data-days')).toBe('4');
+    expect(ovulatorySeg.getAttribute('data-days')).toBe('10');
+    expect(lutealSeg.getAttribute('data-days')).toBe('14');
+
+    // Verify Analytics Follicular, Fertile Window, Luteal & Earliest Peak cards match Lunar Pulse
+    expect(document.getElementById('avg-follicular-length').textContent).toBe('4');
+    expect(document.getElementById('avg-fertile-window').textContent).toBe('10');
+    expect(document.getElementById('avg-luteal-length').textContent).toBe('14');
+    expect(document.getElementById('earliest-peak-day').textContent).toBe('Day 16');
+
+    // Verify Last 5 Cycles horizontal stacked bar chart rendered
+    const phaseBarRows = document.querySelectorAll('.phase-bar-row');
+    expect(phaseBarRows.length).toBe(1);
+    expect(document.querySelector('.phase-peak-pin')).not.toBeNull();
+  });
 });
+
