@@ -10,7 +10,9 @@ const DEFAULT_PREFERENCES = {
     notify_ovulatory: true,
     notify_peak: true,
     notify_luteal: true,
-    last_notified_phase: null
+    notify_libido: true,
+    last_notified_phase: null,
+    last_notified_libido: null
 };
 
 const PHASE_METADATA = {
@@ -138,7 +140,9 @@ function normalizePrefs(row) {
         notify_ovulatory: Boolean(row.notify_ovulatory),
         notify_peak: Boolean(row.notify_peak),
         notify_luteal: Boolean(row.notify_luteal),
-        last_notified_phase: row.last_notified_phase || null
+        notify_libido: row.notify_libido !== undefined && row.notify_libido !== null ? Boolean(row.notify_libido) : true,
+        last_notified_phase: row.last_notified_phase || null,
+        last_notified_libido: row.last_notified_libido || null
     };
 }
 
@@ -168,7 +172,7 @@ async function getUserNotificationPreferences(db, userId) {
 async function saveUserNotificationPreferences(db, userId, prefs) {
     const isPostgres = db.adapter === 'postgres';
     const existing = await db.get(
-        sql(`SELECT user_id, last_notified_phase FROM notification_preferences WHERE user_id = ?`, isPostgres),
+        sql(`SELECT user_id, last_notified_phase, last_notified_libido FROM notification_preferences WHERE user_id = ?`, isPostgres),
         [userId]
     );
 
@@ -182,27 +186,28 @@ async function saveUserNotificationPreferences(db, userId, prefs) {
     const ovulatory = toDbBool(prefs.notify_ovulatory, true);
     const peak = toDbBool(prefs.notify_peak, true);
     const luteal = toDbBool(prefs.notify_luteal, true);
+    const libido = toDbBool(prefs.notify_libido, true);
     const nowIso = new Date().toISOString();
 
     if (existing) {
         await db.run(
             sql(
                 `UPDATE notification_preferences 
-                 SET notify_menstrual = ?, notify_follicular = ?, notify_ovulatory = ?, notify_peak = ?, notify_luteal = ?, updated_at = ?
+                 SET notify_menstrual = ?, notify_follicular = ?, notify_ovulatory = ?, notify_peak = ?, notify_luteal = ?, notify_libido = ?, updated_at = ?
                  WHERE user_id = ?`,
                 isPostgres
             ),
-            [menstrual, follicular, ovulatory, peak, luteal, nowIso, userId]
+            [menstrual, follicular, ovulatory, peak, luteal, libido, nowIso, userId]
         );
     } else {
         await db.run(
             sql(
                 `INSERT INTO notification_preferences 
-                 (user_id, notify_menstrual, notify_follicular, notify_ovulatory, notify_peak, notify_luteal, last_notified_phase, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                 (user_id, notify_menstrual, notify_follicular, notify_ovulatory, notify_peak, notify_luteal, notify_libido, last_notified_phase, last_notified_libido, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 isPostgres
             ),
-            [userId, menstrual, follicular, ovulatory, peak, luteal, null, nowIso]
+            [userId, menstrual, follicular, ovulatory, peak, luteal, libido, null, null, nowIso]
         );
     }
 
@@ -230,11 +235,41 @@ async function updateLastNotifiedPhase(db, userId, phaseToken) {
         await db.run(
             sql(
                 `INSERT INTO notification_preferences 
-                 (user_id, notify_menstrual, notify_follicular, notify_ovulatory, notify_peak, notify_luteal, last_notified_phase, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                 (user_id, notify_menstrual, notify_follicular, notify_ovulatory, notify_peak, notify_luteal, notify_libido, last_notified_phase, last_notified_libido, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 isPostgres
             ),
-            [userId, defaultBool, defaultBool, defaultBool, defaultBool, defaultBool, phaseToken, nowIso]
+            [userId, defaultBool, defaultBool, defaultBool, defaultBool, defaultBool, defaultBool, phaseToken, null, nowIso]
+        );
+    }
+}
+
+/**
+ * Updates only the last_notified_libido token for a user.
+ */
+async function updateLastNotifiedLibido(db, userId, libidoToken) {
+    const isPostgres = db.adapter === 'postgres';
+    const existing = await db.get(
+        sql(`SELECT user_id FROM notification_preferences WHERE user_id = ?`, isPostgres),
+        [userId]
+    );
+    const nowIso = new Date().toISOString();
+
+    if (existing) {
+        await db.run(
+            sql(`UPDATE notification_preferences SET last_notified_libido = ?, updated_at = ? WHERE user_id = ?`, isPostgres),
+            [libidoToken, nowIso, userId]
+        );
+    } else {
+        const defaultBool = isPostgres ? true : 1;
+        await db.run(
+            sql(
+                `INSERT INTO notification_preferences 
+                 (user_id, notify_menstrual, notify_follicular, notify_ovulatory, notify_peak, notify_luteal, notify_libido, last_notified_phase, last_notified_libido, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                isPostgres
+            ),
+            [userId, defaultBool, defaultBool, defaultBool, defaultBool, defaultBool, defaultBool, null, libidoToken, nowIso]
         );
     }
 }
@@ -390,6 +425,77 @@ function determineCurrentCyclePhase(cycles, referenceDateStr = null) {
 }
 
 /**
+ * Computes the estimated 3-day Highest Libido Window (Peak - 2 through Peak Day)
+ * for the active cycle, driven by the periovulatory Estradiol + Testosterone surge.
+ */
+function determineLibidoWindow(cycles, referenceDateStr = null) {
+    if (!Array.isArray(cycles) || cycles.length === 0) return null;
+
+    const activeCycle = cycles[0];
+    if (!activeCycle || activeCycle.end_date) return null;
+
+    const todayStr = referenceDateStr || moment.utc().format('YYYY-MM-DD');
+    const cycleStartStr = String(activeCycle.start_date).split('T')[0];
+    const startMoment = moment.utc(cycleStartStr, 'YYYY-MM-DD');
+    const todayMoment = moment.utc(todayStr, 'YYYY-MM-DD');
+    const currentCycleDay = Math.max(1, todayMoment.diff(startMoment, 'days') + 1);
+
+    // Compute historical average Days to Peak across all cycles with a Peak reading
+    let totalDaysToPeak = 0;
+    let peakCount = 0;
+    cycles.forEach((c) => {
+        if (!c.days) return;
+        const sorted = c.days.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+        const peakDay = sorted.find((d) => d.hormone_reading === 'Peak');
+        if (peakDay) {
+            const cStart = moment.utc(String(c.start_date).split('T')[0], 'YYYY-MM-DD');
+            const pDate = moment.utc(String(peakDay.date).split('T')[0], 'YYYY-MM-DD');
+            const idx = pDate.diff(cStart, 'days') + 1;
+            if (idx > 0) {
+                totalDaysToPeak += idx;
+                peakCount++;
+            }
+        }
+    });
+
+    const estPeakDay = peakCount > 0 ? Math.round(totalDaysToPeak / peakCount) : 14;
+    const libidoStartDay = Math.max(6, estPeakDay - 2);
+    const libidoEndDay = Math.max(libidoStartDay, estPeakDay);
+
+    const libidoStartDate = startMoment.clone().add(libidoStartDay - 1, 'days').format('YYYY-MM-DD');
+    const libidoEndDate = startMoment.clone().add(libidoEndDay - 1, 'days').format('YYYY-MM-DD');
+
+    const sortedActiveDays = (activeCycle.days || [])
+        .slice()
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const peakDays = sortedActiveDays.filter((d) => d.hormone_reading === 'Peak');
+    const firstPeak = peakDays.length > 0 ? peakDays[0] : null;
+    const lastPeak = peakDays.length > 0 ? peakDays[peakDays.length - 1] : null;
+    const fertileEnd = lastPeak
+        ? moment.utc(String(lastPeak.date).split('T')[0], 'YYYY-MM-DD').add(3, 'days').format('YYYY-MM-DD')
+        : null;
+
+    const isPostFertile = Boolean(fertileEnd && todayStr > fertileEnd);
+    const isInEstimatedWindow =
+        !isPostFertile &&
+        ((todayStr >= libidoStartDate && todayStr <= libidoEndDate) ||
+            (firstPeak && todayStr >= String(firstPeak.date).split('T')[0] && (!lastPeak || todayStr <= String(lastPeak.date).split('T')[0])));
+
+    return {
+        cycleId: activeCycle.id,
+        isInLibidoWindow: Boolean(isInEstimatedWindow),
+        libidoStartDay,
+        libidoEndDay,
+        libidoStartDate,
+        libidoEndDate,
+        currentCycleDay,
+        stateToken: `${activeCycle.id}:libido`,
+        title: 'Entering Highest Libido Window ✨',
+        body: `Cycle Day ${currentCycleDay}: Estrogen & testosterone are peaking over the next 3 days (Days ${libidoStartDay}–${libidoEndDay}).`
+    };
+}
+
+/**
  * Dispatches a push payload to all subscriptions for a user, cleaning up expired endpoints.
  */
 async function sendPushToUserSubscriptions(db, userId, payload) {
@@ -462,6 +568,8 @@ async function checkAndSendPhaseNotifications(db, cycleOwnerUserId, options = {}
         const phaseInfo = determineCurrentCyclePhase(cycles);
         if (!phaseInfo) return null;
 
+        const libidoInfo = determineLibidoWindow(cycles);
+
         // Find all users who view or own this cycle data (the owner + any partner linked to them)
         const interestedUsers = await db.query(
             sql(
@@ -474,27 +582,35 @@ async function checkAndSendPhaseNotifications(db, cycleOwnerUserId, options = {}
         for (const u of interestedUsers) {
             const prefs = await getUserNotificationPreferences(db, u.id);
 
-            // If already notified for this exact cycle & phase, do nothing (no daily nagging!)
-            if (prefs.last_notified_phase === phaseInfo.stateToken) {
-                continue;
+            // 1. Check standard 5-phase transition (no daily nagging!)
+            if (prefs.last_notified_phase !== phaseInfo.stateToken) {
+                await updateLastNotifiedPhase(db, u.id, phaseInfo.stateToken);
+
+                if (!options.seedOnly) {
+                    const isPhaseEnabled = Boolean(prefs[phaseInfo.prefField]);
+                    if (isPhaseEnabled && prefs.subscriptionsCount > 0) {
+                        await sendPushToUserSubscriptions(db, u.id, {
+                            title: phaseInfo.title,
+                            body: phaseInfo.body,
+                            tag: `rhythm-phase-${phaseInfo.stateToken}`,
+                            url: '/app'
+                        });
+                    }
+                }
             }
 
-            // Record the new phase transition in DB
-            await updateLastNotifiedPhase(db, u.id, phaseInfo.stateToken);
+            // 2. Check Highest Libido 3-day window transition (once per cycle when entering Peak-2..Peak)
+            if (libidoInfo && libidoInfo.isInLibidoWindow && prefs.last_notified_libido !== libidoInfo.stateToken) {
+                await updateLastNotifiedLibido(db, u.id, libidoInfo.stateToken);
 
-            if (options.seedOnly) {
-                continue;
-            }
-
-            // Only dispatch push if the user has this specific phase transition toggled ON
-            const isPhaseEnabled = Boolean(prefs[phaseInfo.prefField]);
-            if (isPhaseEnabled && prefs.subscriptionsCount > 0) {
-                await sendPushToUserSubscriptions(db, u.id, {
-                    title: phaseInfo.title,
-                    body: phaseInfo.body,
-                    tag: `rhythm-phase-${phaseInfo.stateToken}`,
-                    url: '/app'
-                });
+                if (!options.seedOnly && Boolean(prefs.notify_libido) && prefs.subscriptionsCount > 0) {
+                    await sendPushToUserSubscriptions(db, u.id, {
+                        title: libidoInfo.title,
+                        body: libidoInfo.body,
+                        tag: `rhythm-libido-${libidoInfo.stateToken}`,
+                        url: '/app'
+                    });
+                }
             }
         }
 
@@ -513,6 +629,7 @@ module.exports = {
     savePushSubscription,
     removePushSubscription,
     determineCurrentCyclePhase,
+    determineLibidoWindow,
     sendPushToUserSubscriptions,
     checkAndSendPhaseNotifications
 };

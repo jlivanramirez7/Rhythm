@@ -130,11 +130,32 @@ async function createTables(dbInstance, adapter) {
             notify_ovulatory ${boolDefaultTrue},
             notify_peak ${boolDefaultTrue},
             notify_luteal ${boolDefaultTrue},
+            notify_libido ${boolDefaultTrue},
             last_notified_phase TEXT,
+            last_notified_libido TEXT,
             updated_at TEXT,
             FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
         );
     `);
+
+    const notifCols = isPostgres
+        ? await dbInstance.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'notification_preferences'")
+            .then(res => res.rows.map(r => r.column_name))
+        : await new Promise((resolve, reject) => {
+            dbInstance.all("PRAGMA table_info(notification_preferences)", (err, rows) => {
+                if (err) return reject(err);
+                resolve(rows.map(r => r.name));
+            });
+        });
+    if (!notifCols.includes('notify_libido')) {
+        await runQuery(`ALTER TABLE notification_preferences ADD COLUMN notify_libido ${boolDefaultTrue}`);
+    }
+    if (!notifCols.includes('last_notified_libido')) {
+        await runQuery(`ALTER TABLE notification_preferences ADD COLUMN last_notified_libido TEXT`);
+    }
+    if (!notifCols.includes('updated_at')) {
+        await runQuery(`ALTER TABLE notification_preferences ADD COLUMN updated_at TEXT`);
+    }
 
     await runQuery(`
         CREATE TABLE IF NOT EXISTS push_subscriptions (

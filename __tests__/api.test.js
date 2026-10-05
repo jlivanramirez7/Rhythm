@@ -238,7 +238,7 @@ describe('Cycles API', () => {
         await db.run(`DELETE FROM notification_preferences`);
         await db.run(`DELETE FROM push_subscriptions`);
 
-        // 1. Default preferences should have all 5 phase toggles enabled
+        // 1. Default preferences should have all phase & libido toggles enabled
         const initialRes = await request(app).get('/api/notifications/preferences');
         expect(initialRes.statusCode).toEqual(200);
         expect(initialRes.body.preferences).toMatchObject({
@@ -247,10 +247,11 @@ describe('Cycles API', () => {
             notify_ovulatory: true,
             notify_peak: true,
             notify_luteal: true,
+            notify_libido: true,
             subscriptionsCount: 0
         });
 
-        // 2. Toggle off menstrual and follicular, keep ovulatory/peak/luteal on, and save
+        // 2. Toggle off menstrual and follicular, keep ovulatory/peak/libido on, and save
         const saveRes = await request(app)
             .put('/api/notifications/preferences')
             .send({
@@ -258,7 +259,8 @@ describe('Cycles API', () => {
                 notify_follicular: false,
                 notify_ovulatory: true,
                 notify_peak: true,
-                notify_luteal: false
+                notify_luteal: false,
+                notify_libido: true
             });
         expect(saveRes.statusCode).toEqual(200);
         expect(saveRes.body.preferences).toMatchObject({
@@ -266,7 +268,8 @@ describe('Cycles API', () => {
             notify_follicular: false,
             notify_ovulatory: true,
             notify_peak: true,
-            notify_luteal: false
+            notify_luteal: false,
+            notify_libido: true
         });
 
         // 3. Subscribe a device push endpoint
@@ -289,8 +292,8 @@ describe('Cycles API', () => {
         expect(unsubRes.body.preferences.subscriptionsCount).toBe(0);
     });
 
-    it('should detect phase transitions accurately without daily duplicate alerts', () => {
-        const { determineCurrentCyclePhase } = require('../src/notifications');
+    it('should detect phase transitions and 3-day Highest Libido window accurately without daily duplicate alerts', () => {
+        const { determineCurrentCyclePhase, determineLibidoWindow } = require('../src/notifications');
 
         const cycle = {
             id: 42,
@@ -305,10 +308,11 @@ describe('Cycles API', () => {
             ]
         };
 
-        // Day 3 -> Menstrual phase
+        // Day 3 -> Menstrual phase, not in libido window
         const day3Phase = determineCurrentCyclePhase([cycle], '2026-10-03');
         expect(day3Phase.phaseKey).toBe('menstrual');
         expect(day3Phase.stateToken).toBe('42:menstrual');
+        expect(determineLibidoWindow([cycle], '2026-10-03').isInLibidoWindow).toBe(false);
 
         // Day 4 -> Still Menstrual (same stateToken = no duplicate daily notification)
         const day4Phase = determineCurrentCyclePhase([cycle], '2026-10-04');
@@ -325,6 +329,11 @@ describe('Cycles API', () => {
         expect(day10Phase.phaseKey).toBe('ovulatory');
         expect(day10Phase.stateToken).toBe('42:ovulatory');
 
+        // Day 12 (Peak-2 for default 14d peak) -> Enters Highest Libido Window
+        const day12Libido = determineLibidoWindow([cycle], '2026-10-12');
+        expect(day12Libido.isInLibidoWindow).toBe(true);
+        expect(day12Libido.stateToken).toBe('42:libido');
+
         // Log Peak on Day 13 & Day 14 -> Enters Peak phase
         cycle.days.push({ date: '2026-10-13', hormone_reading: 'Peak' });
         cycle.days.push({ date: '2026-10-14', hormone_reading: 'Peak' });
@@ -340,5 +349,6 @@ describe('Cycles API', () => {
         const day18Phase = determineCurrentCyclePhase([cycle], '2026-10-18');
         expect(day18Phase.phaseKey).toBe('luteal');
         expect(day18Phase.stateToken).toBe('42:luteal');
+        expect(determineLibidoWindow([cycle], '2026-10-18').isInLibidoWindow).toBe(false);
     });
 });

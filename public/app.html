@@ -160,7 +160,7 @@
 
                 <div id="current-cycle-status-banner" class="cycle-status-banner" style="display: none;"></div>
 
-                <!-- Block A: Upcoming Forecast (3 Sleek Rows) -->
+                <!-- Block A: Upcoming Forecast -->
                 <div class="forecast-list">
                     <div class="forecast-row card-info-trigger" data-info="estimated_fertile_window">
                         <span class="forecast-label">
@@ -168,6 +168,13 @@
                             <span id="estimated-fertile-window-title">Fertile Window</span>
                         </span>
                         <span class="forecast-value"><span id="fertile-window-start">--</span> – <span id="fertile-window-end">--</span></span>
+                    </div>
+                    <div class="forecast-row card-info-trigger" data-info="estimated_libido">
+                        <span class="forecast-label">
+                            <span class="forecast-dot dot-libido"></span>
+                            <span id="estimated-libido-title">Highest Libido</span>
+                        </span>
+                        <span class="forecast-value"><span id="estimated-libido-start">--</span> – <span id="estimated-libido-end">--</span></span>
                     </div>
                     <div class="forecast-row card-info-trigger" data-info="estimated_peak">
                         <span class="forecast-label">
@@ -216,7 +223,7 @@
         </div>
     </main>
 
-    <script src="/app.js?v=1.7"></script>
+    <script src="/app.js?v=1.8"></script>
 
     <!-- Notification Preferences Modal Overlay -->
     <div id="notifications-modal-overlay" class="vibe-overlay">
@@ -274,6 +281,17 @@
                     </div>
                     <label class="toggle-switch" for="notify-ovulatory">
                         <input type="checkbox" id="notify-ovulatory" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="phase-toggle-row">
+                    <div class="phase-toggle-label">
+                        <span class="phase-toggle-title"><span class="forecast-dot dot-libido"></span> Highest Libido Window</span>
+                        <span class="phase-toggle-desc">When entering your 3-day peak libido surge (2 days before Est. Peak)</span>
+                    </div>
+                    <label class="toggle-switch" for="notify-libido">
+                        <input type="checkbox" id="notify-libido" checked>
                         <span class="toggle-slider"></span>
                     </label>
                 </div>

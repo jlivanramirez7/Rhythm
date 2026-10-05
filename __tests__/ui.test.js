@@ -951,11 +951,13 @@ describe('UI Tests', () => {
     expect(ovulatorySeg.getAttribute('data-days')).toBe('10');
     expect(lutealSeg.getAttribute('data-days')).toBe('14');
 
-    // Verify Analytics Follicular, Fertile Window, Luteal & Earliest Peak cards match Lunar Pulse
+    // Verify Analytics Follicular, Fertile Window, Luteal, Earliest Peak & Highest Libido cards
     expect(document.getElementById('avg-follicular-length').textContent).toBe('4');
     expect(document.getElementById('avg-fertile-window').textContent).toBe('10');
     expect(document.getElementById('avg-luteal-length').textContent).toBe('14');
     expect(document.getElementById('earliest-peak-day').textContent).toBe('Day 16');
+    expect(document.getElementById('estimated-libido-start').textContent).not.toBe('--');
+    expect(document.getElementById('estimated-libido-end').textContent).not.toBe('--');
 
     // Verify Last 5 Cycles horizontal stacked bar chart rendered
     const phaseBarRows = document.querySelectorAll('.phase-bar-row');
@@ -1016,6 +1018,7 @@ describe('UI Tests', () => {
               notify_menstrual: true,
               notify_follicular: true,
               notify_ovulatory: true,
+              notify_libido: true,
               notify_peak: true,
               notify_luteal: true,
               subscriptionsCount: 1
@@ -1059,9 +1062,11 @@ describe('UI Tests', () => {
     const modalOverlay = document.getElementById('notifications-modal-overlay');
     expect(modalOverlay.classList.contains('active')).toBe(true);
 
-    // Toggle off menstrual and follicular, keep ovulatory/peak/luteal on
+    // Toggle off menstrual and follicular, keep ovulatory/libido/peak/luteal on
     const menstrualToggle = document.getElementById('notify-menstrual');
     const follicularToggle = document.getElementById('notify-follicular');
+    const libidoToggle = document.getElementById('notify-libido');
+    expect(libidoToggle.checked).toBe(true);
     menstrualToggle.checked = false;
     follicularToggle.checked = false;
 
@@ -1078,6 +1083,7 @@ describe('UI Tests', () => {
           notify_menstrual: false,
           notify_follicular: false,
           notify_ovulatory: true,
+          notify_libido: true,
           notify_peak: true,
           notify_luteal: true,
           userId: 1

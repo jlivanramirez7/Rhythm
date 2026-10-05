@@ -1428,6 +1428,7 @@ input[type="checkbox"]:checked::after {
 .dot-ovulatory { background-color: var(--md-reading-high); }
 .dot-peak { background-color: var(--md-reading-peak); }
 .dot-menstrual { background-color: var(--md-reading-peak); }
+.dot-libido { background-color: #b85d3b; box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.25); }
 
 .forecast-value {
     font-size: 0.85rem;

@@ -92,9 +92,13 @@ const infoData = {
     title: "Estimated Fertile Window",
     content: "Projected start and end dates for your current or upcoming fertile window based on your historical Peak timing and fertile window length."
   },
+  estimated_libido: {
+    title: "Estimated Highest Libido Window",
+    content: "<p>Driven by your cycle's steepest climb in <strong>Estradiol (E2)</strong> and a brief mid-cycle surge in <strong>free Testosterone</strong>, biological desire naturally peaks during the <strong>3-day window leading up to and including your Peak LH surge day</strong> (<em>Est. Peak − 2 days through Est. Peak</em>).</p><p>You can also toggle an automatic push notification for when you enter this window under <strong>Menu (☰) → Notifications</strong>.</p>"
+  },
   analytics_overview: {
     title: "About Your Analytics",
-    content: "<p>Your analytics combine all recorded cycles to give you two views:</p><ul><li><strong>Upcoming Forecast:</strong> Projected dates for your Fertile Window, Peak Day, and Next Period.</li><li><strong>Core Marquette Vitals:</strong> Your all-time Average Cycle Length (± variation), Average Peak Day, Earliest Peak Day (which sets your fertile window opening rule at <em>Earliest Peak − 6</em>), and Luteal Phase length.</li></ul><p><em>Tip: Tap any row or metric tile in the Analytics card to view its clinical definition.</em></p>"
+    content: "<p>Your analytics combine all recorded cycles to give you two views:</p><ul><li><strong>Upcoming Forecast:</strong> Projected dates for your Fertile Window, Highest Libido Window (the 3-day Estradiol + Testosterone peak), Peak Day, and Next Period.</li><li><strong>Core Marquette Vitals:</strong> Your all-time Average Cycle Length (± variation), Average Peak Day, Earliest Peak Day (which sets your fertile window opening rule at <em>Earliest Peak − 6</em>), and Luteal Phase length.</li></ul><p><em>Tip: Tap any row or metric tile in the Analytics card to view its clinical definition.</em></p>"
   }
 };
 
@@ -1323,6 +1327,9 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
   const estimatedNextPeakSpan = document.getElementById("estimated-next-peak");
   const fertileWindowStartSpan = document.getElementById("fertile-window-start");
   const fertileWindowEndSpan = document.getElementById("fertile-window-end");
+  const estimatedLibidoStartSpan = document.getElementById("estimated-libido-start");
+  const estimatedLibidoEndSpan = document.getElementById("estimated-libido-end");
+  const estimatedLibidoTitle = document.getElementById("estimated-libido-title");
 
   const cycleLengthBadge = document.getElementById("cycle-length-badge");
   const cycleVariationBadge = document.getElementById("cycle-variation-badge");
@@ -1507,6 +1514,19 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
           : `Next cycle (Day ${analytics.averageDaysToPeak})`;
       }
 
+      // Highest Libido Window: 3-day Estradiol + Testosterone surge (Peak - 2 through Peak Day)
+      if (estimatedLibidoStartSpan && estimatedLibidoEndSpan) {
+        const libidoStartOffset = Math.max(5, analytics.averageDaysToPeak - 3);
+        const libidoStartDate = addUtcDays(baseCycleStart, libidoStartOffset);
+        estimatedLibidoStartSpan.textContent = formatUtcLocale(libidoStartDate);
+        estimatedLibidoEndSpan.textContent = formatUtcLocale(nextPeakDate);
+      }
+      if (estimatedLibidoTitle) {
+        estimatedLibidoTitle.textContent = predictCurrentCycle
+          ? "Highest Libido"
+          : "Next Highest Libido";
+      }
+
       // Align Estimated Fertile Window with current ongoing cycle (if window not yet closed) or next cycle
       const windowLength = breakdown.avgFertileWindowLength;
       if (windowLength > 0) {
@@ -1545,6 +1565,8 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
       estimatedNextPeakSpan.textContent = "--";
       fertileWindowStartSpan.textContent = "--";
       fertileWindowEndSpan.textContent = "--";
+      if (estimatedLibidoStartSpan) estimatedLibidoStartSpan.textContent = "--";
+      if (estimatedLibidoEndSpan) estimatedLibidoEndSpan.textContent = "--";
       if (estimatedPeakBadge) estimatedPeakBadge.textContent = "";
       if (estimatedFertileBadge) estimatedFertileBadge.textContent = "";
     }
@@ -1553,6 +1575,8 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
     estimatedNextPeakSpan.textContent = "--";
     fertileWindowStartSpan.textContent = "--";
     fertileWindowEndSpan.textContent = "--";
+    if (estimatedLibidoStartSpan) estimatedLibidoStartSpan.textContent = "--";
+    if (estimatedLibidoEndSpan) estimatedLibidoEndSpan.textContent = "--";
     if (estimatedPeriodBadge) estimatedPeriodBadge.textContent = "";
     if (estimatedPeakBadge) estimatedPeakBadge.textContent = "";
     if (estimatedFertileBadge) estimatedFertileBadge.textContent = "";
@@ -2025,6 +2049,7 @@ function initializeNotificationsModal() {
   const menstrualBox = document.getElementById("notify-menstrual");
   const follicularBox = document.getElementById("notify-follicular");
   const ovulatoryBox = document.getElementById("notify-ovulatory");
+  const libidoBox = document.getElementById("notify-libido");
   const peakBox = document.getElementById("notify-peak");
   const lutealBox = document.getElementById("notify-luteal");
 
@@ -2053,6 +2078,7 @@ function initializeNotificationsModal() {
       if (menstrualBox) menstrualBox.checked = Boolean(prefs.notify_menstrual);
       if (follicularBox) follicularBox.checked = Boolean(prefs.notify_follicular);
       if (ovulatoryBox) ovulatoryBox.checked = Boolean(prefs.notify_ovulatory);
+      if (libidoBox) libidoBox.checked = prefs.notify_libido !== undefined ? Boolean(prefs.notify_libido) : true;
       if (peakBox) peakBox.checked = Boolean(prefs.notify_peak);
       if (lutealBox) lutealBox.checked = Boolean(prefs.notify_luteal);
 
@@ -2213,6 +2239,7 @@ function initializeNotificationsModal() {
         notify_menstrual: menstrualBox ? menstrualBox.checked : true,
         notify_follicular: follicularBox ? follicularBox.checked : true,
         notify_ovulatory: ovulatoryBox ? ovulatoryBox.checked : true,
+        notify_libido: libidoBox ? libidoBox.checked : true,
         notify_peak: peakBox ? peakBox.checked : true,
         notify_luteal: lutealBox ? lutealBox.checked : true,
         userId: currentlyViewedUserId
