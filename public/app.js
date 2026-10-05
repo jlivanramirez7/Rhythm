@@ -541,10 +541,10 @@ function renderLunarPulse(analytics, cycles, precomputedWindows = null) {
               const peakText = polarToCartesian(cx, cy, radius + 14, peakAngle);
               const estPeakDate = addDays(cycleStart, estPeakDay);
               return `
-                <circle cx="${peakMarker.x}" cy="${peakMarker.y}" r="2" fill="none" stroke="#f57c00" stroke-width="0.8" stroke-dasharray="1,1" />
-                <path d="M ${peakMarker.x} ${peakMarker.y-3} L ${peakMarker.x+2} ${peakMarker.y+1} L ${peakMarker.x-2} ${peakMarker.y+1} Z" fill="#f57c00" />
-                <text x="${peakText.x}" y="${peakText.y}" fill="#f57c00" font-size="2.5" text-anchor="middle" font-weight="700">Est. Peak</text>
-                <text x="${peakText.x}" y="${peakText.y + 3}" fill="#f57c00" font-size="2.5" text-anchor="middle" font-weight="500">${formatDate(estPeakDate)}</text>
+                <circle cx="${peakMarker.x}" cy="${peakMarker.y}" r="2" fill="none" stroke="#d97706" stroke-width="0.8" stroke-dasharray="1,1" />
+                <path d="M ${peakMarker.x} ${peakMarker.y-3} L ${peakMarker.x+2} ${peakMarker.y+1} L ${peakMarker.x-2} ${peakMarker.y+1} Z" fill="#d97706" />
+                <text x="${peakText.x}" y="${peakText.y}" fill="#d97706" font-size="2.5" text-anchor="middle" font-weight="700">Est. Peak</text>
+                <text x="${peakText.x}" y="${peakText.y + 3}" fill="#d97706" font-size="2.5" text-anchor="middle" font-weight="500">${formatDate(estPeakDate)}</text>
               `;
             }
           }
@@ -565,10 +565,10 @@ function renderLunarPulse(analytics, cycles, precomputedWindows = null) {
   const legendContainer = document.getElementById('lunar-phase-legend');
   if (legendContainer) {
     const phasePills = [
-      { id: 'Menstrual', label: 'Menstrual', days: menstrualDays, color: '#d32f2f' },
-      { id: 'Follicular', label: 'Follicular', days: follicularDays, color: '#1976d2' },
-      { id: 'Ovulatory', label: 'Ovulatory', days: ovulatoryDays, color: '#f57c00' },
-      { id: 'Luteal', label: 'Luteal', days: lutealDays, color: '#8e24aa' }
+      { id: 'Menstrual', label: 'Menstrual', days: menstrualDays, color: '#c84b31' },
+      { id: 'Follicular', label: 'Follicular', days: follicularDays, color: '#2e6f95' },
+      { id: 'Ovulatory', label: 'Ovulatory', days: ovulatoryDays, color: '#d97706' },
+      { id: 'Luteal', label: 'Luteal', days: lutealDays, color: '#7a5195' }
     ];
     legendContainer.innerHTML = phasePills
       .map(
@@ -600,11 +600,11 @@ function renderLunarPulse(analytics, cycles, precomputedWindows = null) {
       scienceEl.textContent = data.The_Science;
       textEl.textContent = data.The_Vibe;
 
-      let color = '#74777f';
-      if (phaseId === 'Menstrual') color = '#d32f2f';
-      if (phaseId === 'Follicular') color = '#1976d2';
-      if (phaseId === 'Ovulatory') color = '#f57c00';
-      if (phaseId === 'Luteal') color = '#8e24aa';
+      let color = '#655850';
+      if (phaseId === 'Menstrual') color = '#c84b31';
+      if (phaseId === 'Follicular') color = '#2e6f95';
+      if (phaseId === 'Ovulatory') color = '#d97706';
+      if (phaseId === 'Luteal') color = '#7a5195';
       vibeModal.style.borderColor = color;
       titleEl.style.color = color;
       datesEl.style.color = color;
