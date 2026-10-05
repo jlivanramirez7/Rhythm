@@ -351,4 +351,32 @@ describe('Cycles API', () => {
         expect(day18Phase.stateToken).toBe('42:luteal');
         expect(determineLibidoWindow([cycle], '2026-10-18').isInLibidoWindow).toBe(false);
     });
+
+    it('should weight recent cycles more heavily (EWMA) and dampen extreme historical outliers in GET /api/analytics', async () => {
+        // Insert 1 ancient anomalous 45-day cycle (Peak Day 31) followed by 3 recent regular 28-day cycles (Peak Day 14)
+        await db.run(
+            `INSERT INTO cycles (id, user_id, start_date, end_date) VALUES
+             (1, 1, '2025-01-01', '2025-02-14'),
+             (2, 1, '2025-02-15', '2025-03-14'),
+             (3, 1, '2025-03-15', '2025-04-11'),
+             (4, 1, '2025-04-12', '2025-05-09')`
+        );
+        await db.run(
+            `INSERT INTO cycle_days (cycle_id, date, hormone_reading, intercourse) VALUES
+             (1, '2025-01-31', 'Peak', 0),
+             (2, '2025-02-28', 'Peak', 0),
+             (3, '2025-03-28', 'Peak', 0),
+             (4, '2025-04-25', 'Peak', 0)`
+        );
+
+        const res = await request(app).get('/api/analytics');
+        expect(res.statusCode).toEqual(200);
+        // Unweighted mean of [28, 28, 28, 45] is 32, but EWMA + MAD outlier dampening keeps it anchored at 28
+        expect(res.body.unweightedCycleLength).toBe(32);
+        expect(res.body.averageCycleLength).toBe(28);
+        expect(res.body.averageDaysToPeak).toBe(14);
+        expect(res.body.averageLutealLength).toBe(14);
+        expect(res.body.forecastModel).toBe('ewma-bayesian-v2');
+    });
 });
+

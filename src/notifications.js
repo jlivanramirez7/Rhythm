@@ -324,6 +324,43 @@ async function removePushSubscription(db, userId, endpoint) {
 }
 
 /**
+ * Helper: Exponentially Weighted Moving Average (EWMA) with MAD Outlier Dampening.
+ * Expects values ordered newest-first (index 0 = most recent cycle).
+ */
+function computeWeightedMean(values, decay = 0.72) {
+    if (!Array.isArray(values) || values.length === 0) return 0;
+    const n = values.length;
+    const unweighted = Math.round(values.reduce((acc, v) => acc + v, 0) / n);
+
+    let median = values[0];
+    let outlierThreshold = Infinity;
+    if (n >= 3) {
+        const sorted = values.slice().sort((a, b) => a - b);
+        const mid = Math.floor(n / 2);
+        median = n % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+        const absDevs = values.map((v) => Math.abs(v - median)).sort((a, b) => a - b);
+        const mad = n % 2 === 0 ? (absDevs[mid - 1] + absDevs[mid]) / 2 : absDevs[mid];
+        outlierThreshold = Math.max(5, 2.5 * mad);
+    }
+
+    const effectiveValues = [];
+    const weights = values.map((v, idx) => {
+        const recencyWeight = Math.pow(decay, idx);
+        const isOutlier = n >= 3 && Math.abs(v - median) > outlierThreshold;
+        const clampedVal = isOutlier
+            ? median + Math.sign(v - median) * outlierThreshold
+            : v;
+        effectiveValues.push(clampedVal);
+        return recencyWeight * (isOutlier ? 0.15 : 1.0);
+    });
+
+    const sumW = weights.reduce((acc, w) => acc + w, 0);
+    return sumW > 0
+        ? Math.round(effectiveValues.reduce((acc, v, idx) => acc + weights[idx] * v, 0) / sumW)
+        : unweighted;
+}
+
+/**
  * Computes the current phase of the active cycle for a given array of cycles (sorted newest first).
  * Strictly models phase transitions: menstrual -> follicular -> ovulatory -> peak -> luteal.
  */
@@ -340,9 +377,10 @@ function determineCurrentCyclePhase(cycles, referenceDateStr = null) {
     const todayMoment = moment.utc(todayStr, 'YYYY-MM-DD');
     const currentCycleDay = Math.max(1, todayMoment.diff(startMoment, 'days') + 1);
 
-    // 1. Compute earliest historical Peak day index across all cycles
+    // 1. Compute earliest Peak day index across the rolling 12 most recent cycles (Marquette Method protocol)
+    const recent12Cycles = cycles.slice(0, 12);
     let earliestPeakDayIndex = Infinity;
-    cycles.forEach((c) => {
+    recent12Cycles.forEach((c) => {
         if (!c.days) return;
         const sorted = c.days.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
         const peakDay = sorted.find((d) => d.hormone_reading === 'Peak');
@@ -440,9 +478,8 @@ function determineLibidoWindow(cycles, referenceDateStr = null) {
     const todayMoment = moment.utc(todayStr, 'YYYY-MM-DD');
     const currentCycleDay = Math.max(1, todayMoment.diff(startMoment, 'days') + 1);
 
-    // Compute historical average Days to Peak across all cycles with a Peak reading
-    let totalDaysToPeak = 0;
-    let peakCount = 0;
+    // Compute recency-weighted (EWMA) + outlier-dampened Days to Peak across cycles (newest first)
+    const daysToPeakNewestFirst = [];
     cycles.forEach((c) => {
         if (!c.days) return;
         const sorted = c.days.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
@@ -452,18 +489,10 @@ function determineLibidoWindow(cycles, referenceDateStr = null) {
             const pDate = moment.utc(String(peakDay.date).split('T')[0], 'YYYY-MM-DD');
             const idx = pDate.diff(cStart, 'days') + 1;
             if (idx > 0) {
-                totalDaysToPeak += idx;
-                peakCount++;
+                daysToPeakNewestFirst.push(idx);
             }
         }
     });
-
-    const estPeakDay = peakCount > 0 ? Math.round(totalDaysToPeak / peakCount) : 14;
-    const libidoStartDay = Math.max(6, estPeakDay - 2);
-    const libidoEndDay = Math.max(libidoStartDay, estPeakDay);
-
-    const libidoStartDate = startMoment.clone().add(libidoStartDay - 1, 'days').format('YYYY-MM-DD');
-    const libidoEndDate = startMoment.clone().add(libidoEndDay - 1, 'days').format('YYYY-MM-DD');
 
     const sortedActiveDays = (activeCycle.days || [])
         .slice()
@@ -471,6 +500,28 @@ function determineLibidoWindow(cycles, referenceDateStr = null) {
     const peakDays = sortedActiveDays.filter((d) => d.hormone_reading === 'Peak');
     const firstPeak = peakDays.length > 0 ? peakDays[0] : null;
     const lastPeak = peakDays.length > 0 ? peakDays[peakDays.length - 1] : null;
+    const firstHigh = sortedActiveDays.find((d) => d.hormone_reading === 'High');
+
+    let estPeakDay = daysToPeakNewestFirst.length > 0 ? computeWeightedMean(daysToPeakNewestFirst, 0.72) : 14;
+    if (!firstPeak) {
+        if (firstHigh) {
+            const hDate = moment.utc(String(firstHigh.date).split('T')[0], 'YYYY-MM-DD');
+            const firstHighIdx = hDate.diff(startMoment, 'days') + 1;
+            if (firstHighIdx > 0 && firstHighIdx + 4 < estPeakDay) {
+                estPeakDay = Math.max(firstHighIdx + 1, Math.round((estPeakDay + (firstHighIdx + 3)) / 2));
+            }
+        }
+        if (currentCycleDay >= 1 && currentCycleDay <= 45 && currentCycleDay > estPeakDay) {
+            estPeakDay = currentCycleDay + 1;
+        }
+    }
+
+    const libidoStartDay = Math.max(6, estPeakDay - 2);
+    const libidoEndDay = Math.max(libidoStartDay, estPeakDay);
+
+    const libidoStartDate = startMoment.clone().add(libidoStartDay - 1, 'days').format('YYYY-MM-DD');
+    const libidoEndDate = startMoment.clone().add(libidoEndDay - 1, 'days').format('YYYY-MM-DD');
+
     const fertileEnd = lastPeak
         ? moment.utc(String(lastPeak.date).split('T')[0], 'YYYY-MM-DD').add(3, 'days').format('YYYY-MM-DD')
         : null;

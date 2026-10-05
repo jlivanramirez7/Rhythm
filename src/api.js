@@ -527,6 +527,59 @@ const apiRouter = (db) => {
         }
     });
 
+    // Helper: Exponentially Weighted Moving Average (EWMA) with MAD Outlier Winsorization & Dampening
+    // Expects values ordered newest-first (index 0 = most recent cycle).
+    function computeWeightedStats(values, decay = 0.72) {
+        if (!Array.isArray(values) || values.length === 0) {
+            return { mean: 0, unweightedMean: 0, stdDev: 0 };
+        }
+        const n = values.length;
+        const unweightedMean = Math.round(values.reduce((acc, v) => acc + v, 0) / n);
+
+        let median = values[0];
+        let outlierThreshold = Infinity;
+        if (n >= 3) {
+            const sorted = values.slice().sort((a, b) => a - b);
+            const mid = Math.floor(n / 2);
+            median = n % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+            const absDevs = values.map((v) => Math.abs(v - median)).sort((a, b) => a - b);
+            const mad = n % 2 === 0 ? (absDevs[mid - 1] + absDevs[mid]) / 2 : absDevs[mid];
+            outlierThreshold = Math.max(5, 2.5 * mad);
+        }
+
+        const effectiveValues = [];
+        const weights = values.map((v, idx) => {
+            const recencyWeight = Math.pow(decay, idx);
+            const isOutlier = n >= 3 && Math.abs(v - median) > outlierThreshold;
+            const clampedVal = isOutlier
+                ? median + Math.sign(v - median) * outlierThreshold
+                : v;
+            effectiveValues.push(clampedVal);
+            return recencyWeight * (isOutlier ? 0.15 : 1.0);
+        });
+
+        const sumW = weights.reduce((acc, w) => acc + w, 0);
+        const rawWeightedMean =
+            sumW > 0
+                ? effectiveValues.reduce((acc, v, idx) => acc + weights[idx] * v, 0) / sumW
+                : unweightedMean;
+        const mean = Math.round(rawWeightedMean);
+
+        let stdDev = 0;
+        if (n > 1 && sumW > 0) {
+            const sumW2 = weights.reduce((acc, w) => acc + w * w, 0);
+            const denom = sumW - sumW2 / sumW;
+            if (denom > 0) {
+                const weightedVariance =
+                    weights.reduce((acc, w, idx) => acc + w * Math.pow(effectiveValues[idx] - rawWeightedMean, 2), 0) /
+                    denom;
+                stdDev = Math.round(Math.sqrt(weightedVariance));
+            }
+        }
+
+        return { mean, unweightedMean, stdDev };
+    }
+
     // Get analytics
     router.get('/analytics', async (req, res) => {
         const targetUserId = req.query.user_id || req.user.id;
@@ -541,30 +594,29 @@ const apiRouter = (db) => {
         }
 
         try {
-            const analytics = {};
+            const analytics = {
+                forecastModel: 'ewma-bayesian-v2'
+            };
             
             const cycleLengthSql = sql(`
                 SELECT 
                     ${isPostgres ? '(end_date - start_date + 1)' : 'CAST(julianday(end_date) - julianday(start_date) + 1 AS INTEGER)'} as length 
                 FROM cycles 
                 WHERE user_id = ? AND end_date IS NOT NULL
+                ORDER BY start_date DESC
             `, isPostgres);
 
             const cycleLengths = await db.query(cycleLengthSql, [targetUserId]);
 
             if (cycleLengths.length > 0) {
-                const totalDays = cycleLengths.reduce((acc, row) => acc + row.length, 0);
-                analytics.averageCycleLength = Math.round(totalDays / cycleLengths.length);
-                
-                // Calculate Cycle Variation (Standard Deviation)
-                if (cycleLengths.length > 1) {
-                    const variance = cycleLengths.reduce((acc, row) => acc + Math.pow(row.length - analytics.averageCycleLength, 2), 0) / (cycleLengths.length - 1);
-                    analytics.cycleVariation = Math.round(Math.sqrt(variance));
-                } else {
-                    analytics.cycleVariation = 0; // Not enough data for variation
-                }
+                const lengthsNewestFirst = cycleLengths.map(row => Number(row.length)).filter(v => v > 0);
+                const stats = computeWeightedStats(lengthsNewestFirst, 0.72);
+                analytics.averageCycleLength = stats.mean;
+                analytics.unweightedCycleLength = stats.unweightedMean;
+                analytics.cycleVariation = stats.stdDev;
             } else {
                 analytics.averageCycleLength = 0;
+                analytics.unweightedCycleLength = 0;
                 analytics.cycleVariation = 0;
             }
 
@@ -575,36 +627,41 @@ const apiRouter = (db) => {
                 WHERE c.user_id = ? AND cd.hormone_reading = 'Peak'
                 GROUP BY c.id, c.start_date, c.end_date
                 HAVING MIN(cd.date) IS NOT NULL
+                ORDER BY c.start_date DESC
             `, isPostgres);
 
             const peakRows = await db.query(peakDaySql, [targetUserId]);
 
             if (peakRows.length > 0) {
-                let totalDaysToPeak = 0;
-                let validLutealPhases = 0;
-                let totalLutealDays = 0;
+                const daysToPeakNewestFirst = [];
+                const lutealDaysNewestFirst = [];
 
                 peakRows.forEach(row => {
                     const start = new Date(row.start_date);
                     const peak = new Date(row.peak_date);
                     
                     // Days to Peak calculation
-                    totalDaysToPeak += ((peak - start) / (1000 * 60 * 60 * 24)) + 1;
+                    const dtp = Math.round((peak - start) / (1000 * 60 * 60 * 24)) + 1;
+                    if (dtp > 0) {
+                        daysToPeakNewestFirst.push(dtp);
+                    }
 
                     // Luteal Phase calculation (Requires a finished cycle)
                     if (row.end_date) {
                         const end = new Date(row.end_date);
                         // Luteal phase starts the day AFTER peak and ends on the last day of the cycle
-                        const lutealDays = ((end - peak) / (1000 * 60 * 60 * 24)); 
+                        const lutealDays = Math.round((end - peak) / (1000 * 60 * 60 * 24)); 
                         if (lutealDays > 0) {
-                            totalLutealDays += lutealDays;
-                            validLutealPhases++;
+                            lutealDaysNewestFirst.push(lutealDays);
                         }
                     }
                 });
 
-                analytics.averageDaysToPeak = Math.round(totalDaysToPeak / peakRows.length);
-                analytics.averageLutealLength = validLutealPhases > 0 ? Math.round(totalLutealDays / validLutealPhases) : 0;
+                const peakStats = computeWeightedStats(daysToPeakNewestFirst, 0.72);
+                const lutealStats = computeWeightedStats(lutealDaysNewestFirst, 0.72);
+
+                analytics.averageDaysToPeak = peakStats.mean;
+                analytics.averageLutealLength = lutealStats.mean;
             } else {
                 analytics.averageDaysToPeak = 0;
                 analytics.averageLutealLength = 0;

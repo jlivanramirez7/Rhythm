@@ -1094,4 +1094,73 @@ describe('UI Tests', () => {
     const feedbackEl = document.getElementById('notifications-feedback-msg');
     expect(feedbackEl.textContent).toContain('Preferences saved!');
   });
+
+  it('should re-anchor Estimated Next Period to Actual Peak + Luteal Length once Peak is logged in the active cycle', async () => {
+    // Active cycle started 2025-05-01, Peak logged late on Day 19 (2025-05-19)
+    const mockCycles = [
+      {
+        id: 20,
+        start_date: '2025-05-01',
+        end_date: null,
+        days: [
+          { id: 1, date: '2025-05-16', hormone_reading: 'High', intercourse: false },
+          { id: 2, date: '2025-05-19', hormone_reading: 'Peak', intercourse: true },
+        ],
+      },
+    ];
+    const mockAnalytics = {
+      averageCycleLength: 28,
+      cycleVariation: 2,
+      averageDaysToPeak: 14,
+      averageLutealLength: 13,
+    };
+
+    fetch.mockImplementation((url) => {
+      if (url.includes('/api/me')) {
+        return Promise.resolve({
+          json: () => Promise.resolve({ id: 1, name: 'Test User', default_view_user_id: null }),
+          ok: true,
+          status: 200,
+        });
+      }
+      if (url.includes('/api/cycles')) {
+        return Promise.resolve({
+          json: () => Promise.resolve(mockCycles),
+          ok: true,
+          status: 200,
+        });
+      }
+      if (url.includes('/api/analytics')) {
+        return Promise.resolve({
+          json: () => Promise.resolve(mockAnalytics),
+          ok: true,
+          status: 200,
+        });
+      }
+      if (url.includes('/api/shared-users')) {
+        return Promise.resolve({
+          json: () => Promise.resolve([{ id: 1, name: 'Test User' }]),
+          ok: true,
+          status: 200,
+        });
+      }
+      return Promise.resolve({ json: () => Promise.resolve([]), ok: true, status: 200 });
+    });
+
+    document.body.innerHTML = appHtml;
+    jest.isolateModules(() => {
+      require('../public/app.js');
+    });
+
+    document.dispatchEvent(new Event('DOMContentLoaded', { bubbles: true, cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    // Actual Peak (2025-05-19) + 13d luteal + 1 = 2025-06-02 (6/2/2025) instead of naive 5/29/2025
+    const nextPeriodText = document.getElementById('estimated-next-period').textContent;
+    const nextPeakText = document.getElementById('estimated-next-peak').textContent;
+    expect(nextPeriodText).toBe('6/2/2025');
+    // And Next Peak for the upcoming cycle is anchored to 6/2/2025 + (14 - 1) = 6/15/2025
+    expect(nextPeakText).toBe('6/15/2025');
+  });
 });
+

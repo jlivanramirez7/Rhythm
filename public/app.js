@@ -46,19 +46,19 @@ const instructions = [
 const infoData = {
   cycle_length: {
     title: "Average Cycle Length",
-    content: "The average number of days from the first day of your period to the day before your next period begins, calculated across all completed cycles. A typical cycle is between 21 and 35 days."
+    content: "Your recency-weighted (EWMA) average number of days from the first day of your period to the day before your next period begins, with automatic outlier dampening so a single unusual cycle doesn't skew your baseline. A typical cycle is between 21 and 35 days."
   },
   cycle_variation: {
     title: "Cycle Variation",
-    content: "This shows how much your cycle length changes from cycle to cycle (standard deviation). A variation of up to 7 days is considered regular. Tracking this helps you understand the predictability of your cycle."
+    content: "This shows how much your cycle length changes from cycle to cycle (recency-weighted standard deviation). A variation of up to 7 days is considered regular. Tracking this helps you understand the predictability of your cycle."
   },
   days_to_peak: {
     title: "Average Days to Peak",
-    content: "The average number of days from the start of your cycle until your 'Peak' fertility day across all recorded cycles. This is a key indicator of when ovulation is likely to occur."
+    content: "Your recency-weighted average number of days from the start of your cycle until your 'Peak' fertility day, weighting your most recent cycles more heavily while dampening one-off outliers. This is the primary indicator of when ovulation is likely to occur."
   },
   earliest_peak: {
-    title: "Earliest Peak Day",
-    content: "The earliest cycle day on which a 'Peak' reading has occurred across your entire history. Under the Marquette Method, your fertile window automatically opens 6 days before your earliest historical Peak day (Earliest Peak − 6)."
+    title: "Earliest Peak Day (Last 12 Cycles)",
+    content: "The earliest cycle day on which a 'Peak' reading has occurred across your rolling 12 most recent cycles. Under the official Marquette Method protocol, your fertile window automatically opens 6 days before your earliest Peak day in the last 12 cycles (Earliest Peak − 6)."
   },
   follicular_phase: {
     title: "Average Follicular Phase",
@@ -66,11 +66,11 @@ const infoData = {
   },
   luteal_phase: {
     title: "Average Luteal Phase",
-    content: "The luteal phase is the time between your Peak day and the start of your next period. A healthy luteal phase is typically 10–14 days and is crucial for sustaining early pregnancy."
+    content: "The luteal phase is the time between your Peak day and the start of your next period (recency-weighted). Because luteal length is biologically much more stable than follicular length, Rhythm uses it to immediately re-anchor your Next Period forecast as soon as Peak is logged. A healthy luteal phase is typically 10–16 days."
   },
   fertile_window: {
     title: "Average Fertile Window",
-    content: "The average number of fertile (Ovulatory phase) days in your cycle based on all your recorded High and Peak readings and the Marquette PPHLL countdown rule."
+    content: "The recency-weighted average number of fertile (Ovulatory phase) days in your cycle based on your recorded High and Peak readings and the Marquette PPHLL countdown rule."
   },
   lunar_pulse: {
     title: "How to Read The Lunar Pulse",
@@ -82,15 +82,15 @@ const infoData = {
   },
   estimated_peak: {
     title: "Estimated Next Peak",
-    content: "Our algorithm's prediction for the exact day your next hormone surge should occur, based on your all-time historical Days to Peak average."
+    content: "Predicted using an Exponentially Weighted Moving Average (EWMA) of your Days to Peak (prioritizing recent cycles and dampening outliers), with live intra-cycle adaptation if you log an early High reading or if your cycle extends past your typical Peak day."
   },
   estimated_period: {
     title: "Estimated Next Period",
-    content: "Projected start date of your upcoming menstrual period, calculated by adding your all-time Average Cycle Length to your current cycle's start date."
+    content: "<p>Uses a <strong>Two-Stage Bayesian Forecast</strong>:</p><ul><li><strong>Before Peak is logged:</strong> Anchored to your recency-weighted Cycle Length, dynamically shifting if ovulation is delayed.</li><li><strong>Once Peak is logged:</strong> Immediately re-anchors to <em>Actual Peak Date + Weighted Luteal Phase Length</em>, since luteal duration is biologically stable even when ovulation occurs early or late.</li></ul>"
   },
   estimated_fertile_window: {
     title: "Estimated Fertile Window",
-    content: "Projected start and end dates for your current or upcoming fertile window based on your historical Peak timing and fertile window length."
+    content: "Projected start and end dates for your current or upcoming fertile window based on the rolling 12-cycle Marquette rule (Earliest Peak − 6), live hormone readings, and your recency-weighted fertile window length."
   },
   estimated_libido: {
     title: "Estimated Highest Libido Window",
@@ -98,7 +98,7 @@ const infoData = {
   },
   analytics_overview: {
     title: "About Your Analytics",
-    content: "<p>Your analytics combine all recorded cycles to give you two views:</p><ul><li><strong>Upcoming Forecast:</strong> Projected dates for your Fertile Window, Highest Libido Window (the 3-day Estradiol + Testosterone peak), Peak Day, and Next Period.</li><li><strong>Core Marquette Vitals:</strong> Your all-time Average Cycle Length (± variation), Average Peak Day, Earliest Peak Day (which sets your fertile window opening rule at <em>Earliest Peak − 6</em>), and Luteal Phase length.</li></ul><p><em>Tip: Tap any row or metric tile in the Analytics card to view its clinical definition.</em></p>"
+    content: "<p>Rhythm uses a <strong>Clinical-Grade Forecasting Engine</strong> across your recorded cycles:</p><ul><li><strong>Recency-Weighted EWMA & Outlier Dampening:</strong> Recent cycles carry higher weight (decay factor 0.72) while one-off stress or illness outlier cycles are automatically dampened so they don't skew your predictions.</li><li><strong>Two-Stage Bayesian Re-Anchoring:</strong> As soon as you log a Peak reading in your current cycle, your <em>Next Period</em> forecast immediately re-anchors to <em>Actual Peak + Luteal Length</em>.</li><li><strong>Rolling 12-Cycle Marquette Protocol:</strong> Your <em>Earliest Peak Day</em> (which opens the fertile window at <em>Earliest Peak − 6</em>) uses a rolling 12-cycle window.</li></ul><p><em>Tip: Tap any row or metric tile in the Analytics card to view its clinical definition.</em></p>"
   }
 };
 
@@ -106,6 +106,43 @@ let currentInstruction = 0;
 let currentlyViewedUserId = null; // Track the user whose data is being viewed
 let displayedCycleLimit = 1; // Show only the current cycle initially; older cycles under Show More
 let cachedCycles = []; // Cached cycles for smart form defaults
+
+/**
+ * Helper: Exponentially Weighted Moving Average (EWMA) with MAD Outlier Dampening.
+ * Expects values ordered newest-first (index 0 = most recent cycle).
+ */
+function computeWeightedMean(values, decay = 0.72) {
+  if (!Array.isArray(values) || values.length === 0) return 0;
+  const n = values.length;
+  const unweighted = Math.round(values.reduce((acc, v) => acc + v, 0) / n);
+
+  let median = values[0];
+  let outlierThreshold = Infinity;
+  if (n >= 3) {
+    const sorted = values.slice().sort((a, b) => a - b);
+    const mid = Math.floor(n / 2);
+    median = n % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+    const absDevs = values.map((v) => Math.abs(v - median)).sort((a, b) => a - b);
+    const mad = n % 2 === 0 ? (absDevs[mid - 1] + absDevs[mid]) / 2 : absDevs[mid];
+    outlierThreshold = Math.max(5, 2.5 * mad);
+  }
+
+  const effectiveValues = [];
+  const weights = values.map((v, idx) => {
+    const recencyWeight = Math.pow(decay, idx);
+    const isOutlier = n >= 3 && Math.abs(v - median) > outlierThreshold;
+    const clampedVal = isOutlier
+      ? median + Math.sign(v - median) * outlierThreshold
+      : v;
+    effectiveValues.push(clampedVal);
+    return recencyWeight * (isOutlier ? 0.15 : 1.0);
+  });
+
+  const sumW = weights.reduce((acc, w) => acc + w, 0);
+  return sumW > 0
+    ? Math.round(effectiveValues.reduce((acc, v, idx) => acc + weights[idx] * v, 0) / sumW)
+    : unweighted;
+}
 
 /**
  * Computes the default start date when logging a date range:
@@ -151,37 +188,40 @@ function getDefaultRangeStartDate(cycles) {
 }
 
 /**
- * Calculates unified phase lengths and metrics across ALL historical data
- * so that The Lunar Pulse ring sections and the Analytics cards stay 100% in sync.
+ * Calculates unified phase lengths and metrics across historical data (with EWMA recency weighting
+ * and a rolling 12-cycle Marquette protocol window) so that The Lunar Pulse ring sections
+ * and the Analytics cards stay 100% in sync.
  * @param {object} analytics - Backend analytics object from /api/analytics.
- * @param {Array} cycles - All cycles for the user.
+ * @param {Array} cycles - All cycles for the user (sorted newest first).
  * @param {Array} [precomputedWindows] - Optional precomputed calculateFertileWindows(cycles).
  */
 function calculatePhaseBreakdown(analytics = {}, cycles = [], precomputedWindows = null) {
   const allCycles = Array.isArray(cycles) ? cycles : [];
   const fertileWindows = precomputedWindows || calculateFertileWindows(allCycles);
 
-  // 1. Average Cycle Length across ALL completed cycles
+  // 1. Average Cycle Length across completed cycles (EWMA recency-weighted)
   let avgCycleLength = analytics && analytics.averageCycleLength > 0 ? analytics.averageCycleLength : 0;
   const completedCycles = allCycles.filter((c) => c.end_date);
   if (!avgCycleLength && completedCycles.length > 0) {
-    const totalDays = completedCycles.reduce((acc, c) => {
-      const s = new Date(String(c.start_date).split("T")[0] + "T00:00:00Z");
-      const e = new Date(String(c.end_date).split("T")[0] + "T00:00:00Z");
-      return acc + Math.round((e - s) / 86400000) + 1;
-    }, 0);
-    avgCycleLength = Math.round(totalDays / completedCycles.length);
+    const lengthsNewestFirst = completedCycles
+      .map((c) => {
+        const s = new Date(String(c.start_date).split("T")[0] + "T00:00:00Z");
+        const e = new Date(String(c.end_date).split("T")[0] + "T00:00:00Z");
+        return Math.round((e - s) / 86400000) + 1;
+      })
+      .filter((v) => v > 0);
+    avgCycleLength = computeWeightedMean(lengthsNewestFirst, 0.72);
   }
   const effectiveCycleLength = avgCycleLength > 0 ? avgCycleLength : 28;
 
-  // 2. Average Days to Peak & Earliest Peak across ALL cycles
+  // 2. Average Days to Peak (EWMA) & Earliest Peak across the Rolling 12 Most Recent Cycles
   let avgDaysToPeak = analytics && analytics.averageDaysToPeak > 0 ? analytics.averageDaysToPeak : 0;
   let earliestPeakDayIndex = null;
   let latestPeakDayIndex = null;
-  let totalPeakDayIdx = 0;
-  let peakCyclesCount = 0;
+  const peakDayIndicesNewestFirst = [];
+  const recent12Ids = new Set(allCycles.slice(0, 12).map((c) => c.id));
 
-  allCycles.forEach((c) => {
+  allCycles.forEach((c, idx) => {
     if (!c.days) return;
     const sortedDays = c.days.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
     const peakDay = sortedDays.find((d) => d.hormone_reading === "Peak");
@@ -190,36 +230,46 @@ function calculatePhaseBreakdown(analytics = {}, cycles = [], precomputedWindows
       const p = new Date(String(peakDay.date).split("T")[0] + "T00:00:00Z");
       const dayIdx = Math.round((p - s) / 86400000) + 1;
       if (dayIdx > 0) {
-        totalPeakDayIdx += dayIdx;
-        peakCyclesCount++;
-        if (earliestPeakDayIndex === null || dayIdx < earliestPeakDayIndex) {
-          earliestPeakDayIndex = dayIdx;
-        }
-        if (latestPeakDayIndex === null || dayIdx > latestPeakDayIndex) {
-          latestPeakDayIndex = dayIdx;
+        peakDayIndicesNewestFirst.push(dayIdx);
+        const isWithinRolling12 = idx < 12 || recent12Ids.has(c.id);
+        if (isWithinRolling12) {
+          if (earliestPeakDayIndex === null || dayIdx < earliestPeakDayIndex) {
+            earliestPeakDayIndex = dayIdx;
+          }
+          if (latestPeakDayIndex === null || dayIdx > latestPeakDayIndex) {
+            latestPeakDayIndex = dayIdx;
+          }
         }
       }
     }
   });
 
+  // Fallback if all recorded peaks were older than 12 cycles
+  if (earliestPeakDayIndex === null && peakDayIndicesNewestFirst.length > 0) {
+    earliestPeakDayIndex = Math.min(...peakDayIndicesNewestFirst);
+    latestPeakDayIndex = Math.max(...peakDayIndicesNewestFirst);
+  }
+
+  const peakCyclesCount = peakDayIndicesNewestFirst.length;
   if (!avgDaysToPeak && peakCyclesCount > 0) {
-    avgDaysToPeak = Math.round(totalPeakDayIdx / peakCyclesCount);
+    avgDaysToPeak = computeWeightedMean(peakDayIndicesNewestFirst, 0.72);
   }
   const effectiveDaysToPeak = avgDaysToPeak > 0 ? avgDaysToPeak : 14;
 
-  // 3. Average Fertile Window (Ovulatory Phase) across ALL valid windows
+  // 3. Average Fertile Window (Ovulatory Phase) across valid windows (EWMA recency-weighted)
   const validWindows = fertileWindows.filter((fw) => fw.start && fw.end);
   let avgFertileWindowLength = 0;
-  let totalFertileStartDayIdx = 0;
-  let validStartCount = 0;
+  const fertileStartDayIndicesNewestFirst = [];
 
   if (validWindows.length > 0) {
-    const totalFertileDays = validWindows.reduce((acc, fw) => {
-      const s = new Date(String(fw.start).split("T")[0] + "T00:00:00Z");
-      const e = new Date(String(fw.end).split("T")[0] + "T00:00:00Z");
-      return acc + Math.round((e - s) / 86400000) + 1;
-    }, 0);
-    avgFertileWindowLength = Math.round(totalFertileDays / validWindows.length);
+    const windowLengthsNewestFirst = validWindows
+      .map((fw) => {
+        const s = new Date(String(fw.start).split("T")[0] + "T00:00:00Z");
+        const e = new Date(String(fw.end).split("T")[0] + "T00:00:00Z");
+        return Math.round((e - s) / 86400000) + 1;
+      })
+      .filter((v) => v > 0);
+    avgFertileWindowLength = computeWeightedMean(windowLengthsNewestFirst, 0.72);
   }
 
   allCycles.forEach((c) => {
@@ -229,8 +279,7 @@ function calculatePhaseBreakdown(analytics = {}, cycles = [], precomputedWindows
       const fs = new Date(String(fw.start).split("T")[0] + "T00:00:00Z");
       const startIdx = Math.round((fs - cs) / 86400000) + 1;
       if (startIdx >= 1) {
-        totalFertileStartDayIdx += startIdx;
-        validStartCount++;
+        fertileStartDayIndicesNewestFirst.push(startIdx);
       }
     }
   });
@@ -246,8 +295,8 @@ function calculatePhaseBreakdown(analytics = {}, cycles = [], precomputedWindows
     analytics && analytics.averageLutealLength > 0 ? analytics.averageLutealLength : 0;
 
   let follicularDays;
-  if (validStartCount > 0) {
-    const avgFertileStartDay = Math.round(totalFertileStartDayIdx / validStartCount);
+  if (fertileStartDayIndicesNewestFirst.length > 0) {
+    const avgFertileStartDay = computeWeightedMean(fertileStartDayIndicesNewestFirst, 0.72);
     follicularDays = Math.max(1, avgFertileStartDay - menstrualDays - 1);
   } else {
     const follicularStart = menstrualDays + 1;
@@ -1175,25 +1224,33 @@ function renderCycles(cycles, elements, fertileWindows = []) {
 function calculateFertileWindows(cycles) {
   if (!cycles || cycles.length === 0) return [];
 
-  // Calculate the historically established earliest Peak day across ALL cycles
+  // Calculate the earliest Peak day across the rolling 12 most recent cycles (Marquette Method protocol)
   let earliestPeakDayIndex = Infinity;
+  const recent12Cycles = cycles.slice(0, 12);
 
-  cycles.forEach(c => {
-    if (!c.days) return;
-    const sortedDays = c.days.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
-    const peakDay = sortedDays.find(d => d.hormone_reading === 'Peak');
-    if (peakDay) {
-      const cStartStr = c.start_date.split('T')[0];
-      const pDateStr = peakDay.date.split('T')[0];
-      
-      const startObj = new Date(cStartStr + 'T00:00:00');
-      const peakObj = new Date(pDateStr + 'T00:00:00');
-      
-      const dayIndex = Math.round((peakObj - startObj) / (1000 * 60 * 60 * 24)) + 1;
-      log("debug", `[FERTILE_WIN] Historic cycle ${c.id}: Peak on day index ${dayIndex}`);
-      if (dayIndex < earliestPeakDayIndex) earliestPeakDayIndex = dayIndex;
-    }
-  });
+  const scanForEarliestPeak = (cycleSubset) => {
+    cycleSubset.forEach((c) => {
+      if (!c.days) return;
+      const sortedDays = c.days.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+      const peakDay = sortedDays.find((d) => d.hormone_reading === 'Peak');
+      if (peakDay) {
+        const cStartStr = c.start_date.split('T')[0];
+        const pDateStr = peakDay.date.split('T')[0];
+
+        const startObj = new Date(cStartStr + 'T00:00:00');
+        const peakObj = new Date(pDateStr + 'T00:00:00');
+
+        const dayIndex = Math.round((peakObj - startObj) / (1000 * 60 * 60 * 24)) + 1;
+        log("debug", `[FERTILE_WIN] Historic cycle ${c.id}: Peak on day index ${dayIndex}`);
+        if (dayIndex > 0 && dayIndex < earliestPeakDayIndex) earliestPeakDayIndex = dayIndex;
+      }
+    });
+  };
+
+  scanForEarliestPeak(recent12Cycles);
+  if (earliestPeakDayIndex === Infinity && cycles.length > 12) {
+    scanForEarliestPeak(cycles);
+  }
 
   if (earliestPeakDayIndex === Infinity) {
     earliestPeakDayIndex = null; // No historic peaks
@@ -1492,31 +1549,83 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
 
   if (mostRecentCycle && analytics.averageCycleLength > 0) {
     const lastStartDate = parseUtcDate(mostRecentCycle.start_date);
-    const nextPeriodDate = addUtcDays(lastStartDate, analytics.averageCycleLength);
-    estimatedNextPeriodSpan.textContent = formatUtcLocale(nextPeriodDate);
-    if (estimatedPeriodBadge) {
-      estimatedPeriodBadge.textContent = `Based on ${analytics.averageCycleLength}d avg cycle`;
+    const sortedActiveDays = (mostRecentCycle.days || [])
+      .slice()
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const firstPeakDay = sortedActiveDays.find((d) => d.hormone_reading === "Peak");
+    const firstHighDay = sortedActiveDays.find((d) => d.hormone_reading === "High");
+    const hasPeakedThisCycle = Boolean(firstPeakDay);
+    const isOngoingCycle = !mostRecentCycle.end_date;
+    const predictCurrentCycle = !hasPeakedThisCycle && isOngoingCycle;
+
+    // Live intra-cycle adaptation when the active cycle has not peaked yet
+    const expectedPeakDay = analytics.averageDaysToPeak || 0;
+    let effectivePeakDay = expectedPeakDay;
+    let peakBadgeSuffix = "";
+
+    if (predictCurrentCycle && expectedPeakDay > 0) {
+      if (firstHighDay) {
+        const hUtc = parseUtcDate(firstHighDay.date);
+        const firstHighIdx = Math.round((hUtc - lastStartDate) / 86400000) + 1;
+        if (firstHighIdx > 0 && firstHighIdx + 4 < effectivePeakDay) {
+          effectivePeakDay = Math.max(
+            firstHighIdx + 1,
+            Math.round((effectivePeakDay + (firstHighIdx + 3)) / 2)
+          );
+          peakBadgeSuffix = " • Adjusted for High";
+        }
+      }
+
+      const todayUtc = parseUtcDate(new Date().toISOString().split("T")[0]);
+      const liveCycleDay = Math.round((todayUtc - lastStartDate) / 86400000) + 1;
+      if (liveCycleDay >= 1 && liveCycleDay <= 45 && liveCycleDay > effectivePeakDay) {
+        effectivePeakDay = liveCycleDay + 1;
+        peakBadgeSuffix = " • Shifted (awaiting Peak)";
+      }
     }
 
-    if (analytics.averageDaysToPeak > 0) {
-      const hasPeakedThisCycle =
-        mostRecentCycle.days &&
-        mostRecentCycle.days.some((d) => d.hormone_reading === "Peak");
-      const predictCurrentCycle = !hasPeakedThisCycle && !mostRecentCycle.end_date;
+    // Two-Stage Bayesian Next Period Forecast:
+    // Stage 1 (Peak logged in active cycle): Re-anchor to Actual Peak Date + Luteal Length + 1
+    // Stage 2 (Pre-Peak or completed cycle): Anchor to Cycle Start + Weighted Cycle Length (+ any live Peak shift)
+    let nextPeriodDate;
+    if (hasPeakedThisCycle && isOngoingCycle) {
+      const actualPeakUtc = parseUtcDate(firstPeakDay.date);
+      const effectiveLuteal =
+        analytics.averageLutealLength > 0
+          ? analytics.averageLutealLength
+          : Math.max(10, analytics.averageCycleLength - (analytics.averageDaysToPeak || 14));
+      nextPeriodDate = addUtcDays(actualPeakUtc, effectiveLuteal + 1);
+      if (estimatedPeriodBadge) {
+        estimatedPeriodBadge.textContent = `Anchored to Peak + ${effectiveLuteal}d luteal`;
+      }
+    } else {
+      const peakShiftDays =
+        predictCurrentCycle && expectedPeakDay > 0 ? effectivePeakDay - expectedPeakDay : 0;
+      nextPeriodDate = addUtcDays(lastStartDate, analytics.averageCycleLength + peakShiftDays);
+      if (estimatedPeriodBadge) {
+        estimatedPeriodBadge.textContent =
+          peakShiftDays !== 0
+            ? `Adjusted (${analytics.averageCycleLength + peakShiftDays}d projected)`
+            : `Based on ${analytics.averageCycleLength}d avg cycle`;
+      }
+    }
+    estimatedNextPeriodSpan.textContent = formatUtcLocale(nextPeriodDate);
 
+    if (analytics.averageDaysToPeak > 0) {
       const baseCycleStart = predictCurrentCycle ? lastStartDate : nextPeriodDate;
-      const nextPeakDate = addUtcDays(baseCycleStart, analytics.averageDaysToPeak - 1);
+      const targetPeakDayIdx = predictCurrentCycle ? effectivePeakDay : analytics.averageDaysToPeak;
+      const nextPeakDate = addUtcDays(baseCycleStart, targetPeakDayIdx - 1);
 
       estimatedNextPeakSpan.textContent = formatUtcLocale(nextPeakDate);
       if (estimatedPeakBadge) {
         estimatedPeakBadge.textContent = predictCurrentCycle
-          ? `Current cycle (Day ${analytics.averageDaysToPeak})`
-          : `Next cycle (Day ${analytics.averageDaysToPeak})`;
+          ? `Current cycle (Day ${targetPeakDayIdx})${peakBadgeSuffix}`
+          : `Next cycle (Day ${targetPeakDayIdx})`;
       }
 
       // Highest Libido Window: 3-day Estradiol + Testosterone surge (Peak - 2 through Peak Day)
       if (estimatedLibidoStartSpan && estimatedLibidoEndSpan) {
-        const libidoStartOffset = Math.max(5, analytics.averageDaysToPeak - 3);
+        const libidoStartOffset = Math.max(5, targetPeakDayIdx - 3);
         const libidoStartDate = addUtcDays(baseCycleStart, libidoStartOffset);
         estimatedLibidoStartSpan.textContent = formatUtcLocale(libidoStartDate);
         estimatedLibidoEndSpan.textContent = formatUtcLocale(nextPeakDate);
@@ -1541,7 +1650,7 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
           const offsetBeforePeak = Math.max(1, Math.floor(windowLength / 2));
           fwStartDate = addUtcDays(
             baseCycleStart,
-            analytics.averageDaysToPeak - offsetBeforePeak
+            targetPeakDayIdx - offsetBeforePeak
           );
           fwEndDate = addUtcDays(fwStartDate, windowLength);
         }
