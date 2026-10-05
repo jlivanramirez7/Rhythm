@@ -100,7 +100,7 @@ const infoData = {
 
 let currentInstruction = 0;
 let currentlyViewedUserId = null; // Track the user whose data is being viewed
-let displayedCycleLimit = 2; // Pagination limit for cycles
+let displayedCycleLimit = 1; // Show only the current cycle initially; older cycles under Show More
 let cachedCycles = []; // Cached cycles for smart form defaults
 
 /**
@@ -1125,18 +1125,43 @@ function renderCycles(cycles, elements, fertileWindows = []) {
     });
   });
 
-  if (cycles.length > displayedCycleLimit) {
-    const showMoreBtn = document.createElement("button");
-    showMoreBtn.className = "primary-btn";
-    showMoreBtn.style.display = "block";
-    showMoreBtn.style.margin = "20px auto";
-    showMoreBtn.textContent = "Show More";
-    showMoreBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      displayedCycleLimit += 2;
-      renderCycles(cycles, elements, fertileWindows);
-    });
-    container.appendChild(showMoreBtn);
+  if (cycles.length > 1) {
+    const paginationRow = document.createElement("div");
+    paginationRow.style.display = "flex";
+    paginationRow.style.justifyContent = "center";
+    paginationRow.style.gap = "10px";
+    paginationRow.style.marginTop = "8px";
+
+    if (cycles.length > displayedCycleLimit) {
+      const remainingCount = cycles.length - displayedCycleLimit;
+      const showMoreBtn = document.createElement("button");
+      showMoreBtn.className = "primary-btn";
+      showMoreBtn.textContent = `Show More (${remainingCount} older)`;
+      showMoreBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        displayedCycleLimit += 2;
+        renderCycles(cycles, elements, fertileWindows);
+      });
+      paginationRow.appendChild(showMoreBtn);
+    }
+
+    if (displayedCycleLimit > 1) {
+      const showLessBtn = document.createElement("button");
+      showLessBtn.className = "secondary-btn";
+      showLessBtn.style.background = "var(--md-sys-color-surface-container)";
+      showLessBtn.style.color = "var(--md-sys-color-on-surface-variant)";
+      showLessBtn.style.border = "1px solid rgba(15, 23, 42, 0.1)";
+      showLessBtn.style.boxShadow = "none";
+      showLessBtn.textContent = "Show Current Only";
+      showLessBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        displayedCycleLimit = 1;
+        renderCycles(cycles, elements, fertileWindows);
+      });
+      paginationRow.appendChild(showLessBtn);
+    }
+
+    container.appendChild(paginationRow);
   }
 
   log("info", `[RENDER] --- renderCycles END ---. Finished rendering cycles.`);
@@ -1277,7 +1302,7 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
     const selectedUserId = e.target.value;
     log("info", `[ACTION] Dropdown changed. Selected User ID: ${selectedUserId}`);
     const viewAsId = selectedUserId == currentUser.id ? null : selectedUserId;
-    displayedCycleLimit = 2; // Reset pagination
+    displayedCycleLimit = 1; // Reset pagination
     fetchAndRenderData(elements, viewAsId);
   });
 
