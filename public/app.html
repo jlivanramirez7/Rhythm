@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rhythm - Ovulation Tracker</title>
-    <link rel="stylesheet" href="/styles.css?v=1.3">
+    <link rel="stylesheet" href="/styles.css?v=1.4">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
     <link rel="manifest" href="/manifest.json">
 </head>
@@ -33,170 +33,183 @@
     <main class="main-grid">
         <div class="grid-column">
             <section id="input-section" class="form-container">
-                <h2>Log Today's Reading</h2>
+                <div class="section-header-row" style="width: 100%; margin-bottom: 4px;">
+                    <div>
+                        <h2>Log Reading</h2>
+                        <p class="section-subtitle">Select today's monitor result</p>
+                    </div>
+                </div>
                 <form id="reading-form" class="form-container">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="range-checkbox" name="range-checkbox">
-                    <label for="range-checkbox">Set Date Range</label>
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="intercourse-checkbox" name="intercourse">
-                    <label for="intercourse-checkbox">Intercourse</label>
-                </div>
-                <div class="date-input-container">
+                    <div class="chip-toggle-row">
+                        <label class="chip-toggle" for="intercourse-checkbox">
+                            <input type="checkbox" id="intercourse-checkbox" name="intercourse">
+                            <span class="chip-toggle-pill">❤️ Intimacy</span>
+                        </label>
+                        <label class="chip-toggle" for="range-checkbox">
+                            <input type="checkbox" id="range-checkbox" name="range-checkbox">
+                            <span class="chip-toggle-pill">📅 Date Range</span>
+                        </label>
+                    </div>
+
+                    <div class="date-input-container" style="width: 100%;">
+                        <div class="form-input-group">
+                            <label for="date">Date</label>
+                            <input type="date" id="date" name="date" required>
+                        </div>
+                    </div>
+                    <div id="range-inputs" style="display: none; width: 100%;">
+                        <div class="form-input-group">
+                            <label for="end-date">End Date</label>
+                            <input type="date" id="end-date" name="end-date">
+                        </div>
+                    </div>
+
                     <div class="form-input-group">
-                        <label for="date">Date:</label>
-                        <input type="date" id="date" name="date" required>
+                        <label for="reading">Hormone Reading</label>
+                        <div class="reading-pill-group" role="group" aria-label="Hormone Reading">
+                            <button type="button" class="reading-pill-btn pill-low" data-reading="Low">Low</button>
+                            <button type="button" class="reading-pill-btn pill-high" data-reading="High">High</button>
+                            <button type="button" class="reading-pill-btn pill-peak" data-reading="Peak">Peak</button>
+                        </div>
+                        <select id="reading" name="reading" class="sr-only-select" aria-hidden="true" tabindex="-1">
+                            <option value="">-- Select --</option>
+                            <option value="Low">Low</option>
+                            <option value="High">High</option>
+                            <option value="Peak">Peak</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="log-submit-btn">Save Reading</button>
+                </form>
+
+                <details class="new-cycle-drawer">
+                    <summary class="new-cycle-summary">+ Start a New Period Cycle</summary>
+                    <form id="period-section" class="form-container new-cycle-body">
+                        <div class="form-input-group">
+                            <label for="period-start-date">Period Start Date</label>
+                            <input type="date" id="period-start-date" name="period-start-date">
+                        </div>
+                        <button type="button" id="period-button">Start New Cycle</button>
+                    </form>
+                </details>
+            </section>
+
+            <section id="account-switcher-section" style="display: none;">
+                <h2>User's Data:</h2>
+                <div id="account-switcher-container"></div>
+            </section>
+        </div>
+
+        <div class="grid-column">
+            <section id="cycles-section">
+                <div class="section-header-row">
+                    <div>
+                        <h2>Your Cycles</h2>
+                        <p class="section-subtitle">Tap any day tile to load its date into the logger</p>
                     </div>
                 </div>
-                <div id="range-inputs" style="display: none;">
-                    <div class="form-input-group">
-                        <label for="end-date">End Date:</label>
-                        <input type="date" id="end-date" name="end-date">
+                <div id="cycles-container"></div>
+            </section>
+
+            <section id="phase-history-section">
+                <div class="section-header-row">
+                    <div>
+                        <h2>Last 5 Cycles — Phase Breakdown</h2>
+                        <p class="section-subtitle">Stacked comparison of cycle phases &amp; Peak days</p>
+                    </div>
+                    <button class="header-help-btn card-info-btn" data-info="phase_history" aria-label="Phase History Info" title="How to read this chart">?</button>
+                </div>
+                <div id="phase-history-container" class="phase-history-container">
+                    <!-- Horizontal stacked bar chart dynamically injected by app.js -->
+                </div>
+            </section>
+        </div>
+
+        <div class="grid-column">
+            <section id="lunar-pulse-section">
+                <div class="section-header-row">
+                    <div>
+                        <h2>The Lunar Pulse</h2>
+                        <p class="section-subtitle">Tap any phase arc or pill for details</p>
+                    </div>
+                    <button class="header-help-btn card-info-btn" data-info="lunar_pulse" aria-label="Chart Info" title="How to read this chart">?</button>
+                </div>
+                <div id="lunar-donut-container" class="lunar-donut-container">
+                    <!-- SVG dynamically injected by app.js -->
+                </div>
+                <div id="lunar-phase-legend" class="lunar-phase-legend">
+                    <!-- Dynamic phase day lengths injected by app.js -->
+                </div>
+            </section>
+
+            <section id="analytics-section">
+                <div class="section-header-row">
+                    <div>
+                        <h2>Analytics</h2>
+                        <p id="analytics-summary-subtitle" class="section-subtitle">Tap any metric for clinical details</p>
+                    </div>
+                    <button class="header-help-btn card-info-btn" data-info="analytics_overview" aria-label="Analytics Guide" title="About Marquette Analytics">?</button>
+                </div>
+
+                <div id="current-cycle-status-banner" class="cycle-status-banner" style="display: none;"></div>
+
+                <!-- Block A: Upcoming Forecast (3 Sleek Rows) -->
+                <div class="forecast-list">
+                    <div class="forecast-row card-info-trigger" data-info="estimated_fertile_window">
+                        <span class="forecast-label">
+                            <span class="forecast-dot dot-ovulatory"></span>
+                            <span id="estimated-fertile-window-title">Fertile Window</span>
+                        </span>
+                        <span class="forecast-value"><span id="fertile-window-start">--</span> – <span id="fertile-window-end">--</span></span>
+                    </div>
+                    <div class="forecast-row card-info-trigger" data-info="estimated_peak">
+                        <span class="forecast-label">
+                            <span class="forecast-dot dot-peak"></span>
+                            Est. Peak
+                        </span>
+                        <span class="forecast-value"><span id="estimated-next-peak">--</span></span>
+                    </div>
+                    <div class="forecast-row card-info-trigger" data-info="estimated_period">
+                        <span class="forecast-label">
+                            <span class="forecast-dot dot-menstrual"></span>
+                            Next Period
+                        </span>
+                        <span class="forecast-value"><span id="estimated-next-period">--</span></span>
                     </div>
                 </div>
-                <div class="form-input-group">
-                    <label for="reading">Reading:</label>
-                    <select id="reading" name="reading">
-                        <option value="">-- Select --</option>
-                        <option value="Low">Low</option>
-                        <option value="High">High</option>
-                        <option value="Peak">Peak</option>
-                    </select>
-                </div>
-                <button type="submit">Log Reading</button>
-            </form>
-        </section>
 
-        <section>
-            <h2>Start a New Cycle</h2>
-            <form id="period-section" class="form-container">
-                <div class="form-input-group">
-                    <label for="period-start-date">Period Start Date:</label>
-                    <input type="date" id="period-start-date" name="period-start-date">
+                <!-- Block B: Core Marquette Vitals (Clean 2x2 Grid) -->
+                <div class="analytics-grid">
+                    <div class="analytic-card card-info-trigger" data-info="cycle_length">
+                        <h4>Cycle Length</h4>
+                        <p class="vital-main"><span id="avg-cycle-length">--</span><small class="vital-unit">d</small></p>
+                        <small class="analytic-badge">± <span id="cycle-variation">--</span>d var</small>
+                    </div>
+                    <div class="analytic-card card-info-trigger" data-info="days_to_peak">
+                        <h4>Avg Peak</h4>
+                        <p class="vital-main">Day <span id="avg-days-to-peak">--</span></p>
+                        <small id="days-to-peak-badge" class="analytic-badge"></small>
+                    </div>
+                    <div class="analytic-card card-info-trigger" data-info="earliest_peak">
+                        <h4>Earliest Peak</h4>
+                        <p class="vital-main"><span id="earliest-peak-day">--</span></p>
+                        <small id="earliest-peak-badge" class="analytic-badge"></small>
+                    </div>
+                    <div class="analytic-card card-info-trigger" data-info="luteal_phase">
+                        <h4>Luteal Phase</h4>
+                        <p class="vital-main"><span id="avg-luteal-length">--</span><small class="vital-unit">d</small></p>
+                        <small id="luteal-phase-badge" class="analytic-badge"></small>
+                    </div>
                 </div>
-                <button id="period-button">Start New Cycle</button>
-            </form>
-        </section>
 
-        <section id="account-switcher-section">
-            <h2>User's Data:</h2>
-            <div id="account-switcher-container">
-                <!-- Dropdown will be inserted here by JS -->
-            </div>
-        </section>
-    </div>
-
-    <div class="grid-column">
-        <section id="cycles-section">
-            <h2>Your Cycles</h2>
-            <div id="cycles-container"></div>
-        </section>
-
-        <section id="phase-history-section">
-            <div class="section-header-row">
-                <div>
-                    <h2>Last 5 Cycles — Phase Breakdown</h2>
-                    <p class="section-subtitle">Stacked horizontal comparison of cycle phases and Peak days</p>
-                </div>
-                <button class="card-info-btn" data-info="phase_history" aria-label="Phase History Info" title="How to read this chart" style="position: static; padding: 4px;">ℹ️</button>
-            </div>
-            <div id="phase-history-container" class="phase-history-container">
-                <!-- Horizontal stacked bar chart dynamically injected by app.js -->
-            </div>
-        </section>
-    </div>
-
-    <div class="grid-column">
-        <section id="lunar-pulse-section">
-            <h2>The Lunar Pulse</h2>
-            <div id="lunar-donut-container" class="lunar-donut-container">
-                <!-- SVG dynamically injected by app.js -->
-            </div>
-            <div id="lunar-phase-legend" class="lunar-phase-legend">
-                <!-- Dynamic phase day lengths injected by app.js -->
-            </div>
-            <div style="text-align: center; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                <p style="font-size: 0.9em; color: var(--md-sys-color-outline); margin: 0;">Interactive phase map (all-data averages)</p>
-                <button class="card-info-btn" data-info="lunar_pulse" aria-label="Chart Info" title="How to read this chart" style="position: static; padding: 0;">ℹ️</button>
-            </div>
-        </section>
-
-        <section id="analytics-section">
-            <div class="section-header-row">
-                <div>
-                    <h2>Analytics</h2>
-                    <p id="analytics-summary-subtitle" class="section-subtitle">Historical patterns &amp; upcoming predictions</p>
-                </div>
-            </div>
-            <div id="current-cycle-status-banner" class="cycle-status-banner" style="display: none;"></div>
-            <div class="analytics-grid">
-                <div class="analytic-card">
-                    <h4>Average Cycle Length</h4>
-                    <p><span id="avg-cycle-length">--</span> days</p>
-                    <small id="cycle-length-badge" class="analytic-badge"></small>
-                    <button class="card-info-btn" data-info="cycle_length" aria-label="Info">ℹ️</button>
-                </div>
-                <div class="analytic-card">
-                    <h4>Cycle Variation</h4>
-                    <p>± <span id="cycle-variation">--</span> days</p>
-                    <small id="cycle-variation-badge" class="analytic-badge"></small>
-                    <button class="card-info-btn" data-info="cycle_variation" aria-label="Info">ℹ️</button>
-                </div>
-                <div class="analytic-card">
-                    <h4>Average Days to Peak</h4>
-                    <p><span id="avg-days-to-peak">--</span> days</p>
-                    <small id="days-to-peak-badge" class="analytic-badge"></small>
-                    <button class="card-info-btn" data-info="days_to_peak" aria-label="Info">ℹ️</button>
-                </div>
-                <div class="analytic-card">
-                    <h4>Earliest Peak Day</h4>
-                    <p><span id="earliest-peak-day">--</span></p>
-                    <small id="earliest-peak-badge" class="analytic-badge"></small>
-                    <button class="card-info-btn" data-info="earliest_peak" aria-label="Info">ℹ️</button>
-                </div>
-                <div class="analytic-card">
-                    <h4>Average Follicular Phase</h4>
-                    <p><span id="avg-follicular-length">--</span> days</p>
-                    <small class="analytic-badge">Pre-fertile window</small>
-                    <button class="card-info-btn" data-info="follicular_phase" aria-label="Info">ℹ️</button>
-                </div>
-                <div class="analytic-card">
-                    <h4>Average Fertile Window</h4>
-                    <p><span id="avg-fertile-window">--</span> days</p>
-                    <small class="analytic-badge">Ovulatory phase</small>
-                    <button class="card-info-btn" data-info="fertile_window" aria-label="Info">ℹ️</button>
-                </div>
-                <div class="analytic-card">
-                    <h4>Average Luteal Phase</h4>
-                    <p><span id="avg-luteal-length">--</span> days</p>
-                    <small id="luteal-phase-badge" class="analytic-badge"></small>
-                    <button class="card-info-btn" data-info="luteal_phase" aria-label="Info">ℹ️</button>
-                </div>
-                <div class="analytic-card">
-                    <h4>Estimated Next Peak</h4>
-                    <p><span id="estimated-next-peak">--</span></p>
-                    <small id="estimated-peak-badge" class="analytic-badge"></small>
-                    <button class="card-info-btn" data-info="estimated_peak" aria-label="Info">ℹ️</button>
-                </div>
-                <div class="analytic-card">
-                    <h4>Estimated Next Period</h4>
-                    <p><span id="estimated-next-period">--</span></p>
-                    <small id="estimated-period-badge" class="analytic-badge"></small>
-                    <button class="card-info-btn" data-info="estimated_period" aria-label="Info">ℹ️</button>
-                </div>
-                <div class="analytic-card analytic-card-wide">
-                    <h4 id="estimated-fertile-window-title">Estimated Fertile Window</h4>
-                    <p><span id="fertile-window-start">--</span> to <span id="fertile-window-end">--</span></p>
-                    <small id="estimated-fertile-badge" class="analytic-badge"></small>
-                    <button class="card-info-btn" data-info="estimated_fertile_window" aria-label="Info">ℹ️</button>
-                </div>
-            </div>
-        </section>
-    </div>
+                <!-- Hidden spans preserved for programmatic/test consumers -->
+                <span id="avg-follicular-length" style="display: none;">--</span>
+                <span id="avg-fertile-window" style="display: none;">--</span>
+            </section>
+        </div>
     </main>
 
-    <script src="/app.js?v=1.3"></script>
+    <script src="/app.js?v=1.4"></script>
 
     <!-- Generic Info Modal Overlay -->
     <div id="info-modal-overlay" class="vibe-overlay">

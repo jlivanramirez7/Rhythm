@@ -91,6 +91,10 @@ const infoData = {
   estimated_fertile_window: {
     title: "Estimated Fertile Window",
     content: "Projected start and end dates for your current or upcoming fertile window based on your historical Peak timing and fertile window length."
+  },
+  analytics_overview: {
+    title: "About Your Analytics",
+    content: "<p>Your analytics combine all recorded cycles to give you two views:</p><ul><li><strong>Upcoming Forecast:</strong> Projected dates for your Fertile Window, Peak Day, and Next Period.</li><li><strong>Core Marquette Vitals:</strong> Your all-time Average Cycle Length (± variation), Average Peak Day, Earliest Peak Day (which sets your fertile window opening rule at <em>Earliest Peak − 6</em>), and Luteal Phase length.</li></ul><p><em>Tip: Tap any row or metric tile in the Analytics card to view its clinical definition.</em></p>"
   }
 };
 
@@ -855,6 +859,13 @@ function renderInstruction() {
   log("info", "--- renderInstruction END ---");
 }
 
+function syncReadingPills(selectedValue = "") {
+  document.querySelectorAll(".reading-pill-btn").forEach((btn) => {
+    const val = btn.getAttribute("data-reading");
+    btn.classList.toggle("active", val === selectedValue && selectedValue !== "");
+  });
+}
+
 function initializeEventListeners(elements) {
   elements.rangeCheckbox.addEventListener("change", () => {
     if (elements.rangeCheckbox.checked) {
@@ -871,6 +882,23 @@ function initializeEventListeners(elements) {
       elements.endDateInput.value = "";
     }
   });
+
+  const readingSelect = document.getElementById("reading");
+  document.querySelectorAll(".reading-pill-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const val = btn.getAttribute("data-reading");
+      if (readingSelect) {
+        readingSelect.value = readingSelect.value === val ? "" : val;
+        syncReadingPills(readingSelect.value);
+      }
+    });
+  });
+
+  if (readingSelect) {
+    readingSelect.addEventListener("change", () => {
+      syncReadingPills(readingSelect.value);
+    });
+  }
 
   elements.readingForm.addEventListener("submit", (e) =>
     handleReadingSubmit(e, elements)
@@ -1204,18 +1232,23 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
     `[RENDER] Switcher Data: Total Users=${users.length}, Current User ID=${currentUser.id}, Selected User ID=${currentlySelectedId}`
   );
 
+  // Keep the outer section hidden per user preference (defaulting to Angela automatically)
+  const section = document.getElementById("account-switcher-section");
+  if (section) {
+    section.style.display = "none";
+  }
+
   const container = document.getElementById("account-switcher-container");
   if (!container) {
     log("error", "[RENDER] Account switcher container not found in DOM.");
     return;
   }
   container.innerHTML = "";
-  container.style.display = "block";
+  container.style.display = "none";
 
-  // Only show the switcher if there's more than one user (the current user + at least one partner)
+  // Only build the switcher if there's more than one user
   if (!users || users.length <= 1) {
     log("info", "[RENDER] No other shared users to display. Hiding switcher.");
-    container.style.display = "none";
     return;
   }
 
@@ -1226,16 +1259,13 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
   users.forEach((user) => {
     const option = document.createElement("option");
     option.value = user.id;
-    // Label the current user as "My Data" for clarity
     option.textContent =
       user.id === currentUser.id ? "My Data" : user.name || user.email;
 
-    // Determine which option should be selected
     const isCurrentlySelected =
       currentlySelectedId
         ? user.id == currentlySelectedId
         : user.id === currentUser.id;
-    log("info", `[RENDER] Option: ${user.name}, isSelected: ${isCurrentlySelected}`);
     if (isCurrentlySelected) {
       option.selected = true;
     }
@@ -1246,7 +1276,6 @@ function renderAccountSwitcher(users, elements, currentUser, currentlySelectedId
   select.addEventListener("change", (e) => {
     const selectedUserId = e.target.value;
     log("info", `[ACTION] Dropdown changed. Selected User ID: ${selectedUserId}`);
-    // If the selected ID matches the current user's ID, fetch with null to view self
     const viewAsId = selectedUserId == currentUser.id ? null : selectedUserId;
     displayedCycleLimit = 2; // Reset pagination
     fetchAndRenderData(elements, viewAsId);
@@ -1288,19 +1317,19 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
     const totalCycles = cycles ? cycles.length : 0;
     summarySubtitle.textContent =
       totalCycles > 0
-        ? `Based on all ${totalCycles} recorded cycle${totalCycles === 1 ? "" : "s"} (${breakdown.completedCyclesCount} completed)`
+        ? `Based on ${totalCycles} cycle${totalCycles === 1 ? "" : "s"} (${breakdown.completedCyclesCount} completed) • Tap any metric for details`
         : "Historical patterns & upcoming predictions";
   }
 
-  // 1. Core Averages & Health Badges
+  // 1. Core Averages & Concise Badges
   avgCycleLengthSpan.textContent = analytics.averageCycleLength || "--";
   if (cycleLengthBadge) {
     if (analytics.averageCycleLength > 0) {
       const isTypical = analytics.averageCycleLength >= 21 && analytics.averageCycleLength <= 35;
-      cycleLengthBadge.textContent = isTypical ? "Typical range (21–35d)" : "Outside 21–35d range";
+      cycleLengthBadge.textContent = isTypical ? "● Regular" : "● Variable";
       cycleLengthBadge.className = `analytic-badge ${isTypical ? "badge-good" : "badge-warn"}`;
     } else {
-      cycleLengthBadge.textContent = "Needs 1 completed cycle";
+      cycleLengthBadge.textContent = "Needs 1 cycle";
       cycleLengthBadge.className = "analytic-badge";
     }
   }
@@ -1315,7 +1344,7 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
       cycleVariationBadge.textContent = isRegular ? "Regular (≤ 7d)" : "Variable (> 7d)";
       cycleVariationBadge.className = `analytic-badge ${isRegular ? "badge-good" : "badge-warn"}`;
     } else {
-      cycleVariationBadge.textContent = "Needs 2+ completed cycles";
+      cycleVariationBadge.textContent = "";
       cycleVariationBadge.className = "analytic-badge";
     }
   }
@@ -1325,7 +1354,7 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
     if (breakdown.earliestPeakDayIndex && breakdown.latestPeakDayIndex) {
       daysToPeakBadge.textContent =
         breakdown.earliestPeakDayIndex === breakdown.latestPeakDayIndex
-          ? `Consistent on Day ${breakdown.earliestPeakDayIndex}`
+          ? `Day ${breakdown.earliestPeakDayIndex}`
           : `Range: Day ${breakdown.earliestPeakDayIndex}–${breakdown.latestPeakDayIndex}`;
     } else {
       daysToPeakBadge.textContent = "";
@@ -1340,10 +1369,10 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
   if (earliestPeakBadge) {
     if (breakdown.earliestPeakDayIndex) {
       const openDay = Math.max(1, breakdown.earliestPeakDayIndex - 6);
-      earliestPeakBadge.textContent = `Window opens Day ${openDay}`;
+      earliestPeakBadge.textContent = `Opens Day ${openDay}`;
       earliestPeakBadge.className = "analytic-badge badge-good";
     } else {
-      earliestPeakBadge.textContent = "No Peak logged yet";
+      earliestPeakBadge.textContent = "No Peak yet";
       earliestPeakBadge.className = "analytic-badge";
     }
   }
@@ -1359,10 +1388,10 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
     if (avgLuteal > 0) {
       const isOptimal = avgLuteal >= 10 && avgLuteal <= 16;
       lutealPhaseBadge.textContent = isOptimal
-        ? "Optimal (10–16d)"
+        ? "● Optimal (10–16d)"
         : avgLuteal < 10
-        ? "Short (< 10d)"
-        : "Extended (> 16d)";
+        ? "● Short (< 10d)"
+        : "● Extended (> 16d)";
       lutealPhaseBadge.className = `analytic-badge ${isOptimal ? "badge-good" : "badge-warn"}`;
     } else {
       lutealPhaseBadge.textContent = "";
@@ -1400,28 +1429,28 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
       const currentCycleDay = Math.max(1, Math.round((todayUtc - startUtc) / 86400000) + 1);
 
       let isFertileOpen = false;
-      let statusReason = "Pre-fertile phase (Low readings)";
+      let statusReason = "Pre-fertile phase";
       if (currentFw && currentFw.start) {
         if (todayStr >= currentFw.start && (!currentFw.end || todayStr <= currentFw.end)) {
           isFertileOpen = true;
           statusReason = currentFw.end
-            ? `PPHLL countdown active through ${formatUtcLocale(parseUtcDate(currentFw.end))}`
-            : `Opened on ${formatUtcLocale(parseUtcDate(currentFw.start))} — awaiting Peak + 3 days`;
+            ? `PPHLL ends ${formatUtcLocale(parseUtcDate(currentFw.end))}`
+            : `Opened ${formatUtcLocale(parseUtcDate(currentFw.start))} • Awaiting Peak+3`;
         } else if (currentFw.end && todayStr > currentFw.end) {
           isFertileOpen = false;
-          statusReason = `Closed on ${formatUtcLocale(parseUtcDate(currentFw.end))} (Post-ovulatory Luteal phase)`;
+          statusReason = `Post-ovulatory Luteal phase`;
         }
       }
 
       statusBanner.style.display = "flex";
       statusBanner.innerHTML = `
         <div class="cycle-status-banner-header">
-          <span>Active Cycle • Day ${currentCycleDay}</span>
+          <span class="status-day-chip">Day ${currentCycleDay}</span>
           <span class="cycle-status-pill ${isFertileOpen ? "status-fertile-open" : "status-fertile-closed"}">
-            ${isFertileOpen ? "Fertile Window OPEN" : "Fertile Window CLOSED"}
+            ${isFertileOpen ? "● Window Open" : "Window Closed"}
           </span>
         </div>
-        <span style="color: var(--md-sys-color-on-surface-variant); font-size: 0.78rem;">${statusReason}</span>
+        <span class="cycle-status-reason">${statusReason}</span>
       `;
     } else {
       statusBanner.style.display = "none";
@@ -1475,8 +1504,8 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
         fertileWindowEndSpan.textContent = formatUtcLocale(fwEndDate);
         if (estimatedFertileTitle) {
           estimatedFertileTitle.textContent = predictCurrentCycle
-            ? "Current / Upcoming Fertile Window"
-            : "Next Cycle Fertile Window";
+            ? "Fertile Window"
+            : "Next Fertile Window";
         }
         if (estimatedFertileBadge) {
           estimatedFertileBadge.textContent = `~${windowLength} fertile days`;
@@ -1522,6 +1551,13 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
       : "N/A";
   const isPeriodDay = dayNumber >= 1 && dayNumber <= 5;
 
+  // Highlight today's tile
+  const cleanDayDateStr = String(dayData.date).split("T")[0];
+  const todayIso = new Date().toISOString().split("T")[0];
+  if (cleanDayDateStr === todayIso) {
+    dayDiv.classList.add("day-today");
+  }
+
   // Apply fertile window shading
   if (fertileWindow && fertileWindow.start) {
     const startDate = new Date(fertileWindow.start);
@@ -1531,8 +1567,8 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
     }
   }
 
-  const reading = dayData.hormone_reading || "--";
-  const readingClass = dayData.hormone_reading || "";
+  const reading = dayData.hormone_reading || "—";
+  const readingClass = dayData.hormone_reading || "no-reading";
 
   dayDiv.innerHTML = `
         <button class="delete-day" data-id="${dayData.id}" style="display: ${!dayData.hormone_reading ? "none" : ""}; visibility: ${isPeriodDay ? "hidden" : "visible"}">&times;</button>
@@ -1559,6 +1595,31 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
      : dayData.intercourse ? "❤️" : ""}
         </div>
     `;
+
+  // Tap-to-select day into the logger form when not in bulk edit mode
+  dayDiv.addEventListener("click", (e) => {
+    const cycleParent = dayDiv.closest(".cycle");
+    if (cycleParent && cycleParent.classList.contains("edit-mode")) return;
+    if (e.target.closest("button, select, input")) return;
+
+    document.querySelectorAll(".day.day-selected").forEach((el) => el.classList.remove("day-selected"));
+    dayDiv.classList.add("day-selected");
+
+    const dateInput = document.getElementById("date");
+    if (dateInput) dateInput.value = cleanDayDateStr;
+
+    const readingSelect = document.getElementById("reading");
+    const currentVal = dayData.hormone_reading || "";
+    if (readingSelect) {
+      readingSelect.value = currentVal;
+      syncReadingPills(currentVal);
+    }
+
+    const intercourseBox = document.getElementById("intercourse-checkbox");
+    if (intercourseBox) {
+      intercourseBox.checked = Boolean(dayData.intercourse);
+    }
+  });
 
   if (!isPeriodDay) {
     dayDiv.querySelector(".delete-day").addEventListener("click", (e) => {
@@ -1882,7 +1943,7 @@ async function deleteReading(id, elements) {
 }
 
 function initializeInfoButtons() {
-    const buttons = document.querySelectorAll('.card-info-btn');
+    const buttons = document.querySelectorAll('.card-info-btn, .card-info-trigger');
     const overlay = document.getElementById('info-modal-overlay');
     if (!overlay) return;
     

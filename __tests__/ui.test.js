@@ -961,6 +961,22 @@ describe('UI Tests', () => {
     const phaseBarRows = document.querySelectorAll('.phase-bar-row');
     expect(phaseBarRows.length).toBe(1);
     expect(document.querySelector('.phase-peak-pin')).not.toBeNull();
+
+    // Verify account switcher section stays hidden
+    const accountSwitcherSection = document.getElementById('account-switcher-section');
+    expect(accountSwitcherSection.style.display).toBe('none');
+
+    // Verify segmented reading pill buttons sync with #reading select
+    const highPillBtn = document.querySelector('.reading-pill-btn[data-reading="High"]');
+    const readingSelect = document.getElementById('reading');
+    highPillBtn.click();
+    expect(readingSelect.value).toBe('High');
+    expect(highPillBtn.classList.contains('active')).toBe(true);
+
+    // Clicking the same active pill deselects it back to empty
+    highPillBtn.click();
+    expect(readingSelect.value).toBe('');
+    expect(highPillBtn.classList.contains('active')).toBe(false);
   });
 });
 
