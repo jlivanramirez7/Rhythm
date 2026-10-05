@@ -3,6 +3,16 @@ const router = express.Router();
 const isProduction = process.env.NODE_ENV === 'production';
 const moment = require('moment-timezone');
 const { sql } = require('./utils');
+const {
+    getOrCreateVapidKeys,
+    getUserNotificationPreferences,
+    saveUserNotificationPreferences,
+    savePushSubscription,
+    removePushSubscription,
+    determineCurrentCyclePhase,
+    sendPushToUserSubscriptions,
+    checkAndSendPhaseNotifications
+} = require('./notifications');
 
 // DEBUG: Do not remove these logs
 const log = (level, message, ...args) => {
@@ -325,6 +335,7 @@ const apiRouter = (db) => {
                 await db.run(insertDaySql, [newCycleId, dayDate, 'Low']);
             }
             
+            await checkAndSendPhaseNotifications(db, targetUserId);
             res.status(201).json({ id: newCycleId, start_date: start_date });
         } catch (err) {
             log('error', 'Error in POST /api/cycles:', err);
@@ -388,6 +399,7 @@ const apiRouter = (db) => {
                     });
                 }
             }
+            await checkAndSendPhaseNotifications(db, targetUserId);
             res.status(201).json({ message: 'Readings for the date range logged successfully!' });
         } catch (err) {
             log('error', 'Error in POST /api/cycles/days/range:', err);
@@ -474,6 +486,7 @@ const apiRouter = (db) => {
             }
             // --- END BACKFILL ---
             
+            await checkAndSendPhaseNotifications(db, targetUserId);
             res.status(200).json({ success: true });
         } catch (err) {
             log('error', 'Error in POST /api/cycles/days:', err);
@@ -669,6 +682,11 @@ const apiRouter = (db) => {
                 id
             ]);
 
+            const parentCycle = await db.get(sql('SELECT user_id FROM cycles WHERE id = ?', isPostgres), [existingReading.cycle_id]);
+            if (parentCycle && parentCycle.user_id) {
+                await checkAndSendPhaseNotifications(db, parentCycle.user_id);
+            }
+
             res.status(200).json({ id, message: 'Reading updated successfully.' });
         } catch (err) {
             log('error', `Error in PUT /api/cycles/days/${id}:`, err);
@@ -710,6 +728,123 @@ const apiRouter = (db) => {
         } catch (err) {
             log('error', 'Error in DELETE /api/data:', err);
             res.status(500).json({ error: 'Failed to clear data', details: err.message });
+        }
+    });
+
+    // --- Push Notification Endpoints ---
+    router.get('/notifications/vapid-public-key', async (req, res) => {
+        try {
+            const keys = await getOrCreateVapidKeys(db);
+            res.status(200).json({ publicKey: keys.publicKey });
+        } catch (err) {
+            log('error', 'Error in GET /api/notifications/vapid-public-key:', err);
+            res.status(500).json({ error: 'Failed to retrieve VAPID public key' });
+        }
+    });
+
+    router.get('/notifications/preferences', async (req, res) => {
+        const userId = req.user.id;
+        const targetUserId = req.query.user_id || req.user.default_view_user_id || userId;
+        try {
+            const preferences = await getUserNotificationPreferences(db, userId);
+
+            // Also compute the current phase of the tracked cycle for context in the modal
+            let currentPhase = null;
+            const cycles = await db.query(
+                sql(`SELECT * FROM cycles WHERE user_id = ? ORDER BY start_date DESC`, isPostgres),
+                [targetUserId]
+            );
+            if (cycles && cycles.length > 0) {
+                for (const c of cycles) {
+                    c.days = await db.query(
+                        sql(`SELECT * FROM cycle_days WHERE cycle_id = ? ORDER BY date ASC`, isPostgres),
+                        [c.id]
+                    );
+                }
+                currentPhase = determineCurrentCyclePhase(cycles);
+            }
+
+            res.status(200).json({ preferences, currentPhase });
+        } catch (err) {
+            log('error', 'Error in GET /api/notifications/preferences:', err);
+            res.status(500).json({ error: 'Failed to fetch notification preferences' });
+        }
+    });
+
+    router.put('/notifications/preferences', async (req, res) => {
+        const userId = req.user.id;
+        const targetUserId = req.body.userId || req.user.default_view_user_id || userId;
+        try {
+            const preferences = await saveUserNotificationPreferences(db, userId, req.body);
+            if (!preferences.last_notified_phase) {
+                await checkAndSendPhaseNotifications(db, targetUserId, { seedOnly: true });
+            }
+            const updated = await getUserNotificationPreferences(db, userId);
+            res.status(200).json({
+                message: 'Notification preferences saved successfully.',
+                preferences: updated
+            });
+        } catch (err) {
+            log('error', 'Error in PUT /api/notifications/preferences:', err);
+            res.status(500).json({ error: 'Failed to save notification preferences' });
+        }
+    });
+
+    router.post('/notifications/subscribe', async (req, res) => {
+        const userId = req.user.id;
+        const { subscription, userId: viewedUserId } = req.body;
+        const targetUserId = viewedUserId || req.user.default_view_user_id || userId;
+        try {
+            await savePushSubscription(db, userId, subscription);
+            const prefs = await getUserNotificationPreferences(db, userId);
+            if (!prefs.last_notified_phase) {
+                await checkAndSendPhaseNotifications(db, targetUserId, { seedOnly: true });
+            }
+            const updated = await getUserNotificationPreferences(db, userId);
+            res.status(201).json({
+                message: 'Push notifications enabled on this device.',
+                preferences: updated
+            });
+        } catch (err) {
+            log('error', 'Error in POST /api/notifications/subscribe:', err);
+            res.status(400).json({ error: err.message || 'Failed to save push subscription' });
+        }
+    });
+
+    router.post('/notifications/unsubscribe', async (req, res) => {
+        const userId = req.user.id;
+        const { endpoint } = req.body || {};
+        try {
+            await removePushSubscription(db, userId, endpoint);
+            const updated = await getUserNotificationPreferences(db, userId);
+            res.status(200).json({
+                message: 'Push notifications disabled on this device.',
+                preferences: updated
+            });
+        } catch (err) {
+            log('error', 'Error in POST /api/notifications/unsubscribe:', err);
+            res.status(500).json({ error: 'Failed to remove push subscription' });
+        }
+    });
+
+    router.post('/notifications/test', async (req, res) => {
+        const userId = req.user.id;
+        try {
+            const result = await sendPushToUserSubscriptions(db, userId, {
+                title: 'Rhythm Phase Notifications Active 🌿',
+                body: 'Your device is ready to receive alerts when you enter your selected cycle phases.',
+                tag: 'rhythm-test-notification',
+                url: '/app'
+            });
+            res.status(200).json({
+                message: result.sent > 0
+                    ? 'Test notification sent to your device!'
+                    : 'No active push subscription found on this device. Enable push notifications above first.',
+                ...result
+            });
+        } catch (err) {
+            log('error', 'Error in POST /api/notifications/test:', err);
+            res.status(500).json({ error: 'Failed to send test notification' });
         }
     });
 

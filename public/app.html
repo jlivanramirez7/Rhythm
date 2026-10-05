@@ -2,11 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#9c4a2d">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>Rhythm - Ovulation Tracker</title>
-    <link rel="stylesheet" href="/styles.css?v=1.6">
+    <link rel="stylesheet" href="/styles.css?v=1.7">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
     <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <link rel="apple-touch-icon" href="/icon-192.png">
 </head>
 <body>
     <header>
@@ -24,6 +30,7 @@
                 <span></span>
             </div>
             <div id="app-menu-content" class="cycle-menu-content">
+                <a href="#" id="open-notifications-btn">Notifications</a>
                 <a href="/account">Account</a>
                 <a href="/logout">Logout</a>
             </div>
@@ -209,7 +216,99 @@
         </div>
     </main>
 
-    <script src="/app.js?v=1.6"></script>
+    <script src="/app.js?v=1.7"></script>
+
+    <!-- Notification Preferences Modal Overlay -->
+    <div id="notifications-modal-overlay" class="vibe-overlay">
+        <div class="vibe-modal notifications-modal">
+            <div class="notifications-modal-header">
+                <div>
+                    <h2 class="vibe-title" style="margin-bottom: 4px;">Phase Notifications</h2>
+                    <p class="notifications-subtitle">Get notified only when entering a new cycle phase — never daily reminders.</p>
+                </div>
+                <button type="button" id="close-notifications-btn" class="close-btn" aria-label="Close Notifications">&times;</button>
+            </div>
+
+            <div id="notifications-current-phase-banner" class="notifications-phase-banner" style="display: none;"></div>
+
+            <!-- Device Push Subscription Switch -->
+            <div class="device-push-card">
+                <div class="device-push-info">
+                    <span class="device-push-title">Push Alerts on This Device</span>
+                    <span id="device-push-status" class="device-push-status">Checking device status...</span>
+                </div>
+                <label class="toggle-switch" for="device-push-toggle">
+                    <input type="checkbox" id="device-push-toggle">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <!-- Phase Transition Toggles -->
+            <div class="phase-toggles-list">
+                <div class="phase-toggle-row">
+                    <div class="phase-toggle-label">
+                        <span class="phase-toggle-title"><span class="forecast-dot dot-menstrual"></span> Menstrual Phase (Day 1)</span>
+                        <span class="phase-toggle-desc">When a new period cycle begins</span>
+                    </div>
+                    <label class="toggle-switch" for="notify-menstrual">
+                        <input type="checkbox" id="notify-menstrual" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="phase-toggle-row">
+                    <div class="phase-toggle-label">
+                        <span class="phase-toggle-title"><span class="forecast-dot" style="background: #2e6f95;"></span> Follicular Phase (Day 6)</span>
+                        <span class="phase-toggle-desc">When period ends &amp; morning testing begins</span>
+                    </div>
+                    <label class="toggle-switch" for="notify-follicular">
+                        <input type="checkbox" id="notify-follicular" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="phase-toggle-row">
+                    <div class="phase-toggle-label">
+                        <span class="phase-toggle-title"><span class="forecast-dot dot-ovulatory"></span> Ovulatory Phase (Window Open)</span>
+                        <span class="phase-toggle-desc">When fertile window opens (Earliest Peak − 6 or first High)</span>
+                    </div>
+                    <label class="toggle-switch" for="notify-ovulatory">
+                        <input type="checkbox" id="notify-ovulatory" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="phase-toggle-row">
+                    <div class="phase-toggle-label">
+                        <span class="phase-toggle-title"><span class="forecast-dot dot-peak"></span> Peak Fertility (LH Surge)</span>
+                        <span class="phase-toggle-desc">When Peak reading is logged &amp; PPHLL countdown starts</span>
+                    </div>
+                    <label class="toggle-switch" for="notify-peak">
+                        <input type="checkbox" id="notify-peak" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="phase-toggle-row">
+                    <div class="phase-toggle-label">
+                        <span class="phase-toggle-title"><span class="forecast-dot" style="background: #3d7a5a;"></span> Luteal Phase (Window Closed)</span>
+                        <span class="phase-toggle-desc">When the 4-day post-Peak countdown completes</span>
+                    </div>
+                    <label class="toggle-switch" for="notify-luteal">
+                        <input type="checkbox" id="notify-luteal" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="notifications-feedback-msg" class="notifications-feedback" style="display: none;"></div>
+
+            <div class="notifications-actions">
+                <button type="button" id="save-notifications-btn" class="primary-btn" style="flex: 1;">Save Preferences</button>
+                <button type="button" id="test-notification-btn" class="secondary-btn">Test Alert</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Generic Info Modal Overlay -->
     <div id="info-modal-overlay" class="vibe-overlay">

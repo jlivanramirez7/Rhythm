@@ -120,7 +120,41 @@ async function createTables(dbInstance, adapter) {
             );
         `);
     }
-    
+    console.log('[DEBUG] createTables: Creating notification_preferences, push_subscriptions, and app_config tables...');
+    const boolDefaultTrue = isPostgres ? 'BOOLEAN NOT NULL DEFAULT true' : 'INTEGER NOT NULL DEFAULT 1';
+    await runQuery(`
+        CREATE TABLE IF NOT EXISTS notification_preferences (
+            user_id INTEGER PRIMARY KEY,
+            notify_menstrual ${boolDefaultTrue},
+            notify_follicular ${boolDefaultTrue},
+            notify_ovulatory ${boolDefaultTrue},
+            notify_peak ${boolDefaultTrue},
+            notify_luteal ${boolDefaultTrue},
+            last_notified_phase TEXT,
+            updated_at TEXT,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        );
+    `);
+
+    await runQuery(`
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+            id ${isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+            user_id INTEGER NOT NULL,
+            endpoint TEXT UNIQUE NOT NULL,
+            p256dh TEXT NOT NULL,
+            auth TEXT NOT NULL,
+            created_at TEXT,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        );
+    `);
+
+    await runQuery(`
+        CREATE TABLE IF NOT EXISTS app_config (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+    `);
+
     console.log('[DEBUG] createTables: Finished table creation.');
 }
 

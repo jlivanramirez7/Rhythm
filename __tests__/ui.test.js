@@ -978,5 +978,114 @@ describe('UI Tests', () => {
     expect(readingSelect.value).toBe('');
     expect(highPillBtn.classList.contains('active')).toBe(false);
   });
-});
 
+  it('should open Notifications modal from burger menu, toggle phase preferences, and save', async () => {
+    fetch.mockImplementation((url, options) => {
+      if (url.includes('/api/me')) {
+        return Promise.resolve({
+          json: () => Promise.resolve({ id: 1, name: 'Test User', default_view_user_id: null }),
+          ok: true,
+          status: 200,
+        });
+      }
+      if (url.includes('/api/cycles')) {
+        return Promise.resolve({
+          json: () => Promise.resolve([]),
+          ok: true,
+          status: 200,
+        });
+      }
+      if (url.includes('/api/analytics')) {
+        return Promise.resolve({
+          json: () => Promise.resolve({}),
+          ok: true,
+          status: 200,
+        });
+      }
+      if (url.includes('/api/shared-users')) {
+        return Promise.resolve({
+          json: () => Promise.resolve([{ id: 1, name: 'Test User' }]),
+          ok: true,
+          status: 200,
+        });
+      }
+      if (url.includes('/api/notifications/preferences') && (!options || !options.method || options.method === 'GET')) {
+        return Promise.resolve({
+          json: () => Promise.resolve({
+            preferences: {
+              notify_menstrual: true,
+              notify_follicular: true,
+              notify_ovulatory: true,
+              notify_peak: true,
+              notify_luteal: true,
+              subscriptionsCount: 1
+            },
+            currentPhase: {
+              label: 'Follicular Phase',
+              currentCycleDay: 8
+            }
+          }),
+          ok: true,
+          status: 200,
+        });
+      }
+      if (url.includes('/api/notifications/preferences') && options && options.method === 'PUT') {
+        return Promise.resolve({
+          json: () => Promise.resolve({
+            message: 'Notification preferences saved successfully.',
+            preferences: JSON.parse(options.body)
+          }),
+          ok: true,
+          status: 200,
+        });
+      }
+      return Promise.resolve({ json: () => Promise.resolve([]), ok: true, status: 200 });
+    });
+
+    document.body.innerHTML = appHtml;
+    jest.isolateModules(() => {
+      require('../public/app.js');
+    });
+
+    document.dispatchEvent(new Event('DOMContentLoaded', { bubbles: true, cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 400));
+
+    // Click Notifications in the burger menu
+    const openNotificationsBtn = document.getElementById('open-notifications-btn');
+    expect(openNotificationsBtn).not.toBeNull();
+    openNotificationsBtn.click();
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    const modalOverlay = document.getElementById('notifications-modal-overlay');
+    expect(modalOverlay.classList.contains('active')).toBe(true);
+
+    // Toggle off menstrual and follicular, keep ovulatory/peak/luteal on
+    const menstrualToggle = document.getElementById('notify-menstrual');
+    const follicularToggle = document.getElementById('notify-follicular');
+    menstrualToggle.checked = false;
+    follicularToggle.checked = false;
+
+    const saveBtn = document.getElementById('save-notifications-btn');
+    saveBtn.click();
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/notifications/preferences',
+      expect.objectContaining({
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          notify_menstrual: false,
+          notify_follicular: false,
+          notify_ovulatory: true,
+          notify_peak: true,
+          notify_luteal: true,
+          userId: 1
+        })
+      })
+    );
+
+    const feedbackEl = document.getElementById('notifications-feedback-msg');
+    expect(feedbackEl.textContent).toContain('Preferences saved!');
+  });
+});

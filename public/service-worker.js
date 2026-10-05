@@ -1,13 +1,16 @@
-const CACHE_NAME = 'rhythm-cache-v6';
+const CACHE_NAME = 'rhythm-cache-v7';
 // Only cache the core app shell files that don't have external dependencies.
 // HTML files will be cached on their first visit via the fetch handler.
 const urlsToCache = [
   '/styles.css',
   '/app.js',
-  '/logo.png'
+  '/logo.png',
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -29,7 +32,7 @@ self.addEventListener('activate', event => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
@@ -52,7 +55,6 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(request)
         .then(response => {
-          // If the network request is successful, clone it, cache it, and return it.
           const responseToCache = response.clone();
           caches.open(CACHE_NAME)
             .then(cache => {
@@ -61,13 +63,10 @@ self.addEventListener('fetch', event => {
           return response;
         })
         .catch(() => {
-          // If the network request fails, try to get it from the cache.
           return caches.match(request);
         })
     );
   } else {
-    // For all other requests (app shell and HTML pages), use a network-first strategy
-    // to ensure the user gets the latest updates, falling back to cache if offline.
     event.respondWith(
       fetch(request)
         .then(response => {
@@ -84,3 +83,54 @@ self.addEventListener('fetch', event => {
     );
   }
 });
+
+// Handle incoming Web Push notifications for cycle phase transitions
+self.addEventListener('push', event => {
+  let payload = {
+    title: 'Rhythm Cycle Update',
+    body: 'You have entered a new phase in your cycle.',
+    tag: 'rhythm-phase-transition',
+    url: '/app'
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      payload = { ...payload, ...parsed };
+    } catch (e) {
+      payload.body = event.data.text() || payload.body;
+    }
+  }
+
+  const options = {
+    body: payload.body,
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: payload.tag || 'rhythm-phase-transition',
+    renotify: true,
+    data: { url: payload.url || '/app' }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, options)
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/app';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+      for (const client of windowClients) {
+        if (client.url.includes('/app') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+

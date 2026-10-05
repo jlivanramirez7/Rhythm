@@ -73,6 +73,9 @@ async function main() {
     
     // Pass secrets to the database initialization
     const db = await initializeDatabase(secrets);
+    const { getOrCreateVapidKeys, checkAndSendPhaseNotifications } = require('./notifications');
+    const { sql } = require('./utils');
+    await getOrCreateVapidKeys(db);
     
     require('./auth')(db, secrets);
 
@@ -164,6 +167,25 @@ async function main() {
         console.error('FATAL: PORT environment variable is not defined.');
         process.exit(1);
     }
+
+    // Periodically check active cycles for calendar-driven phase transitions (e.g. entering Follicular Day 6, Fertile Window, or Luteal phase)
+    const runScheduledPhaseChecks = async () => {
+        try {
+            const isPostgres = db.adapter === 'postgres';
+            const activeOwners = await db.query(
+                sql(`SELECT DISTINCT user_id FROM cycles WHERE end_date IS NULL`, isPostgres)
+            );
+            for (const row of activeOwners || []) {
+                await checkAndSendPhaseNotifications(db, row.user_id);
+            }
+        } catch (err) {
+            console.error('[NOTIFICATIONS] Scheduled phase check error:', err);
+        }
+    };
+
+    const phaseInterval = setInterval(runScheduledPhaseChecks, 60 * 60 * 1000);
+    if (phaseInterval.unref) phaseInterval.unref();
+
     app.listen(port, () => {
         console.log(`Rhythm app listening on port ${port}`);
     });

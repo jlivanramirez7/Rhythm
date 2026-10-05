@@ -233,4 +233,112 @@ describe('Cycles API', () => {
         const newReading = cycle.days.find(d => d.date === '2025-01-02');
         expect(newReading).toBeDefined();
     });
+
+    it('should get and save per-phase notification preferences and subscribe device', async () => {
+        await db.run(`DELETE FROM notification_preferences`);
+        await db.run(`DELETE FROM push_subscriptions`);
+
+        // 1. Default preferences should have all 5 phase toggles enabled
+        const initialRes = await request(app).get('/api/notifications/preferences');
+        expect(initialRes.statusCode).toEqual(200);
+        expect(initialRes.body.preferences).toMatchObject({
+            notify_menstrual: true,
+            notify_follicular: true,
+            notify_ovulatory: true,
+            notify_peak: true,
+            notify_luteal: true,
+            subscriptionsCount: 0
+        });
+
+        // 2. Toggle off menstrual and follicular, keep ovulatory/peak/luteal on, and save
+        const saveRes = await request(app)
+            .put('/api/notifications/preferences')
+            .send({
+                notify_menstrual: false,
+                notify_follicular: false,
+                notify_ovulatory: true,
+                notify_peak: true,
+                notify_luteal: false
+            });
+        expect(saveRes.statusCode).toEqual(200);
+        expect(saveRes.body.preferences).toMatchObject({
+            notify_menstrual: false,
+            notify_follicular: false,
+            notify_ovulatory: true,
+            notify_peak: true,
+            notify_luteal: false
+        });
+
+        // 3. Subscribe a device push endpoint
+        const subRes = await request(app)
+            .post('/api/notifications/subscribe')
+            .send({
+                subscription: {
+                    endpoint: 'https://push.example.com/sub-1',
+                    keys: { p256dh: 'test-p256dh', auth: 'test-auth' }
+                }
+            });
+        expect(subRes.statusCode).toEqual(201);
+        expect(subRes.body.preferences.subscriptionsCount).toBe(1);
+
+        // 4. Unsubscribe
+        const unsubRes = await request(app)
+            .post('/api/notifications/unsubscribe')
+            .send({ endpoint: 'https://push.example.com/sub-1' });
+        expect(unsubRes.statusCode).toEqual(200);
+        expect(unsubRes.body.preferences.subscriptionsCount).toBe(0);
+    });
+
+    it('should detect phase transitions accurately without daily duplicate alerts', () => {
+        const { determineCurrentCyclePhase } = require('../src/notifications');
+
+        const cycle = {
+            id: 42,
+            start_date: '2026-10-01',
+            end_date: null,
+            days: [
+                { date: '2026-10-01', hormone_reading: 'Low' },
+                { date: '2026-10-02', hormone_reading: 'Low' },
+                { date: '2026-10-03', hormone_reading: 'Low' },
+                { date: '2026-10-04', hormone_reading: 'Low' },
+                { date: '2026-10-05', hormone_reading: 'Low' }
+            ]
+        };
+
+        // Day 3 -> Menstrual phase
+        const day3Phase = determineCurrentCyclePhase([cycle], '2026-10-03');
+        expect(day3Phase.phaseKey).toBe('menstrual');
+        expect(day3Phase.stateToken).toBe('42:menstrual');
+
+        // Day 4 -> Still Menstrual (same stateToken = no duplicate daily notification)
+        const day4Phase = determineCurrentCyclePhase([cycle], '2026-10-04');
+        expect(day4Phase.stateToken).toBe('42:menstrual');
+
+        // Day 6 -> Enters Follicular phase
+        const day6Phase = determineCurrentCyclePhase([cycle], '2026-10-06');
+        expect(day6Phase.phaseKey).toBe('follicular');
+        expect(day6Phase.stateToken).toBe('42:follicular');
+
+        // Log High on Day 10 -> Enters Ovulatory phase
+        cycle.days.push({ date: '2026-10-10', hormone_reading: 'High' });
+        const day10Phase = determineCurrentCyclePhase([cycle], '2026-10-10');
+        expect(day10Phase.phaseKey).toBe('ovulatory');
+        expect(day10Phase.stateToken).toBe('42:ovulatory');
+
+        // Log Peak on Day 13 & Day 14 -> Enters Peak phase
+        cycle.days.push({ date: '2026-10-13', hormone_reading: 'Peak' });
+        cycle.days.push({ date: '2026-10-14', hormone_reading: 'Peak' });
+        const day13Phase = determineCurrentCyclePhase([cycle], '2026-10-13');
+        expect(day13Phase.phaseKey).toBe('peak');
+        expect(day13Phase.stateToken).toBe('42:peak');
+
+        // Wait day 2 (2026-10-16, within Peak+3) -> Remains in Peak/PPHLL countdown (does not bounce back to ovulatory)
+        const day16Phase = determineCurrentCyclePhase([cycle], '2026-10-16');
+        expect(day16Phase.phaseKey).toBe('peak');
+
+        // 4th day after last Peak (2026-10-18 > 2026-10-17 fertileEnd) -> Enters Luteal phase
+        const day18Phase = determineCurrentCyclePhase([cycle], '2026-10-18');
+        expect(day18Phase.phaseKey).toBe('luteal');
+        expect(day18Phase.stateToken).toBe('42:luteal');
+    });
 });

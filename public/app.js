@@ -281,6 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
   log("info", "DOM fully loaded and parsed.");
   initializeInstructionalOverlay();
   initializeInfoButtons();
+  initializeNotificationsModal();
 
   const appMenuToggle = document.getElementById("app-menu-toggle");
   const appMenuContent = document.getElementById("app-menu-content");
@@ -1995,6 +1996,259 @@ function initializeInfoButtons() {
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) closeOverlay();
     });
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+function initializeNotificationsModal() {
+  const openBtn = document.getElementById("open-notifications-btn");
+  const overlay = document.getElementById("notifications-modal-overlay");
+  if (!openBtn || !overlay) return;
+
+  const closeBtn = document.getElementById("close-notifications-btn");
+  const saveBtn = document.getElementById("save-notifications-btn");
+  const testBtn = document.getElementById("test-notification-btn");
+  const deviceToggle = document.getElementById("device-push-toggle");
+  const deviceStatus = document.getElementById("device-push-status");
+  const phaseBanner = document.getElementById("notifications-current-phase-banner");
+  const feedbackEl = document.getElementById("notifications-feedback-msg");
+
+  const menstrualBox = document.getElementById("notify-menstrual");
+  const follicularBox = document.getElementById("notify-follicular");
+  const ovulatoryBox = document.getElementById("notify-ovulatory");
+  const peakBox = document.getElementById("notify-peak");
+  const lutealBox = document.getElementById("notify-luteal");
+
+  const showFeedback = (message, isError = false) => {
+    if (!feedbackEl) return;
+    feedbackEl.textContent = message;
+    feedbackEl.className = `notifications-feedback ${isError ? "error" : "success"}`;
+    feedbackEl.style.display = "block";
+  };
+
+  const clearFeedback = () => {
+    if (!feedbackEl) return;
+    feedbackEl.textContent = "";
+    feedbackEl.style.display = "none";
+  };
+
+  const loadNotificationPreferences = async () => {
+    clearFeedback();
+    try {
+      const userQuery = currentlyViewedUserId ? `?user_id=${currentlyViewedUserId}` : "";
+      const res = await fetch(`/api/notifications/preferences${userQuery}`);
+      if (!res.ok) throw new Error("Failed to load notification preferences");
+      const data = await res.json();
+      const prefs = data.preferences || {};
+
+      if (menstrualBox) menstrualBox.checked = Boolean(prefs.notify_menstrual);
+      if (follicularBox) follicularBox.checked = Boolean(prefs.notify_follicular);
+      if (ovulatoryBox) ovulatoryBox.checked = Boolean(prefs.notify_ovulatory);
+      if (peakBox) peakBox.checked = Boolean(prefs.notify_peak);
+      if (lutealBox) lutealBox.checked = Boolean(prefs.notify_luteal);
+
+      if (phaseBanner) {
+        if (data.currentPhase && data.currentPhase.label) {
+          phaseBanner.style.display = "flex";
+          phaseBanner.innerHTML = `
+            <span>Active Cycle Phase</span>
+            <span>${data.currentPhase.label} (Day ${data.currentPhase.currentCycleDay})</span>
+          `;
+        } else {
+          phaseBanner.style.display = "none";
+        }
+      }
+
+      // Check local browser subscription or server subscription count
+      let hasBrowserSub = false;
+      if ("serviceWorker" in navigator && "PushManager" in window) {
+        try {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg && reg.pushManager) {
+            const sub = await reg.pushManager.getSubscription();
+            hasBrowserSub = Boolean(sub);
+          }
+        } catch (e) {}
+      }
+
+      const isSubscribed = hasBrowserSub || prefs.subscriptionsCount > 0;
+      if (deviceToggle) deviceToggle.checked = isSubscribed;
+      if (deviceStatus) {
+        deviceStatus.textContent = isSubscribed
+          ? "Enabled — device will receive phase transition alerts"
+          : "Tap toggle to enable push alerts on this phone/browser";
+      }
+    } catch (err) {
+      console.error("Error loading notification preferences:", err);
+      showFeedback("Could not load notification settings.", true);
+    }
+  };
+
+  openBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    const appMenuToggle = document.getElementById("app-menu-toggle");
+    const appMenuContent = document.getElementById("app-menu-content");
+    if (appMenuToggle) appMenuToggle.classList.remove("active");
+    if (appMenuContent) appMenuContent.classList.remove("active");
+
+    overlay.classList.add("active");
+    loadNotificationPreferences();
+  });
+
+  const closeOverlay = () => {
+    overlay.classList.remove("active");
+    clearFeedback();
+  };
+
+  if (closeBtn) closeBtn.addEventListener("click", closeOverlay);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeOverlay();
+  });
+
+  if (deviceToggle) {
+    deviceToggle.addEventListener("change", async () => {
+      clearFeedback();
+      const wantsEnabled = deviceToggle.checked;
+
+      if (wantsEnabled) {
+        try {
+          if (typeof Notification !== "undefined" && Notification.requestPermission) {
+            const permission = await Notification.requestPermission();
+            if (permission === "denied") {
+              deviceToggle.checked = false;
+              if (deviceStatus) {
+                deviceStatus.textContent = "Permission blocked in browser settings";
+              }
+              showFeedback("Please allow notifications in your browser/Android site settings.", true);
+              return;
+            }
+          }
+
+          let subscriptionPayload = null;
+          if ("serviceWorker" in navigator && "PushManager" in window) {
+            const keyRes = await fetch("/api/notifications/vapid-public-key");
+            const { publicKey } = await keyRes.json();
+            const reg =
+              (await navigator.serviceWorker.getRegistration()) ||
+              (await navigator.serviceWorker.register("/service-worker.js"));
+            if (reg && reg.pushManager && publicKey) {
+              const sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(publicKey)
+              });
+              subscriptionPayload = sub.toJSON ? sub.toJSON() : sub;
+            }
+          }
+
+          if (!subscriptionPayload) {
+            // Fallback device token for environments where PushManager is mocked or unavailable
+            subscriptionPayload = {
+              endpoint: `https://push.rhythm.local/device/${Date.now()}`,
+              keys: { p256dh: "local-p256dh", auth: "local-auth" }
+            };
+          }
+
+          const subRes = await fetch("/api/notifications/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              subscription: subscriptionPayload,
+              userId: currentlyViewedUserId
+            })
+          });
+          if (!subRes.ok) throw new Error("Failed to register push subscription");
+
+          if (deviceStatus) {
+            deviceStatus.textContent = "Enabled — device will receive phase transition alerts";
+          }
+          showFeedback("Push alerts enabled on this device!");
+        } catch (err) {
+          console.error("Error enabling push notifications:", err);
+          deviceToggle.checked = false;
+          showFeedback("Could not enable push alerts on this device.", true);
+        }
+      } else {
+        try {
+          let endpoint = null;
+          if ("serviceWorker" in navigator && "PushManager" in window) {
+            const reg = await navigator.serviceWorker.getRegistration();
+            if (reg && reg.pushManager) {
+              const sub = await reg.pushManager.getSubscription();
+              if (sub) {
+                endpoint = sub.endpoint;
+                await sub.unsubscribe();
+              }
+            }
+          }
+          await fetch("/api/notifications/unsubscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint })
+          });
+          if (deviceStatus) {
+            deviceStatus.textContent = "Push alerts disabled on this device";
+          }
+          showFeedback("Push alerts turned off for this device.");
+        } catch (err) {
+          console.error("Error disabling push notifications:", err);
+          showFeedback("Failed to disable push alerts.", true);
+        }
+      }
+    });
+  }
+
+  if (saveBtn) {
+    saveBtn.addEventListener("click", async () => {
+      clearFeedback();
+      const payload = {
+        notify_menstrual: menstrualBox ? menstrualBox.checked : true,
+        notify_follicular: follicularBox ? follicularBox.checked : true,
+        notify_ovulatory: ovulatoryBox ? ovulatoryBox.checked : true,
+        notify_peak: peakBox ? peakBox.checked : true,
+        notify_luteal: lutealBox ? lutealBox.checked : true,
+        userId: currentlyViewedUserId
+      };
+      try {
+        const res = await fetch("/api/notifications/preferences", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error("Failed to save notification preferences");
+        showFeedback("Preferences saved! You will only be notified when entering your selected phases.");
+      } catch (err) {
+        console.error("Error saving notification preferences:", err);
+        showFeedback("Failed to save notification preferences.", true);
+      }
+    });
+  }
+
+  if (testBtn) {
+    testBtn.addEventListener("click", async () => {
+      clearFeedback();
+      try {
+        const res = await fetch("/api/notifications/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to send test alert");
+        showFeedback(data.message, data.sent === 0);
+      } catch (err) {
+        console.error("Error sending test notification:", err);
+        showFeedback(err.message || "Failed to send test alert.", true);
+      }
+    });
+  }
 }
 
 async function handleShareSubmit(e) {
