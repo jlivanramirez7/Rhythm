@@ -106,6 +106,45 @@ let currentInstruction = 0;
 let currentlyViewedUserId = null; // Track the user whose data is being viewed
 let displayedCycleLimit = 1; // Show only the current cycle initially; older cycles under Show More
 let cachedCycles = []; // Cached cycles for smart form defaults
+let lastSavedDates = new Set(); // Dates (YYYY-MM-DD) just saved to highlight in the cycle grid
+let logFeedbackTimer = null;
+let saveBtnResetTimer = null;
+
+function formatShortFeedbackDate(dateStr) {
+  if (!dateStr) return "";
+  const clean = String(dateStr).split("T")[0];
+  const d = new Date(clean + "T00:00:00Z");
+  if (isNaN(d.getTime())) return clean;
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC"
+  });
+}
+
+function showLogFeedback(message, type = "success", triggerBtnConfirmation = true) {
+  const banner = document.getElementById("log-feedback-banner");
+  if (banner) {
+    banner.textContent = message;
+    banner.className = `log-feedback-banner ${type}`;
+    banner.style.display = "flex";
+    if (logFeedbackTimer) clearTimeout(logFeedbackTimer);
+    logFeedbackTimer = setTimeout(() => {
+      banner.style.display = "none";
+    }, 4500);
+  }
+
+  const saveBtn = document.getElementById("save-reading-btn") || document.querySelector(".log-submit-btn");
+  if (saveBtn && triggerBtnConfirmation && type === "success") {
+    saveBtn.textContent = "✓ Reading Saved!";
+    saveBtn.classList.add("btn-saved");
+    if (saveBtnResetTimer) clearTimeout(saveBtnResetTimer);
+    saveBtnResetTimer = setTimeout(() => {
+      saveBtn.textContent = "Save Reading";
+      saveBtn.classList.remove("btn-saved");
+    }, 2200);
+  }
+}
 
 /**
  * Helper: Exponentially Weighted Moving Average (EWMA) with MAD Outlier Dampening.
@@ -1716,6 +1755,9 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
   if (cleanDayDateStr === todayIso) {
     dayDiv.classList.add("day-today");
   }
+  if (lastSavedDates.has(cleanDayDateStr)) {
+    dayDiv.classList.add("day-just-saved");
+  }
 
   // Apply fertile window shading
   if (fertileWindow && fertileWindow.start) {
@@ -1838,9 +1880,12 @@ async function logOrUpdateReading(payload, elements) {
     }
 
     log("info", "[API_CALL] Save successful. Refreshing data.");
-    fetchAndRenderData(elements, currentlyViewedUserId); // Refresh data
+    await fetchAndRenderData(elements, currentlyViewedUserId); // Refresh data
+    return true;
   } catch (error) {
     console.error("Error saving reading:", error);
+    showLogFeedback(error.message || "Failed to save reading.", "error", false);
+    return false;
   }
 }
 
@@ -1939,13 +1984,45 @@ async function handleReadingSubmit(e, elements) {
   const intercourse = document.getElementById("intercourse-checkbox").checked;
 
   if (!startDate) {
+    showLogFeedback("Please select a date before saving.", "warn", false);
     alert("Please select a start date.");
     return;
   }
 
+  // Check if user is clearing an existing day vs submitting an empty form by accident
+  const hasExistingRecordForStart = (cachedCycles || []).some((c) =>
+    (c.days || []).some(
+      (d) =>
+        String(d.date).split("T")[0] === startDate &&
+        (Boolean(d.hormone_reading) || Boolean(d.intercourse))
+    )
+  );
+  if (!hormone_reading && !intercourse && !rangeCheckbox.checked && !hasExistingRecordForStart) {
+    showLogFeedback(
+      "Select a Hormone Reading (Low, High, or Peak) or toggle ❤️ Intimacy before saving.",
+      "warn",
+      false
+    );
+    return;
+  }
+
+  const summaryParts = [];
+  if (hormone_reading) {
+    summaryParts.push(
+      hormone_reading === "Peak" && !rangeCheckbox.checked
+        ? "Peak (+ PPHLL countdown)"
+        : hormone_reading
+    );
+  }
+  if (intercourse) {
+    summaryParts.push("❤️ Intimacy");
+  }
+  const detailLabel = summaryParts.length > 0 ? summaryParts.join(" + ") : "Cleared reading";
+
   // If the range checkbox is checked, call the range endpoint
   if (rangeCheckbox.checked) {
     if (!endDate) {
+      showLogFeedback("Please select an end date for the range.", "warn", false);
       alert("Please select an end date for the range.");
       return;
     }
@@ -1968,9 +2045,26 @@ async function handleReadingSubmit(e, elements) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to log range.");
       }
-      fetchAndRenderData(elements, currentlyViewedUserId); // Refresh data
+
+      // Highlight all dates in the saved range
+      const savedSet = new Set();
+      const cur = new Date(startDate + "T00:00:00Z");
+      const last = new Date(endDate + "T00:00:00Z");
+      while (cur <= last && savedSet.size <= 60) {
+        savedSet.add(cur.toISOString().split("T")[0]);
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+      lastSavedDates = savedSet;
+
+      await fetchAndRenderData(elements, currentlyViewedUserId); // Refresh data
+      showLogFeedback(
+        `✓ Saved ${detailLabel} for ${formatShortFeedbackDate(startDate)} – ${formatShortFeedbackDate(endDate)}`,
+        "success",
+        true
+      );
     } catch (error) {
       console.error("Error from range submit:", error);
+      showLogFeedback(error.message || "Failed to log date range.", "error", false);
       alert(error.message);
     }
   } else {
@@ -1988,22 +2082,33 @@ async function handleReadingSubmit(e, elements) {
         log("info", "[AUTOMATION] Peak detected! Automating PPHLL sequence...");
         
         // 1. Submit the initial actual Peak Day
-        await fetch("/api/cycles/days", {
+        const peakRes = await fetch("/api/cycles/days", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
+        if (peakRes && peakRes.ok === false) {
+          let errMsg = "Failed to save Peak reading.";
+          try {
+            const errData = await peakRes.json();
+            errMsg = errData.error || errMsg;
+          } catch (e) {}
+          throw new Error(errMsg);
+        }
 
         // 2. Submit the automated future days
         const sequence = ['Peak', 'High', 'Low', 'Low'];
+        const savedSet = new Set([startDate]);
         const autoPromises = sequence.map((reading, index) => {
           const nextDate = new Date(startDate);
           nextDate.setDate(nextDate.getDate() + (index + 1));
+          const nextDateIso = nextDate.toISOString().split("T")[0];
+          savedSet.add(nextDateIso);
           return fetch("/api/cycles/days", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              date: nextDate.toISOString().split("T")[0],
+              date: nextDateIso,
               hormone_reading: reading,
               intercourse: false, // Default false for future prediction
               userId: currentlyViewedUserId
@@ -2012,17 +2117,31 @@ async function handleReadingSubmit(e, elements) {
         });
         
         await Promise.all(autoPromises);
+        lastSavedDates = savedSet;
         log("info", "[AUTOMATION] PPHLL Sequence successfully injected.");
         
         // Render UI once at the very end
-        fetchAndRenderData(elements, currentlyViewedUserId);
-
+        await fetchAndRenderData(elements, currentlyViewedUserId);
+        showLogFeedback(
+          `✓ Saved ${detailLabel} for ${formatShortFeedbackDate(startDate)}`,
+          "success",
+          true
+        );
       } else {
-        // Normal single day submission 
-        await logOrUpdateReading(payload, elements);
+        // Normal single day submission
+        lastSavedDates = new Set([startDate]);
+        const savedOk = await logOrUpdateReading(payload, elements);
+        if (savedOk) {
+          showLogFeedback(
+            `✓ Saved ${detailLabel} for ${formatShortFeedbackDate(startDate)}`,
+            "success",
+            true
+          );
+        }
       }
     } catch (error) {
       console.error("Error from single day submit:", error);
+      showLogFeedback(error.message || "Failed to save reading.", "error", false);
       alert(error.message);
     }
   }
@@ -2039,6 +2158,7 @@ async function handleNewCycleSubmit(elements) {
   const start_date = startDateInput.value;
 
   if (!start_date) {
+    showLogFeedback("Please select a start date for the new cycle.", "warn", false);
     alert("Please select a start date for the new cycle.");
     return;
   }
@@ -2062,11 +2182,27 @@ async function handleNewCycleSubmit(elements) {
       throw new Error(errorMsg);
     }
 
+    const savedSet = new Set();
+    const cur = new Date(start_date + "T00:00:00Z");
+    for (let i = 0; i < 5; i++) {
+      savedSet.add(cur.toISOString().split("T")[0]);
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    lastSavedDates = savedSet;
+
     log("info", "[NEW_CYCLE] Successfully started new cycle. Refreshing data...");
     startDateInput.value = new Date().toISOString().split("T")[0]; // Reset input
-    fetchAndRenderData(elements, currentlyViewedUserId); // Refresh the UI, preserving the view
+    const drawer = document.querySelector(".new-cycle-drawer");
+    if (drawer) drawer.removeAttribute("open");
+    await fetchAndRenderData(elements, currentlyViewedUserId); // Refresh the UI, preserving the view
+    showLogFeedback(
+      `✓ Started new cycle on ${formatShortFeedbackDate(start_date)} (Days 1–5 logged)`,
+      "success",
+      false
+    );
   } catch (error) {
     console.error("Error starting new cycle:", error);
+    showLogFeedback(error.message || "Failed to start new cycle.", "error", false);
     alert(error.message);
   }
 }

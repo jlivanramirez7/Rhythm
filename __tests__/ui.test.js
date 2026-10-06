@@ -363,6 +363,14 @@ describe('UI Tests', () => {
             intercourse: true
         })
     }));
+
+    // Verify visual confirmation banner and button state
+    const feedbackBanner = document.getElementById('log-feedback-banner');
+    const saveBtn = document.getElementById('save-reading-btn');
+    expect(feedbackBanner.style.display).toBe('flex');
+    expect(feedbackBanner.textContent).toContain('✓ Saved High + ❤️ Intimacy');
+    expect(saveBtn.textContent).toBe('✓ Reading Saved!');
+    expect(saveBtn.classList.contains('btn-saved')).toBe(true);
   });
 
   it('should log a new reading for a date range when the form is submitted', async () => {
