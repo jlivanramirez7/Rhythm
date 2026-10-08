@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rhythm-cache-v7';
+const CACHE_NAME = 'rhythm-cache-v8';
 // Only cache the core app shell files that don't have external dependencies.
 // HTML files will be cached on their first visit via the fetch handler.
 const urlsToCache = [
@@ -6,7 +6,10 @@ const urlsToCache = [
   '/app.js',
   '/logo.png',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  '/icon-maskable-192.png',
+  '/icon-maskable-512.png',
+  '/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', event => {

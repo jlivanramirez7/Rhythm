@@ -110,6 +110,20 @@ let lastSavedDates = new Set(); // Dates (YYYY-MM-DD) just saved to highlight in
 let logFeedbackTimer = null;
 let saveBtnResetTimer = null;
 
+/**
+ * Returns a machine-readable YYYY-MM-DD calendar date string in the user's local timezone.
+ * Strictly for machine readability (<input type="date"> values and API/cycle date keys) and
+ * MUST NOT be used for end-user UI display.
+ * Avoids new Date().toISOString().split("T")[0], which converts to UTC and jumps to tomorrow
+ * during local evening hours.
+ */
+function getLocalTodayDateStr(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function formatShortFeedbackDate(dateStr) {
   if (!dateStr) return "";
   const clean = String(dateStr).split("T")[0];
@@ -412,8 +426,37 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     initializeEventListeners(elements);
-    elements.periodStartDateInput.value = new Date().toISOString().split("T")[0];
-    elements.dateInput.value = new Date().toISOString().split("T")[0];
+    let lastDefaultTodayStr = getLocalTodayDateStr();
+    elements.periodStartDateInput.value = lastDefaultTodayStr;
+    elements.dateInput.value = lastDefaultTodayStr;
+
+    const syncTodayDateInputsOnResume = () => {
+      const currentTodayStr = getLocalTodayDateStr();
+      if (currentTodayStr !== lastDefaultTodayStr) {
+        if (
+          elements.dateInput &&
+          (!elements.rangeCheckbox || !elements.rangeCheckbox.checked) &&
+          (!elements.dateInput.value || elements.dateInput.value === lastDefaultTodayStr)
+        ) {
+          elements.dateInput.value = currentTodayStr;
+        }
+        if (
+          elements.periodStartDateInput &&
+          (!elements.periodStartDateInput.value || elements.periodStartDateInput.value === lastDefaultTodayStr)
+        ) {
+          elements.periodStartDateInput.value = currentTodayStr;
+        }
+        lastDefaultTodayStr = currentTodayStr;
+      }
+    };
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        syncTodayDateInputsOnResume();
+      }
+    });
+    window.addEventListener("pageshow", syncTodayDateInputsOnResume);
+
     fetchAndRenderData(elements);
   }
 });
@@ -775,7 +818,7 @@ function renderPhaseHistoryChart(cycles, analytics, fertileWindows = []) {
       const lastDayStr = String(sorted[sorted.length - 1].date).split("T")[0];
       const lastUtc = new Date(lastDayStr + "T00:00:00Z");
       const recordedSpan = Math.round((lastUtc - startUtc) / 86400000) + 1;
-      const todayUtc = new Date(new Date().toISOString().split("T")[0] + "T00:00:00Z");
+      const todayUtc = new Date(getLocalTodayDateStr() + "T00:00:00Z");
       const elapsedToday = Math.round((todayUtc - startUtc) / 86400000) + 1;
       totalDays = Math.max(1, recordedSpan, elapsedToday > 0 && elapsedToday <= 60 ? elapsedToday : recordedSpan);
     }
@@ -963,7 +1006,7 @@ function initializeEventListeners(elements) {
   elements.rangeCheckbox.addEventListener("change", () => {
     if (elements.rangeCheckbox.checked) {
       elements.rangeInputs.style.display = "block";
-      const todayStr = new Date().toISOString().split("T")[0];
+      const todayStr = getLocalTodayDateStr();
       // Jump today's date from start Date box to the End Date box
       elements.endDateInput.value = elements.dateInput.value || todayStr;
       // Default start Date box to the day after the last added (or auto-entered) entry in the active cycle
@@ -971,7 +1014,7 @@ function initializeEventListeners(elements) {
     } else {
       elements.rangeInputs.style.display = "none";
       // Restore today's date back to the start Date box and clear end date
-      elements.dateInput.value = new Date().toISOString().split("T")[0];
+      elements.dateInput.value = getLocalTodayDateStr();
       elements.endDateInput.value = "";
     }
   });
@@ -1097,7 +1140,7 @@ async function fetchAndRenderData(elements, viewAsUserId = null) {
     if (elements.rangeCheckbox && elements.rangeCheckbox.checked) {
       elements.dateInput.value = getDefaultRangeStartDate(cachedCycles);
       if (!elements.endDateInput.value) {
-        elements.endDateInput.value = new Date().toISOString().split("T")[0];
+        elements.endDateInput.value = getLocalTodayDateStr();
       }
     }
 
@@ -1552,7 +1595,7 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
   if (statusBanner) {
     if (mostRecentCycle && !mostRecentCycle.end_date) {
       const currentFw = fertileWindows.find((f) => f.cycleId === mostRecentCycle.id);
-      const todayStr = new Date().toISOString().split("T")[0];
+      const todayStr = getLocalTodayDateStr();
       const startUtc = parseUtcDate(mostRecentCycle.start_date);
       const todayUtc = parseUtcDate(todayStr);
       const currentCycleDay = Math.max(1, Math.round((todayUtc - startUtc) / 86400000) + 1);
@@ -1615,7 +1658,7 @@ function renderAnalytics(analytics, cycles, elements, precomputedWindows = null)
         }
       }
 
-      const todayUtc = parseUtcDate(new Date().toISOString().split("T")[0]);
+      const todayUtc = parseUtcDate(getLocalTodayDateStr());
       const liveCycleDay = Math.round((todayUtc - lastStartDate) / 86400000) + 1;
       if (liveCycleDay >= 1 && liveCycleDay <= 45 && liveCycleDay > effectivePeakDay) {
         effectivePeakDay = liveCycleDay + 1;
@@ -1751,7 +1794,7 @@ function createDayDiv(dayData, cycle, fertileWindow, elements) {
 
   // Highlight today's tile
   const cleanDayDateStr = String(dayData.date).split("T")[0];
-  const todayIso = new Date().toISOString().split("T")[0];
+  const todayIso = getLocalTodayDateStr();
   if (cleanDayDateStr === todayIso) {
     dayDiv.classList.add("day-today");
   }
@@ -2100,8 +2143,8 @@ async function handleReadingSubmit(e, elements) {
         const sequence = ['Peak', 'High', 'Low', 'Low'];
         const savedSet = new Set([startDate]);
         const autoPromises = sequence.map((reading, index) => {
-          const nextDate = new Date(startDate);
-          nextDate.setDate(nextDate.getDate() + (index + 1));
+          const nextDate = new Date(startDate + "T00:00:00Z");
+          nextDate.setUTCDate(nextDate.getUTCDate() + (index + 1));
           const nextDateIso = nextDate.toISOString().split("T")[0];
           savedSet.add(nextDateIso);
           return fetch("/api/cycles/days", {
@@ -2191,7 +2234,7 @@ async function handleNewCycleSubmit(elements) {
     lastSavedDates = savedSet;
 
     log("info", "[NEW_CYCLE] Successfully started new cycle. Refreshing data...");
-    startDateInput.value = new Date().toISOString().split("T")[0]; // Reset input
+    startDateInput.value = getLocalTodayDateStr(); // Reset input
     const drawer = document.querySelector(".new-cycle-drawer");
     if (drawer) drawer.removeAttribute("open");
     await fetchAndRenderData(elements, currentlyViewedUserId); // Refresh the UI, preserving the view

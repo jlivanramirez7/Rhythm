@@ -878,7 +878,8 @@ describe('UI Tests', () => {
     document.dispatchEvent(new Event('DOMContentLoaded', { bubbles: true, cancelable: true }));
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const rangeCheckbox = document.getElementById('range-checkbox');
     const dateInput = document.getElementById('date');
     const endDateInput = document.getElementById('end-date');
@@ -1169,6 +1170,52 @@ describe('UI Tests', () => {
     expect(nextPeriodText).toBe('6/2/2025');
     // And Next Peak for the upcoming cycle is anchored to 6/2/2025 + (14 - 1) = 6/15/2025
     expect(nextPeakText).toBe('6/15/2025');
+  });
+
+  it('should default Log Reading date and Period Start date to local calendar today even when UTC has rolled over to tomorrow', async () => {
+    // Simulate evening local time on Oct 7, 2026 while UTC is already Oct 8, 2026 (01:30Z)
+    const spyFullYear = jest.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2026);
+    const spyMonth = jest.spyOn(Date.prototype, 'getMonth').mockReturnValue(9); // October (0-indexed)
+    const spyDate = jest.spyOn(Date.prototype, 'getDate').mockReturnValue(7);
+    const spyIso = jest
+      .spyOn(Date.prototype, 'toISOString')
+      .mockReturnValue('2026-10-08T01:30:00.000Z');
+
+    try {
+      document.body.innerHTML = appHtml;
+      jest.isolateModules(() => {
+        require('../public/app.js');
+      });
+
+      document.dispatchEvent(new Event('DOMContentLoaded', { bubbles: true, cancelable: true }));
+
+      const dateInput = document.getElementById('date');
+      const periodStartInput = document.getElementById('period-start-date');
+
+      expect(dateInput.value).toBe('2026-10-07');
+      expect(periodStartInput.value).toBe('2026-10-07');
+    } finally {
+      spyFullYear.mockRestore();
+      spyMonth.mockRestore();
+      spyDate.mockRestore();
+      spyIso.mockRestore();
+    }
+  });
+
+  it('should define separate any and maskable PWA icons in manifest.json that exist in public/', () => {
+    const manifestPath = path.resolve(__dirname, '../public/manifest.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    const purposes = manifest.icons.map((i) => i.purpose);
+
+    expect(purposes).toContain('any');
+    expect(purposes).toContain('maskable');
+    expect(purposes).not.toContain('any maskable');
+
+    manifest.icons.forEach((icon) => {
+      const cleanSrc = icon.src.split('?')[0].replace(/^\//, '');
+      const fullIconPath = path.resolve(__dirname, '../public', cleanSrc);
+      expect(fs.existsSync(fullIconPath)).toBe(true);
+    });
   });
 });
 

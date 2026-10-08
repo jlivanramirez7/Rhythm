@@ -86,7 +86,11 @@ header {
 }
 
 .header-logo {
+    width: 34px;
     height: 34px;
+    object-fit: contain;
+    box-sizing: content-box;
+    flex-shrink: 0;
     background: #faf6f0;
     padding: 4px;
     border-radius: 10px;
@@ -801,6 +805,8 @@ input[type="checkbox"]:checked::after {
 
 .logo {
     width: 120px;
+    height: auto;
+    object-fit: contain;
     margin-bottom: var(--spacing-2);
 }
 
